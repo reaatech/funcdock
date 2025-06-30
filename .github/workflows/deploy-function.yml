@@ -1,0 +1,104 @@
+name: Deploy Serverless Function
+
+on:
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: 'Name of the function to deploy'
+        required: true
+        type: string
+      git_url:
+        description: 'Git repository URL'
+        required: true
+        type: string
+      branch:
+        description: 'Git branch to deploy'
+        required: false
+        default: 'main'
+        type: string
+      server_host:
+        description: 'Target server hostname'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    name: Deploy Function
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout deployment scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ inputs.server_host }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            cd /app
+            
+            # Deploy the function
+            node scripts/deploy.js --git "${{ inputs.git_url }}" --name "${{ inputs.function_name }}" --branch "${{ inputs.branch }}"
+            
+            # Verify deployment
+            sleep 2
+            curl -f http://localhost:3000/api/status || exit 1
+            
+            echo "✅ Function ${{ inputs.function_name }} deployed successfully"
+
+      - name: Notify deployment status
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          text: |
+            Function Deployment ${{ job.status }}
+            • Function: ${{ inputs.function_name }}
+            • Repository: ${{ inputs.git_url }}
+            • Branch: ${{ inputs.branch }}
+            • Server: ${{ inputs.server_host }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+---
+# Alternative workflow for automatic deployment when function repos are updated
+name: Auto Deploy Function
+
+on:
+  repository_dispatch:
+    types: [function-updated]
+
+jobs:
+  auto-deploy:
+    name: Auto Deploy Updated Function
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy updated function
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVERLESS_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            cd /app
+            
+            # Update the function using deployment metadata
+            node scripts/deploy.js --update "${{ github.event.client_payload.function_name }}"
+            
+            echo "✅ Function ${{ github.event.client_payload.function_name }} auto-updated"

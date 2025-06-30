@@ -1,0 +1,25 @@
+{
+  "base": "/webhook-handler",
+  "routes": [
+    {
+      "path": "/",
+      "methods": ["GET", "POST", "OPTIONS"]
+    },
+    {
+      "path": "/github",
+      "methods": ["POST", "OPTIONS"]
+    },
+    {
+      "path": "/stripe",
+      "methods": ["POST", "OPTIONS"]
+    },
+    {
+      "path": "/slack",
+      "methods": ["POST", "OPTIONS"]
+    },
+    {
+      "path": "/generic",
+      "methods": ["POST", "OPTIONS"]
+    }
+  ]
+}

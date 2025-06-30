@@ -1,0 +1,19 @@
+{
+  "name": "webhook-handler-function",
+  "version": "1.0.0",
+  "description": "Generic webhook handler supporting GitHub, Stripe, Slack and custom webhooks",
+  "main": "handler.js",
+  "type": "module",
+  "dependencies": {
+    "stripe": "^14.0.0"
+  },
+  "keywords": [
+    "serverless",
+    "webhook",
+    "github",
+    "stripe",
+    "slack"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  funcdock:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./functions:/app/functions
+      - ./logs:/app/logs
+      - ./utils:/app/utils
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - PORT=3000
+      # Add Slack webhook URL for alerts (optional)
+      # - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Caddy reverse proxy for production
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - funcdock
+    restart: unless-stopped
+    profiles:
+      - production
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

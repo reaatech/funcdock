@@ -1,0 +1,98 @@
+# FuncDock Caddy Configuration
+# Simple, automatic HTTPS reverse proxy
+
+# Development configuration (localhost)
+localhost {
+    reverse_proxy funcdock:3000
+
+    # Enable logging
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+
+    # Add security headers
+    header {
+        # Remove server information
+        -Server
+
+        # Add security headers
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
+
+# Production configuration (replace with your domain)
+# your-domain.com {
+#     reverse_proxy funcdock:3000
+#
+#     # Rate limiting
+#     rate_limit {
+#         zone dynamic {
+#             key {remote_host}
+#             events 100
+#             window 1m
+#         }
+#     }
+#
+#     # Compression
+#     encode gzip zstd
+#
+#     # Security headers
+#     header {
+#         -Server
+#         X-Frame-Options "SAMEORIGIN"
+#         X-Content-Type-Options "nosniff"
+#         X-XSS-Protection "1; mode=block"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#         Content-Security-Policy "default-src 'self'"
+#     }
+#
+#     # Logging
+#     log {
+#         output file /var/log/caddy/access.log {
+#             roll_size 100MiB
+#             roll_keep 5
+#             roll_keep_for 720h
+#         }
+#         format json
+#     }
+#
+#     # Handle specific paths
+#     handle /api/* {
+#         reverse_proxy funcdock:3000
+#     }
+#
+#     handle /health {
+#         reverse_proxy funcdock:3000
+#     }
+#
+#     # Function routes
+#     handle /* {
+#         reverse_proxy funcdock:3000
+#     }
+# }
+
+# Staging configuration
+# staging.your-domain.com {
+#     reverse_proxy funcdock:3000
+#
+#     # Basic auth for staging
+#     basicauth {
+#         admin $2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNqq9qKqqrr5.W..
+#     }
+#
+#     header {
+#         -Server
+#         X-Robots-Tag "noindex, nofollow"
+#     }
+# }
+
+# Health check endpoint (no auth required)
+health.your-domain.com {
+    respond /health 200
+    respond /* "Health check only" 404
+}
