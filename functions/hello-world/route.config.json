@@ -15,6 +15,21 @@
       "path": "/test",
       "handler": "test.js",
       "methods": ["GET"]
+    },
+    {
+      "path": "/users",
+      "handler": "users.js",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "path": "/users/:id",
+      "handler": "users.js",
+      "methods": ["GET", "PUT", "DELETE"]
+    },
+    {
+      "path": "/users/:id/posts/:postId",
+      "handler": "users.js",
+      "methods": ["GET"]
     }
   ]
 }

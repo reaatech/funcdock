@@ -97,6 +97,40 @@ Each route can specify its own handler file, allowing for better code organizati
 
 This allows each route to have its own dedicated handler file, making the code more modular and easier to maintain.
 
+### Dynamic Routing with Path Parameters
+
+FuncDock supports Express.js-style dynamic routing with path parameters:
+
+```json
+{
+  "base": "/my-api",
+  "routes": [
+    { "path": "/users/:id", "handler": "users.js", "methods": ["GET", "PUT", "DELETE"] },
+    { "path": "/users/:userId/posts/:postId", "handler": "posts.js", "methods": ["GET"] },
+    { "path": "/items/:category/:id", "handler": "items.js", "methods": ["GET", "POST"] }
+  ]
+}
+```
+
+**Path Parameters:**
+- `:id` - Single parameter (e.g., `/users/123`)
+- `:userId/posts/:postId` - Multiple parameters (e.g., `/users/123/posts/456`)
+- `:category/:id` - Nested parameters (e.g., `/items/electronics/789`)
+
+**Accessing Parameters in Handlers:**
+```javascript
+export default async function handler(req, res) {
+  const { params } = req;
+  const { id, userId, postId, category } = params;
+  
+  // Access path parameters
+  console.log(`User ID: ${id}`);
+  console.log(`Post ID: ${postId}`);
+  
+  // Your logic here...
+}
+```
+
 ### Built-in Logging
 
 Each function automatically receives a logger instance injected into the request object:

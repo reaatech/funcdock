@@ -130,7 +130,11 @@ const loadFunction = async (functionDir) => {
       for (const method of route.methods) {
         // Create full path with function name prefix to avoid conflicts
         const basePath = config.base || `/${functionName}`;
-        const fullPath = path.posix.join(basePath, route.path);
+        
+        // Handle dynamic routing - don't use path.join for Express routes
+        // Express routes can contain path parameters like :id, :userId, etc.
+        const routePath = route.path.startsWith('/') ? route.path : `/${route.path}`;
+        const fullPath = `${basePath}${routePath}`;
         const routeKey = `${method.toUpperCase()} ${fullPath}`;
 
         // Check for route conflicts
@@ -385,8 +389,7 @@ app.get('/api/status', (req, res) => {
       name: job.name,
       schedule: job.schedule,
       handler: job.handler,
-      timezone: job.timezone,
-      nextRun: job.task.nextDate().toISOString()
+      timezone: job.timezone
     })) || []
   }));
 
@@ -662,8 +665,7 @@ const getCronJobsStatus = () => {
       name: job.name,
       schedule: job.schedule,
       handler: job.handler,
-      timezone: job.timezone,
-      nextRun: job.task.nextDate().toISOString()
+      timezone: job.timezone
     }));
   }
   return status;

@@ -272,6 +272,16 @@ cat > "$FUNCTION_DIR/route.config.json" << EOF
       "path": "/health",
       "handler": "health.js",
       "methods": ["GET"]
+    },
+    {
+      "path": "/items/:id",
+      "handler": "items.js",
+      "methods": ["GET", "PUT", "DELETE"]
+    },
+    {
+      "path": "/users/:userId/posts/:postId",
+      "handler": "users.js",
+      "methods": ["GET"]
     }
   ]
 }
