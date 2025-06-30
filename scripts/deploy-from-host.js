@@ -9,6 +9,9 @@
  * Usage:
  *   npm run deploy-host -- --git <repo-url> --name <function-name>
  *   npm run deploy-host -- --update <function-name>
+ *   npm run deploy-host -- --update <function-name> --branch <branch>
+ *   npm run deploy-host -- --update <function-name> --commit <commit-hash>
+ *   npm run deploy-host -- --pr <repo-url> --name <function-name> --pr-number <number>
  */
 
 import fs from 'fs/promises';
@@ -42,14 +45,20 @@ function showUsage() {
   log('\nThis tool handles Git operations on the host and syncs to the container.', 'yellow');
   log('\nUsage:', 'yellow');
   log('  npm run deploy-host -- --git <repo-url> --name <function-name>', 'blue');
+  log('  npm run deploy-host -- --pr <repo-url> --name <function-name> --pr-number <number>', 'blue');
   log('  npm run deploy-host -- --update <function-name>', 'blue');
+  log('  npm run deploy-host -- --update <function-name> --branch <branch>', 'blue');
+  log('  npm run deploy-host -- --update <function-name> --commit <commit-hash>', 'blue');
   log('  npm run deploy-host -- --list', 'blue');
   log('  npm run deploy-host -- --remove <function-name>', 'blue');
 
   log('\nOptions:', 'yellow');
   log('  --git <url>       Deploy from Git repository (uses host credentials)', 'blue');
-  log('  --name <name>     Function name (required for git)', 'blue');
+  log('  --pr <url>        Deploy from a specific pull request', 'blue');
+  log('  --pr-number <n>   Pull request number (required with --pr)', 'blue');
+  log('  --name <name>     Function name (required for git/pr)', 'blue');
   log('  --branch <name>   Git branch to deploy (default: main)', 'blue');
+  log('  --commit <hash>   Deploy from specific commit hash', 'blue');
   log('  --list            List all deployed functions', 'blue');
   log('  --remove <name>   Remove a deployed function', 'blue');
   log('  --update <name>   Update an existing function from its source', 'blue');
@@ -57,7 +66,10 @@ function showUsage() {
 
   log('\nExamples:', 'yellow');
   log('  npm run deploy-host -- --git https://github.com/user/my-function.git --name my-function', 'blue');
+  log('  npm run deploy-host -- --pr https://github.com/user/my-function.git --name my-function --pr-number 123', 'blue');
   log('  npm run deploy-host -- --update my-function', 'blue');
+  log('  npm run deploy-host -- --update my-function --branch feature/new-feature', 'blue');
+  log('  npm run deploy-host -- --update my-function --commit abc123def', 'blue');
   log('  npm run deploy-host -- --remove old-function', 'blue');
   
   log('\nNote: This tool uses your host Git credentials and syncs to the container.', 'yellow');
@@ -74,11 +86,20 @@ async function parseArgs() {
       case '--git':
         options.git = args[++i];
         break;
+      case '--pr':
+        options.pr = args[++i];
+        break;
+      case '--pr-number':
+        options.prNumber = args[++i];
+        break;
       case '--name':
         options.name = args[++i];
         break;
       case '--branch':
         options.branch = args[++i] || 'main';
+        break;
+      case '--commit':
+        options.commit = args[++i];
         break;
       case '--list':
         options.list = true;
@@ -131,9 +152,14 @@ async function cleanupTempDir() {
   }
 }
 
-async function deployFromGit(gitUrl, functionName, branch = 'main') {
+async function deployFromGit(gitUrl, functionName, branch = 'main', commit = null) {
   log(`🔄 Deploying function "${functionName}" from Git: ${gitUrl}`, 'blue');
   log(`📋 Using host Git credentials for authentication`, 'yellow');
+  if (commit) {
+    log(`📌 Deploying from commit: ${commit}`, 'yellow');
+  } else {
+    log(`🌿 Using branch: ${branch}`, 'yellow');
+  }
 
   const functionPath = path.join(functionsDir, functionName);
   const tempFunctionPath = path.join(tempDir, functionName);
@@ -151,6 +177,16 @@ async function deployFromGit(gitUrl, functionName, branch = 'main') {
     // Clone the repository to temp directory (uses host credentials)
     log(`📥 Cloning repository to temp directory...`, 'blue');
     await execAsync(`git clone --branch ${branch} ${gitUrl} ${tempFunctionPath}`);
+
+    // Checkout specific commit if provided
+    if (commit) {
+      log(`🔍 Checking out commit: ${commit}`, 'blue');
+      await execAsync(`cd ${tempFunctionPath} && git checkout ${commit}`);
+    }
+
+    // Get current commit hash for metadata
+    const { stdout: currentCommit } = await execAsync(`cd ${tempFunctionPath} && git rev-parse HEAD`);
+    const commitHash = currentCommit.trim();
 
     // Validate function structure
     const missing = await validateFunction(tempFunctionPath);
@@ -175,6 +211,7 @@ async function deployFromGit(gitUrl, functionName, branch = 'main') {
       source: 'git',
       gitUrl,
       branch,
+      commit: commitHash,
       deployedAt: new Date().toISOString(),
       deployedBy: process.env.USER || 'unknown',
       deploymentMethod: 'host-based'
@@ -207,7 +244,106 @@ async function deployFromGit(gitUrl, functionName, branch = 'main') {
   }
 }
 
-async function updateFunction(functionName) {
+async function deployFromPullRequest(gitUrl, functionName, prNumber) {
+  log(`🔄 Deploying function "${functionName}" from Pull Request #${prNumber}`, 'blue');
+  log(`📋 Using host Git credentials for authentication`, 'yellow');
+
+  const functionPath = path.join(functionsDir, functionName);
+  const tempFunctionPath = path.join(tempDir, functionName);
+
+  try {
+    await ensureTempDir();
+
+    // Remove existing temp function if it exists
+    try {
+      await fs.rm(tempFunctionPath, { recursive: true, force: true });
+    } catch {
+      // Doesn't exist, that's fine
+    }
+
+    // Clone the repository to temp directory
+    log(`📥 Cloning repository to temp directory...`, 'blue');
+    await execAsync(`git clone ${gitUrl} ${tempFunctionPath}`);
+
+    // Fetch the pull request
+    log(`📥 Fetching pull request #${prNumber}...`, 'blue');
+    await execAsync(`cd ${tempFunctionPath} && git fetch origin pull/${prNumber}/head:pr-${prNumber}`);
+
+    // Checkout the pull request branch
+    log(`🔍 Checking out pull request branch...`, 'blue');
+    await execAsync(`cd ${tempFunctionPath} && git checkout pr-${prNumber}`);
+
+    // Get current commit hash for metadata
+    const { stdout: currentCommit } = await execAsync(`cd ${tempFunctionPath} && git rev-parse HEAD`);
+    const commitHash = currentCommit.trim();
+
+    // Get PR title for metadata
+    let prTitle = `PR #${prNumber}`;
+    try {
+      const { stdout: prInfo } = await execAsync(`cd ${tempFunctionPath} && git log --oneline -1`);
+      prTitle = prInfo.trim();
+    } catch {
+      // Ignore if we can't get PR title
+    }
+
+    // Validate function structure
+    const missing = await validateFunction(tempFunctionPath);
+    if (missing.length > 0) {
+      throw new Error(`Missing required files: ${missing.join(', ')}`);
+    }
+
+    // Remove existing function if it exists
+    try {
+      await fs.rm(functionPath, { recursive: true, force: true });
+      log(`🗑️  Removed existing function: ${functionName}`, 'yellow');
+    } catch {
+      // Function doesn't exist, that's fine
+    }
+
+    // Copy from temp to functions directory (this syncs to container)
+    log(`📁 Copying function to container...`, 'blue');
+    await execAsync(`cp -r "${tempFunctionPath}" "${functionPath}"`);
+
+    // Store deployment metadata
+    const metadata = {
+      source: 'pull-request',
+      gitUrl,
+      prNumber: parseInt(prNumber),
+      prTitle,
+      commit: commitHash,
+      deployedAt: new Date().toISOString(),
+      deployedBy: process.env.USER || 'unknown',
+      deploymentMethod: 'host-based'
+    };
+
+    await fs.writeFile(
+      path.join(functionPath, '.deployment.json'),
+      JSON.stringify(metadata, null, 2)
+    );
+
+    log(`✅ Successfully deployed function: ${functionName} from PR #${prNumber}`, 'green');
+    log(`🔄 Function will be automatically loaded by the container`, 'blue');
+
+    // Trigger reload via API
+    await reloadFunction(functionName);
+
+  } catch (error) {
+    log(`❌ Failed to deploy function: ${error.message}`, 'red');
+
+    // Clean up on failure
+    try {
+      await fs.rm(functionPath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+
+    throw error;
+  } finally {
+    await cleanupTempDir();
+  }
+}
+
+async function updateFunction(functionName, options = {}) {
   log(`🔄 Updating function: ${functionName}`, 'blue');
 
   const functionPath = path.join(functionsDir, functionName);
@@ -221,10 +357,21 @@ async function updateFunction(functionName) {
     const metadataContent = await fs.readFile(metadataPath, 'utf-8');
     const metadata = JSON.parse(metadataContent);
 
-    if (metadata.source === 'git') {
+    if (metadata.source === 'git' || metadata.source === 'pull-request') {
       // Update from Git
       const { gitUrl, branch = 'main' } = metadata;
-      await deployFromGit(gitUrl, functionName, branch);
+      
+      // Use provided branch/commit or fall back to original
+      const targetBranch = options.branch || branch;
+      const targetCommit = options.commit || null;
+      
+      if (targetCommit) {
+        log(`📌 Updating to specific commit: ${targetCommit}`, 'yellow');
+      } else if (options.branch && options.branch !== branch) {
+        log(`🌿 Switching from branch ${branch} to ${targetBranch}`, 'yellow');
+      }
+      
+      await deployFromGit(gitUrl, functionName, targetBranch, targetCommit);
     } else {
       log(`⚠️  Cannot update function with source: ${metadata.source}`, 'yellow');
       log(`   Use the original deployment method for this function.`, 'yellow');
@@ -303,7 +450,14 @@ async function listFunctions() {
 
       if (metadata.gitUrl) {
         log(`   Git URL: ${metadata.gitUrl}`, 'blue');
-        log(`   Branch: ${metadata.branch || 'main'}`, 'blue');
+        if (metadata.source === 'pull-request') {
+          log(`   PR #${metadata.prNumber}: ${metadata.prTitle}`, 'blue');
+        } else {
+          log(`   Branch: ${metadata.branch || 'main'}`, 'blue');
+        }
+        if (metadata.commit) {
+          log(`   Commit: ${metadata.commit.substring(0, 8)}`, 'blue');
+        }
       }
 
       if (metadata.deploymentMethod) {
@@ -356,12 +510,20 @@ async function main() {
     } else if (options.remove) {
       await removeFunction(options.remove);
     } else if (options.update) {
-      await updateFunction(options.update);
+      const updateOptions = {};
+      if (options.branch) updateOptions.branch = options.branch;
+      if (options.commit) updateOptions.commit = options.commit;
+      await updateFunction(options.update, updateOptions);
     } else if (options.git) {
       if (!options.name) {
         throw new Error('Function name is required when deploying from Git');
       }
-      await deployFromGit(options.git, options.name, options.branch);
+      await deployFromGit(options.git, options.name, options.branch, options.commit);
+    } else if (options.pr) {
+      if (!options.name || !options.prNumber) {
+        throw new Error('Function name and pull request number are required when deploying from a pull request');
+      }
+      await deployFromPullRequest(options.pr, options.name, options.prNumber);
     } else {
       log('❌ Invalid options. Use --help for usage information.', 'red');
       process.exit(1);

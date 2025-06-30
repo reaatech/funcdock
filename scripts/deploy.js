@@ -32,16 +32,22 @@ function showUsage() {
   log('\n📦 FuncDock Function Deployment Tool', 'blue');
   log('\nUsage:', 'yellow');
   log('  npm run deploy -- --git <repo-url> --name <function-name>', 'blue');
+  log('  npm run deploy -- --pr <repo-url> --name <function-name> --pr-number <number>', 'blue');
   log('  npm run deploy -- --local <local-path> --name <function-name>', 'blue');
   log('  npm run deploy -- --list', 'blue');
   log('  npm run deploy -- --remove <function-name>', 'blue');
   log('  npm run deploy -- --update <function-name>', 'blue');
+  log('  npm run deploy -- --update <function-name> --branch <branch>', 'blue');
+  log('  npm run deploy -- --update <function-name> --commit <commit-hash>', 'blue');
 
   log('\nOptions:', 'yellow');
   log('  --git <url>       Deploy from Git repository', 'blue');
+  log('  --pr <url>        Deploy from a specific pull request', 'blue');
+  log('  --pr-number <n>   Pull request number (required with --pr)', 'blue');
   log('  --local <path>    Deploy from local directory', 'blue');
-  log('  --name <name>     Function name (required for git/local)', 'blue');
+  log('  --name <name>     Function name (required for git/pr/local)', 'blue');
   log('  --branch <name>   Git branch to deploy (default: main)', 'blue');
+  log('  --commit <hash>   Deploy from specific commit hash', 'blue');
   log('  --list            List all deployed functions', 'blue');
   log('  --remove <name>   Remove a deployed function', 'blue');
   log('  --update <name>   Update an existing function from its source', 'blue');
@@ -49,8 +55,11 @@ function showUsage() {
 
   log('\nExamples:', 'yellow');
   log('  npm run deploy -- --git https://github.com/user/my-function.git --name my-function', 'blue');
+  log('  npm run deploy -- --pr https://github.com/user/my-function.git --name my-function --pr-number 123', 'blue');
   log('  npm run deploy -- --local ./local-function --name local-func', 'blue');
   log('  npm run deploy -- --update my-function', 'blue');
+  log('  npm run deploy -- --update my-function --branch feature/new-feature', 'blue');
+  log('  npm run deploy -- --update my-function --commit abc123def', 'blue');
   log('  npm run deploy -- --remove old-function', 'blue');
 }
 
@@ -65,6 +74,12 @@ async function parseArgs() {
       case '--git':
         options.git = args[++i];
         break;
+      case '--pr':
+        options.pr = args[++i];
+        break;
+      case '--pr-number':
+        options.prNumber = args[++i];
+        break;
       case '--local':
         options.local = args[++i];
         break;
@@ -73,6 +88,9 @@ async function parseArgs() {
         break;
       case '--branch':
         options.branch = args[++i] || 'main';
+        break;
+      case '--commit':
+        options.commit = args[++i];
         break;
       case '--list':
         options.list = true;
@@ -108,8 +126,13 @@ async function validateFunction(functionPath) {
   return missing;
 }
 
-async function deployFromGit(gitUrl, functionName, branch = 'main') {
+async function deployFromGit(gitUrl, functionName, branch = 'main', commit = null) {
   log(`🔄 Deploying function "${functionName}" from Git: ${gitUrl}`, 'blue');
+  if (commit) {
+    log(`📌 Deploying from commit: ${commit}`, 'yellow');
+  } else {
+    log(`🌿 Using branch: ${branch}`, 'yellow');
+  }
 
   const functionPath = path.join(functionsDir, functionName);
 
@@ -126,6 +149,16 @@ async function deployFromGit(gitUrl, functionName, branch = 'main') {
     log(`📥 Cloning repository...`, 'blue');
     await execAsync(`git clone --branch ${branch} ${gitUrl} ${functionPath}`);
 
+    // Checkout specific commit if provided
+    if (commit) {
+      log(`🔍 Checking out commit: ${commit}`, 'blue');
+      await execAsync(`cd ${functionPath} && git checkout ${commit}`);
+    }
+
+    // Get current commit hash for metadata
+    const { stdout: currentCommit } = await execAsync(`cd ${functionPath} && git rev-parse HEAD`);
+    const commitHash = currentCommit.trim();
+
     // Validate function structure
     const missing = await validateFunction(functionPath);
     if (missing.length > 0) {
@@ -141,6 +174,7 @@ async function deployFromGit(gitUrl, functionName, branch = 'main') {
       source: 'git',
       gitUrl,
       branch,
+      commit: commitHash,
       deployedAt: new Date().toISOString(),
       deployedBy: process.env.USER || 'unknown'
     };
@@ -151,6 +185,90 @@ async function deployFromGit(gitUrl, functionName, branch = 'main') {
     );
 
     log(`✅ Successfully deployed function: ${functionName}`, 'green');
+
+    // Trigger reload
+    await reloadFunction(functionName);
+
+  } catch (error) {
+    log(`❌ Failed to deploy function: ${error.message}`, 'red');
+
+    // Clean up on failure
+    try {
+      await fs.rm(functionPath, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+
+    throw error;
+  }
+}
+
+async function deployFromPullRequest(gitUrl, functionName, prNumber) {
+  log(`🔄 Deploying function "${functionName}" from Pull Request #${prNumber}`, 'blue');
+
+  const functionPath = path.join(functionsDir, functionName);
+
+  try {
+    // Remove existing function if it exists
+    try {
+      await fs.rm(functionPath, { recursive: true, force: true });
+      log(`🗑️  Removed existing function: ${functionName}`, 'yellow');
+    } catch {
+      // Function doesn't exist, that's fine
+    }
+
+    // Clone the repository
+    log(`📥 Cloning repository...`, 'blue');
+    await execAsync(`git clone ${gitUrl} ${functionPath}`);
+
+    // Fetch the pull request
+    log(`📥 Fetching pull request #${prNumber}...`, 'blue');
+    await execAsync(`cd ${functionPath} && git fetch origin pull/${prNumber}/head:pr-${prNumber}`);
+
+    // Checkout the pull request branch
+    log(`🔍 Checking out pull request branch...`, 'blue');
+    await execAsync(`cd ${functionPath} && git checkout pr-${prNumber}`);
+
+    // Get current commit hash for metadata
+    const { stdout: currentCommit } = await execAsync(`cd ${functionPath} && git rev-parse HEAD`);
+    const commitHash = currentCommit.trim();
+
+    // Get PR title for metadata
+    let prTitle = `PR #${prNumber}`;
+    try {
+      const { stdout: prInfo } = await execAsync(`cd ${functionPath} && git log --oneline -1`);
+      prTitle = prInfo.trim();
+    } catch {
+      // Ignore if we can't get PR title
+    }
+
+    // Validate function structure
+    const missing = await validateFunction(functionPath);
+    if (missing.length > 0) {
+      throw new Error(`Missing required files: ${missing.join(', ')}`);
+    }
+
+    // Install dependencies
+    log(`📦 Installing dependencies...`, 'blue');
+    await execAsync('npm install', { cwd: functionPath });
+
+    // Store deployment metadata
+    const metadata = {
+      source: 'pull-request',
+      gitUrl,
+      prNumber: parseInt(prNumber),
+      prTitle,
+      commit: commitHash,
+      deployedAt: new Date().toISOString(),
+      deployedBy: process.env.USER || 'unknown'
+    };
+
+    await fs.writeFile(
+      path.join(functionPath, '.deployment.json'),
+      JSON.stringify(metadata, null, 2)
+    );
+
+    log(`✅ Successfully deployed function: ${functionName} from PR #${prNumber}`, 'green');
 
     // Trigger reload
     await reloadFunction(functionName);
@@ -225,7 +343,7 @@ async function deployFromLocal(localPath, functionName) {
   }
 }
 
-async function updateFunction(functionName) {
+async function updateFunction(functionName, options = {}) {
   log(`🔄 Updating function: ${functionName}`, 'blue');
 
   const functionPath = path.join(functionsDir, functionName);
@@ -239,10 +357,21 @@ async function updateFunction(functionName) {
     const metadataContent = await fs.readFile(metadataPath, 'utf-8');
     const metadata = JSON.parse(metadataContent);
 
-    if (metadata.source === 'git') {
+    if (metadata.source === 'git' || metadata.source === 'pull-request') {
       // Update from Git
       const { gitUrl, branch = 'main' } = metadata;
-      await deployFromGit(gitUrl, functionName, branch);
+      
+      // Use provided branch/commit or fall back to original
+      const targetBranch = options.branch || branch;
+      const targetCommit = options.commit || null;
+      
+      if (targetCommit) {
+        log(`📌 Updating to specific commit: ${targetCommit}`, 'yellow');
+      } else if (options.branch && options.branch !== branch) {
+        log(`🌿 Switching from branch ${branch} to ${targetBranch}`, 'yellow');
+      }
+      
+      await deployFromGit(gitUrl, functionName, targetBranch, targetCommit);
     } else if (metadata.source === 'local') {
       log(`⚠️  Cannot auto-update local function. Use --local to redeploy.`, 'yellow');
     } else {
@@ -322,7 +451,14 @@ async function listFunctions() {
 
       if (metadata.gitUrl) {
         log(`   Git URL: ${metadata.gitUrl}`, 'blue');
-        log(`   Branch: ${metadata.branch || 'main'}`, 'blue');
+        if (metadata.source === 'pull-request') {
+          log(`   PR #${metadata.prNumber}: ${metadata.prTitle}`, 'blue');
+        } else {
+          log(`   Branch: ${metadata.branch || 'main'}`, 'blue');
+        }
+        if (metadata.commit) {
+          log(`   Commit: ${metadata.commit.substring(0, 8)}`, 'blue');
+        }
       }
 
       if (metadata.localPath) {
@@ -375,12 +511,20 @@ async function main() {
     } else if (options.remove) {
       await removeFunction(options.remove);
     } else if (options.update) {
-      await updateFunction(options.update);
+      const updateOptions = {};
+      if (options.branch) updateOptions.branch = options.branch;
+      if (options.commit) updateOptions.commit = options.commit;
+      await updateFunction(options.update, updateOptions);
     } else if (options.git) {
       if (!options.name) {
         throw new Error('Function name is required when deploying from Git');
       }
-      await deployFromGit(options.git, options.name, options.branch);
+      await deployFromGit(options.git, options.name, options.branch, options.commit);
+    } else if (options.pr) {
+      if (!options.name || !options.prNumber) {
+        throw new Error('Function name and pull request number are required when deploying from a pull request');
+      }
+      await deployFromPullRequest(options.pr, options.name, options.prNumber);
     } else if (options.local) {
       if (!options.name) {
         throw new Error('Function name is required when deploying from local');
