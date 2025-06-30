@@ -67,6 +67,7 @@ cat > "$FUNCTION_DIR/handler.js" << EOF
 
 export default async function handler(req, res) {
   const { method, query, body, headers } = req;
+  const { logger } = req; // Get the injected logger
 
   // Add CORS headers for browser requests
   res.header('Access-Control-Allow-Origin', '*');
@@ -78,8 +79,12 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Log the request (optional, remove if not needed)
-  console.log(\`\${method} /\${req.functionName}\${req.path} - \${new Date().toISOString()}\`);
+  // Log the request
+  logger.info(\`Request received: \${method} \${req.routePath}\`, {
+    query,
+    hasBody: !!body,
+    userAgent: headers['user-agent']
+  });
 
   try {
     switch (method) {
@@ -104,15 +109,15 @@ export default async function handler(req, res) {
           timestamp: new Date().toISOString()
         });
     }
-  } catch (error) {
-    console.error(\`Error in \${req.functionName}:\`, error);
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message,
-      function: '$FUNCTION_NAME',
-      timestamp: new Date().toISOString()
-    });
-  }
+      } catch (error) {
+      logger.error(\`Error in \${req.functionName}:\`, error);
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message,
+        function: '$FUNCTION_NAME',
+        timestamp: new Date().toISOString()
+      });
+    }
 }
 
 async function handleGet(req, res) {

@@ -5,6 +5,14 @@
 
 export default async function handler(req, res) {
   const { method, query, body, headers } = req;
+  const { logger } = req; // Get the injected logger
+
+  // Log the incoming request
+  logger.info(`Request received: ${method} ${req.routePath}`, {
+    query,
+    hasBody: !!body,
+    userAgent: headers['user-agent']
+  });
 
   // Add CORS headers for browser requests
   res.header('Access-Control-Allow-Origin', '*');
@@ -30,6 +38,7 @@ export default async function handler(req, res) {
       return handleDelete(req, res);
 
     default:
+      logger.warn(`Unsupported method: ${method}`, { supportedMethods: ['GET', 'POST', 'PUT', 'DELETE'] });
       return res.status(405).json({
         error: 'Method Not Allowed',
         method,
@@ -41,6 +50,9 @@ export default async function handler(req, res) {
 
 async function handleGet(req, res) {
   const { name = 'World', format = 'json' } = req.query;
+  const { logger } = req;
+
+  logger.info(`Processing GET request`, { name, format });
 
   const responseData = {
     message: `Hello, ${name}!`,
@@ -86,9 +98,13 @@ async function handleGet(req, res) {
 
 async function handlePost(req, res) {
   const { name, message } = req.body || {};
+  const { logger } = req;
+
+  logger.info(`Processing POST request`, { hasName: !!name, hasMessage: !!message });
 
   // Validate required fields
   if (!name) {
+    logger.warn(`POST request missing required field: name`, { body: req.body });
     return res.status(400).json({
       error: 'Bad Request',
       message: 'Name is required in request body',

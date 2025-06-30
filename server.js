@@ -160,16 +160,24 @@ const loadFunction = async (functionDir) => {
         const methodLower = method.toLowerCase();
 
         app[methodLower](fullPath, async (req, res) => {
+          // Create function-specific logger
+          const functionLogger = new Logger({
+            logLevel: process.env.LOG_LEVEL || 'info',
+            logToFile: true,
+            logToConsole: true
+          });
+
           // Add function context to request
           req.functionName = functionName;
           req.functionPath = functionDir;
           req.routePath = route.path;
           req.routeHandler = routeHandler;
+          req.logger = functionLogger; // Inject logger into request
 
           try {
             await routeHandlerFunction(req, res);
           } catch (err) {
-            logger.error(`Error in ${fullPath} (${functionName}/${routeHandler}): ${err.message}`);
+            functionLogger.error(`Error in ${fullPath} (${functionName}/${routeHandler}): ${err.message}`);
 
             // Only send response if not already sent
             if (!res.headersSent) {

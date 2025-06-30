@@ -96,14 +96,51 @@ Each route can specify its own handler file, allowing for better code organizati
 
 This allows each route to have its own dedicated handler file, making the code more modular and easier to maintain.
 
+### Built-in Logging
+
+Each function automatically receives a logger instance injected into the request object:
+
+```javascript
+export default async function handler(req, res) {
+  const { logger } = req; // Get the injected logger
+  
+  // Log at different levels
+  logger.info('Processing request', { method: req.method });
+  logger.warn('Deprecated feature used');
+  logger.error('Something went wrong', { error: err.message });
+  logger.debug('Debug information', { data: someData });
+}
+```
+
+**Available Log Levels:**
+- `logger.info()` - General information
+- `logger.warn()` - Warnings
+- `logger.error()` - Errors
+- `logger.debug()` - Debug information (only in debug mode)
+
+**Log Features:**
+- Automatic function context in logs
+- Structured logging with metadata
+- File and console output
+- Log rotation and management
+- Configurable log levels
+
 ### Example Function
 
 **handler.js:**
 ```javascript
 export default async function handler(req, res) {
   const { method, body, query } = req;
+  const { logger } = req; // Get the injected logger
+  
+  // Log the incoming request
+  logger.info(`Request received: ${method} ${req.routePath}`, {
+    query,
+    hasBody: !!body
+  });
   
   if (method === 'GET') {
+    logger.info(`Processing GET request`, { name: query.name });
     return res.status(200).json({
       message: `Hello, ${query.name || 'World'}!`,
       timestamp: new Date().toISOString()
@@ -111,12 +148,14 @@ export default async function handler(req, res) {
   }
   
   if (method === 'POST') {
+    logger.info(`Processing POST request`, { dataSize: JSON.stringify(body).length });
     return res.status(201).json({
       message: 'Created successfully',
       data: body
     });
   }
   
+  logger.warn(`Unsupported method: ${method}`);
   return res.status(405).json({ error: 'Method Not Allowed' });
 }
 ```
