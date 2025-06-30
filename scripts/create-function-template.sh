@@ -252,6 +252,7 @@ log $GREEN "✅ Created package.json"
 cat > "$FUNCTION_DIR/route.config.json" << EOF
 {
   "base": "/$FUNCTION_NAME",
+  "handler": "handler.js",
   "routes": [
     {
       "path": "/",
@@ -259,10 +260,12 @@ cat > "$FUNCTION_DIR/route.config.json" << EOF
     },
     {
       "path": "/status",
+      "handler": "status.js",
       "methods": ["GET"]
     },
     {
       "path": "/health",
+      "handler": "health.js",
       "methods": ["GET"]
     }
   ]

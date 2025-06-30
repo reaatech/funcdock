@@ -1,5 +1,6 @@
 {
   "base": "/webhook-handler",
+  "handler": "handler.js",
   "routes": [
     {
       "path": "/",
@@ -7,18 +8,22 @@
     },
     {
       "path": "/github",
+      "handler": "github.js",
       "methods": ["POST", "OPTIONS"]
     },
     {
       "path": "/stripe",
+      "handler": "stripe.js",
       "methods": ["POST", "OPTIONS"]
     },
     {
       "path": "/slack",
+      "handler": "slack.js",
       "methods": ["POST", "OPTIONS"]
     },
     {
       "path": "/generic",
+      "handler": "generic.js",
       "methods": ["POST", "OPTIONS"]
     }
   ]

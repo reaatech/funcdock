@@ -70,10 +70,31 @@ Create functions in the `functions/` directory:
 ```
 functions/
   my-function/
-    handler.js           # Main function code
+    handler.js           # Main function code (default)
     package.json         # Dependencies
     route.config.json    # Routing configuration
 ```
+
+**Note:** You can specify a custom handler file in `route.config.json` using the `handler` field. If not specified, it defaults to `handler.js`.
+
+### Per-Route Handler Files
+
+Each route can specify its own handler file, allowing for better code organization:
+
+```json
+{
+  "base": "/my-api",
+  "handler": "handler.js",  // Default handler for routes without specific handler
+  "routes": [
+    { "path": "/", "methods": ["GET", "POST"] },
+    { "path": "/users", "handler": "users.js", "methods": ["GET", "POST", "PUT"] },
+    { "path": "/auth", "handler": "auth.js", "methods": ["POST"] },
+    { "path": "/webhook", "handler": "webhook.js", "methods": ["POST"] }
+  ]
+}
+```
+
+This allows each route to have its own dedicated handler file, making the code more modular and easier to maintain.
 
 ### Example Function
 
@@ -104,9 +125,11 @@ export default async function handler(req, res) {
 ```json
 {
   "base": "/my-function",
+  "handler": "handler.js",
   "routes": [
     { "path": "/", "methods": ["GET", "POST"] },
-    { "path": "/status", "methods": ["GET"] }
+    { "path": "/status", "handler": "status.js", "methods": ["GET"] },
+    { "path": "/api", "handler": "api.js", "methods": ["GET", "POST"] }
   ]
 }
 ```

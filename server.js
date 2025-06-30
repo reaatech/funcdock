@@ -81,11 +81,24 @@ const unregisterFunctionRoutes = (functionName) => {
 const loadFunction = async (functionDir) => {
   const functionName = path.basename(functionDir);
   const configPath = path.join(functionDir, 'route.config.json');
-  const handlerPath = path.join(functionDir, 'handler.js');
 
   try {
-    // Check if required files exist
+    // Check if config file exists
     await fs.access(configPath);
+
+    // Read and parse config first to get handler path
+    const configRaw = await fs.readFile(configPath, 'utf-8');
+    const config = JSON.parse(configRaw);
+
+    // Validate config
+    if (!config.routes || !Array.isArray(config.routes)) {
+      throw new Error('Invalid route.config.json: routes array is required');
+    }
+
+    // Determine handler path (default to handler.js, but allow custom path)
+    const handlerPath = path.join(functionDir, config.handler || 'handler.js');
+    
+    // Check if handler file exists
     await fs.access(handlerPath);
 
     // Install dependencies if needed
@@ -93,15 +106,6 @@ const loadFunction = async (functionDir) => {
     if (!depsInstalled) {
       logger.alert(`Skipping function ${functionName} due to dependency installation failure`);
       return false;
-    }
-
-    // Read and parse config
-    const configRaw = await fs.readFile(configPath, 'utf-8');
-    const config = JSON.parse(configRaw);
-
-    // Validate config
-    if (!config.routes || !Array.isArray(config.routes)) {
-      throw new Error('Invalid route.config.json: routes array is required');
     }
 
     // Clear existing routes for this function
@@ -134,6 +138,24 @@ const loadFunction = async (functionDir) => {
           return false;
         }
 
+        // Determine handler for this specific route
+        const routeHandler = route.handler || config.handler || 'handler.js';
+        const routeHandlerPath = path.join(functionDir, routeHandler);
+        
+        // Load the specific handler for this route
+        let routeHandlerFunction;
+        try {
+          const routeHandlerModule = await import(`${routeHandlerPath}?update=${Date.now()}`);
+          routeHandlerFunction = routeHandlerModule.default;
+          
+          if (typeof routeHandlerFunction !== 'function') {
+            throw new Error(`Handler in ${routeHandler} must export a default function`);
+          }
+        } catch (error) {
+          logger.error(`Failed to load handler ${routeHandler} for route ${fullPath}: ${error.message}`);
+          return false;
+        }
+
         // Register the route
         const methodLower = method.toLowerCase();
 
@@ -141,17 +163,21 @@ const loadFunction = async (functionDir) => {
           // Add function context to request
           req.functionName = functionName;
           req.functionPath = functionDir;
+          req.routePath = route.path;
+          req.routeHandler = routeHandler;
 
           try {
-            await handler(req, res);
+            await routeHandlerFunction(req, res);
           } catch (err) {
-            logger.error(`Error in ${fullPath} (${functionName}): ${err.message}`);
+            logger.error(`Error in ${fullPath} (${functionName}/${routeHandler}): ${err.message}`);
 
             // Only send response if not already sent
             if (!res.headersSent) {
               res.status(500).json({
                 error: "Internal Server Error",
                 function: functionName,
+                handler: routeHandler,
+                route: route.path,
                 timestamp: new Date().toISOString()
               });
             }
@@ -159,8 +185,12 @@ const loadFunction = async (functionDir) => {
         });
 
         registeredRoutes.set(routeKey, functionName);
-        functionRoutes.push({ method: method.toUpperCase(), path: fullPath });
-        logger.info(`Registered ${method.toUpperCase()} ${fullPath} -> ${functionName}/handler.js`);
+        functionRoutes.push({ 
+          method: method.toUpperCase(), 
+          path: fullPath, 
+          handler: routeHandler 
+        });
+        logger.info(`Registered ${method.toUpperCase()} ${fullPath} -> ${functionName}/${routeHandler}`);
       }
     }
 
@@ -263,14 +293,50 @@ const setupFileWatcher = () => {
       logger.info(`File changed: ${filePath}`);
       debounceReload(functionName);
     })
-    .on('unlink', (filePath) => {
+    .on('unlink', async (filePath) => {
       const functionName = path.relative(functionsDir, filePath).split(path.sep)[0];
       logger.info(`File removed: ${filePath}`);
 
       // If it's a critical file, unload the function
       const fileName = path.basename(filePath);
-      if (['handler.js', 'route.config.json'].includes(fileName)) {
+      if (['route.config.json'].includes(fileName)) {
         unloadFunction(functionName);
+      } else if (fileName.endsWith('.js')) {
+        // Check if this is any handler file for this function
+        try {
+          const functionPath = path.join(functionsDir, functionName);
+          const configPath = path.join(functionPath, 'route.config.json');
+          const configRaw = await fs.readFile(configPath, 'utf-8');
+          const config = JSON.parse(configRaw);
+          
+          // Check if this file is used as a handler in any route
+          let isHandlerFile = false;
+          
+          // Check default handler
+          const defaultHandlerPath = path.join(functionPath, config.handler || 'handler.js');
+          if (filePath === defaultHandlerPath) {
+            isHandlerFile = true;
+          }
+          
+          // Check route-specific handlers
+          if (config.routes) {
+            for (const route of config.routes) {
+              const routeHandler = route.handler || config.handler || 'handler.js';
+              const routeHandlerPath = path.join(functionPath, routeHandler);
+              if (filePath === routeHandlerPath) {
+                isHandlerFile = true;
+                break;
+              }
+            }
+          }
+          
+          if (isHandlerFile) {
+            unloadFunction(functionName);
+          }
+        } catch (error) {
+          // If we can't read the config, just reload the function
+          debounceReload(functionName);
+        }
       }
     })
     .on('addDir', (dirPath) => {

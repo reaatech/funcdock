@@ -1,5 +1,6 @@
 {
   "base": "/hello-world",
+  "handler": "handler.js",
   "routes": [
   {
     "path": "/",
@@ -7,10 +8,12 @@
   },
   {
     "path": "/greet",
+    "handler": "greet.js",
     "methods": ["GET", "POST"]
   },
   {
     "path": "/test",
+    "handler": "test.js",
     "methods": ["GET"]
   }
 ]
