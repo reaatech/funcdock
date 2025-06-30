@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import chokidar from 'chokidar';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import cron from 'node-cron';
 import Logger from './utils/logger.js';
 
 const execAsync = promisify(exec);
@@ -18,6 +19,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Global state
 const loadedFunctions = new Map();
 const registeredRoutes = new Map();
+const activeCronJobs = new Map(); // Track active cron jobs
 const logger = new Logger();
 
 // Helper function to clear module cache (ES modules don't have require.cache)
@@ -202,6 +204,9 @@ const loadFunction = async (functionDir) => {
       }
     }
 
+    // Load cron jobs for this function
+    await loadCronJobs(functionDir);
+
     // Store function info
     loadedFunctions.set(functionName, {
       config,
@@ -224,6 +229,7 @@ const loadFunction = async (functionDir) => {
 const unloadFunction = (functionName) => {
   if (loadedFunctions.has(functionName)) {
     unregisterFunctionRoutes(functionName);
+    stopCronJobs(functionName);
     loadedFunctions.delete(functionName);
     logger.info(`Unloaded function: ${functionName}`);
   }
@@ -307,7 +313,7 @@ const setupFileWatcher = () => {
 
       // If it's a critical file, unload the function
       const fileName = path.basename(filePath);
-      if (['route.config.json'].includes(fileName)) {
+      if (['route.config.json', 'cron.json'].includes(fileName)) {
         unloadFunction(functionName);
       } else if (fileName.endsWith('.js')) {
         // Check if this is any handler file for this function
@@ -374,14 +380,23 @@ app.get('/api/status', (req, res) => {
     name,
     routes: info.routes,
     loadedAt: info.loadedAt,
-    routeCount: info.routes.length
+    routeCount: info.routes.length,
+    cronJobs: activeCronJobs.get(name)?.map(job => ({
+      name: job.name,
+      schedule: job.schedule,
+      handler: job.handler,
+      timezone: job.timezone,
+      nextRun: job.task.nextDate().toISOString()
+    })) || []
   }));
 
   res.json({
     status: 'running',
     functionsLoaded: loadedFunctions.size,
     routesRegistered: registeredRoutes.size,
+    cronJobsActive: Array.from(activeCronJobs.values()).flat().length,
     functions,
+    cronJobs: getCronJobsStatus(),
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
@@ -468,6 +483,12 @@ const initializeServer = async () => {
   process.on('SIGTERM', () => {
     logger.info('SIGTERM received, shutting down gracefully...');
     watcher.close();
+    
+    // Stop all cron jobs
+    for (const [functionName] of activeCronJobs.entries()) {
+      stopCronJobs(functionName);
+    }
+    
     server.close(() => {
       logger.info('Server closed');
       process.exit(0);
@@ -477,6 +498,12 @@ const initializeServer = async () => {
   process.on('SIGINT', () => {
     logger.info('SIGINT received, shutting down gracefully...');
     watcher.close();
+    
+    // Stop all cron jobs
+    for (const [functionName] of activeCronJobs.entries()) {
+      stopCronJobs(functionName);
+    }
+    
     server.close(() => {
       logger.info('Server closed');
       process.exit(0);
@@ -489,3 +516,155 @@ initializeServer().catch(error => {
   logger.error(`Failed to initialize server: ${error.message}`);
   process.exit(1);
 });
+
+// Cron job management
+const loadCronJobs = async (functionDir) => {
+  const functionName = path.basename(functionDir);
+  const cronConfigPath = path.join(functionDir, 'cron.json');
+
+  try {
+    // Check if cron.json exists
+    await fs.access(cronConfigPath);
+    
+    // Read and parse cron config
+    const cronConfigRaw = await fs.readFile(cronConfigPath, 'utf-8');
+    const cronConfig = JSON.parse(cronConfigRaw);
+
+    // Validate cron config
+    if (!cronConfig.jobs || !Array.isArray(cronConfig.jobs)) {
+      throw new Error('Invalid cron.json: jobs array is required');
+    }
+
+    // Stop existing cron jobs for this function
+    stopCronJobs(functionName);
+
+    const functionCronJobs = [];
+
+    for (const job of cronConfig.jobs) {
+      // Validate job config
+      if (!job.schedule || !job.handler) {
+        logger.error(`Invalid cron job in ${functionName}: schedule and handler are required`);
+        continue;
+      }
+
+      // Validate cron schedule
+      if (!cron.validate(job.schedule)) {
+        logger.error(`Invalid cron schedule in ${functionName}: ${job.schedule}`);
+        continue;
+      }
+
+      // Determine handler path
+      const handlerPath = path.join(functionDir, job.handler);
+      
+      try {
+        await fs.access(handlerPath);
+      } catch (error) {
+        logger.error(`Cron handler not found in ${functionName}: ${job.handler}`);
+        continue;
+      }
+
+      // Create function-specific logger for cron jobs
+      const cronLogger = new Logger({
+        logLevel: process.env.LOG_LEVEL || 'info',
+        logToFile: true,
+        logToConsole: true
+      });
+
+      // Schedule the cron job
+      const cronTask = cron.schedule(job.schedule, async () => {
+        try {
+          // Import handler with cache busting
+          const handlerModule = await import(`${handlerPath}?update=${Date.now()}`);
+          const handler = handlerModule.default;
+
+          if (typeof handler !== 'function') {
+            throw new Error(`Cron handler ${job.handler} must export a default function`);
+          }
+
+          // Create mock request and response objects for cron context
+          const mockReq = {
+            functionName,
+            functionPath: functionDir,
+            cronJob: job.name || 'unnamed',
+            schedule: job.schedule,
+            logger: cronLogger,
+            timestamp: new Date().toISOString()
+          };
+
+          const mockRes = {
+            status: (code) => ({
+              json: (data) => {
+                cronLogger.info(`Cron job ${job.name || 'unnamed'} completed with status ${code}`, data);
+              }
+            }),
+            json: (data) => {
+              cronLogger.info(`Cron job ${job.name || 'unnamed'} completed`, data);
+            }
+          };
+
+          // Execute the cron handler
+          await handler(mockReq, mockRes);
+          
+          cronLogger.info(`Cron job executed successfully: ${functionName}/${job.handler} (${job.schedule})`);
+        } catch (error) {
+          cronLogger.error(`Cron job failed: ${functionName}/${job.handler} - ${error.message}`);
+        }
+      }, {
+        scheduled: false, // Don't start immediately
+        timezone: job.timezone || 'UTC'
+      });
+
+      // Start the cron job
+      cronTask.start();
+
+      functionCronJobs.push({
+        name: job.name || 'unnamed',
+        schedule: job.schedule,
+        handler: job.handler,
+        timezone: job.timezone || 'UTC',
+        task: cronTask
+      });
+
+      logger.info(`Scheduled cron job: ${functionName}/${job.handler} (${job.schedule})`);
+    }
+
+    // Store cron jobs for this function
+    activeCronJobs.set(functionName, functionCronJobs);
+    
+    logger.info(`Loaded ${functionCronJobs.length} cron jobs for function: ${functionName}`);
+    return true;
+
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      // No cron.json file, which is fine
+      return true;
+    }
+    logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
+    return false;
+  }
+};
+
+const stopCronJobs = (functionName) => {
+  if (activeCronJobs.has(functionName)) {
+    const jobs = activeCronJobs.get(functionName);
+    jobs.forEach(job => {
+      job.task.stop();
+      logger.info(`Stopped cron job: ${functionName}/${job.handler}`);
+    });
+    activeCronJobs.delete(functionName);
+  }
+};
+
+const getCronJobsStatus = () => {
+  const status = {};
+  for (const [functionName, jobs] of activeCronJobs.entries()) {
+    status[functionName] = jobs.map(job => ({
+      name: job.name,
+      schedule: job.schedule,
+      handler: job.handler,
+      timezone: job.timezone,
+      nextRun: job.task.nextDate().toISOString()
+    }));
+  }
+  return status;
+};

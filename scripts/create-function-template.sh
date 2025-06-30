@@ -279,6 +279,71 @@ EOF
 
 log $GREEN "✅ Created route.config.json"
 
+# Create cron.json (optional)
+cat > "$FUNCTION_DIR/cron.json" << EOF
+{
+  "jobs": [
+    {
+      "name": "example-job",
+      "schedule": "0 */6 * * *",
+      "handler": "cron-handler.js",
+      "timezone": "UTC",
+      "description": "Example cron job that runs every 6 hours"
+    }
+  ]
+}
+EOF
+
+log $GREEN "✅ Created cron.json (optional - remove if not needed)"
+
+# Create cron-handler.js (optional)
+cat > "$FUNCTION_DIR/cron-handler.js" << EOF
+/**
+ * Cron job handler for $FUNCTION_NAME function
+ * This handler is called by scheduled cron jobs
+ */
+
+export default async (req, res) => {
+  const { logger, cronJob, schedule, timestamp } = req;
+  
+  logger.info(\`Cron job started: \${cronJob}\`, {
+    schedule,
+    timestamp,
+    functionName: req.functionName
+  });
+
+  try {
+    // Implement your scheduled task logic here
+    const result = {
+      message: \`Cron job \${cronJob} executed successfully\`,
+      function: '$FUNCTION_NAME',
+      timestamp,
+      schedule
+    };
+    
+    logger.info(\`Cron job completed: \${cronJob}\`, result);
+    
+    res.json({
+      success: true,
+      job: cronJob,
+      result
+    });
+    
+  } catch (error) {
+    logger.error(\`Cron job failed: \${cronJob}\`, { error: error.message });
+    
+    res.status(500).json({
+      success: false,
+      job: cronJob,
+      error: error.message,
+      timestamp
+    });
+  }
+};
+EOF
+
+log $GREEN "✅ Created cron-handler.js (optional - remove if not needed)"
+
 # Create README.md for the function
 cat > "$FUNCTION_DIR/README.md" << EOF
 # $FUNCTION_NAME Function
@@ -297,6 +362,15 @@ This is a serverless function template for the $FUNCTION_NAME service.
 - \`DELETE /$FUNCTION_NAME/?id=<id>\` - Delete a resource
 - \`GET /$FUNCTION_NAME/status\` - Get function status
 - \`GET /$FUNCTION_NAME/health\` - Health check
+
+## Cron Jobs
+
+This function includes an example cron job configuration:
+
+- \`cron.json\` - Defines scheduled jobs
+- \`cron-handler.js\` - Handles cron job execution
+
+The example job runs every 6 hours. Modify or remove these files if you don't need scheduled tasks.
 
 ## Example Usage
 
