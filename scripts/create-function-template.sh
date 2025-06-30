@@ -354,6 +354,250 @@ EOF
 
 log $GREEN "✅ Created cron-handler.js (optional - remove if not needed)"
 
+# Create test file
+cat > "$FUNCTION_DIR/handler.test.js" << EOF
+/**
+ * Test file for $FUNCTION_NAME handler
+ * 
+ * This demonstrates how to test FuncDock functions using Jest and Nock
+ */
+
+import { 
+  testHandler, 
+  expectStatus, 
+  expectResponseFields,
+  mockEnvVars,
+  nock
+} from '../../test/setup.js';
+
+// Import the handler to test
+import handler from './handler.js';
+
+describe('$FUNCTION_NAME Handler', () => {
+  // Mock environment variables for testing
+  mockEnvVars({
+    NODE_ENV: 'test',
+    LOG_LEVEL: 'error'
+  });
+
+  describe('GET requests', () => {
+    it('should return successful response for GET requests', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'GET',
+        query: { id: 'test-123' }
+      });
+
+      expectStatus(res, 200);
+      expectResponseFields(res.body, {
+        message: 'GET request successful',
+        function: '$FUNCTION_NAME'
+      });
+      expect(res.body.data).toMatchObject({
+        id: 'test-123',
+        status: 'active',
+        version: '1.0.0'
+      });
+    });
+
+    it('should handle GET requests without ID parameter', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'GET'
+      });
+
+      expectStatus(res, 200);
+      expect(res.body.data.id).toBe('no-id-provided');
+    });
+  });
+
+  describe('POST requests', () => {
+    it('should create a resource successfully', async () => {
+      const testData = { name: 'Test Item', value: 42 };
+      
+      const { res } = await testHandler(handler, {
+        method: 'POST',
+        body: testData
+      });
+
+      expectStatus(res, 201);
+      expectResponseFields(res.body, {
+        message: 'Resource created successfully',
+        function: '$FUNCTION_NAME'
+      });
+      expect(res.body.data).toMatchObject(testData);
+      expect(res.body.data).toHaveProperty('id');
+      expect(res.body.data).toHaveProperty('createdAt');
+    });
+
+    it('should return 400 for empty POST body', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'POST',
+        body: {}
+      });
+
+      expectStatus(res, 400);
+      expectResponseFields(res.body, {
+        error: 'Bad Request',
+        message: 'Request body is required'
+      });
+    });
+  });
+
+  describe('PUT requests', () => {
+    it('should update a resource successfully', async () => {
+      const updateData = { name: 'Updated Item', status: 'modified' };
+      
+      const { res } = await testHandler(handler, {
+        method: 'PUT',
+        query: { id: '123' },
+        body: updateData
+      });
+
+      expectStatus(res, 200);
+      expectResponseFields(res.body, {
+        message: 'Resource 123 updated successfully',
+        function: '$FUNCTION_NAME'
+      });
+      expect(res.body.data).toMatchObject({
+        id: '123',
+        ...updateData
+      });
+      expect(res.body.data).toHaveProperty('updatedAt');
+    });
+
+    it('should return 400 when no ID is provided', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'PUT',
+        body: { name: 'Test' }
+      });
+
+      expectStatus(res, 400);
+      expectResponseFields(res.body, {
+        error: 'Bad Request',
+        message: 'ID parameter is required for updates'
+      });
+    });
+  });
+
+  describe('DELETE requests', () => {
+    it('should delete a resource successfully', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'DELETE',
+        query: { id: '123' }
+      });
+
+      expectStatus(res, 200);
+      expectResponseFields(res.body, {
+        message: 'Resource 123 deleted successfully',
+        function: '$FUNCTION_NAME'
+      });
+      expect(res.body.data).toMatchObject({
+        id: '123'
+      });
+      expect(res.body.data).toHaveProperty('deletedAt');
+    });
+
+    it('should return 400 when no ID is provided for deletion', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'DELETE'
+      });
+
+      expectStatus(res, 400);
+      expectResponseFields(res.body, {
+        error: 'Bad Request',
+        message: 'ID parameter is required for deletion'
+      });
+    });
+  });
+
+  describe('OPTIONS requests', () => {
+    it('should handle preflight requests', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'OPTIONS'
+      });
+
+      expectStatus(res, 200);
+      expect(res.headersSent).toBe(true);
+    });
+  });
+
+  describe('Unsupported methods', () => {
+    it('should return 405 for unsupported methods', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'PATCH'
+      });
+
+      expectStatus(res, 405);
+      expectResponseFields(res.body, {
+        error: 'Method Not Allowed',
+        method: 'PATCH'
+      });
+      expect(res.body.supportedMethods).toContain('GET');
+      expect(res.body.supportedMethods).toContain('POST');
+    });
+  });
+
+  describe('Logging', () => {
+    it('should log request information', async () => {
+      const { req } = await testHandler(handler, {
+        method: 'GET',
+        query: { id: 'test-123' }
+      });
+
+      const logs = req.logger.getLogs();
+      expect(logs.info.length).toBeGreaterThan(0);
+      
+      // Check that request was logged
+      const requestLog = logs.info.find(log => 
+        log.message.includes('Request received')
+      );
+      expect(requestLog).toBeDefined();
+    });
+  });
+
+  describe('HTTP mocking with Nock', () => {
+    it('should handle external API calls', async () => {
+      // Mock an external API call
+      nock('https://api.example.com')
+        .get('/data/123')
+        .reply(200, {
+          id: '123',
+          name: 'Test Data',
+          value: 42
+        });
+
+      // Create a handler that makes external API calls
+      const apiHandler = async (req, res) => {
+        const response = await fetch('https://api.example.com/data/123');
+        const data = await response.json();
+        
+        res.json({
+          message: 'External data retrieved',
+          data,
+          function: req.functionName
+        });
+      };
+
+      const { res } = await testHandler(apiHandler, {
+        method: 'GET'
+      });
+
+      expectStatus(res, 200);
+      expectResponseFields(res.body, {
+        message: 'External data retrieved',
+        function: 'test-function'
+      });
+      expect(res.body.data).toMatchObject({
+        id: '123',
+        name: 'Test Data',
+        value: 42
+      });
+    });
+  });
+});
+EOF
+
+log $GREEN "✅ Created handler.test.js"
+
 # Create README.md for the function
 cat > "$FUNCTION_DIR/README.md" << EOF
 # $FUNCTION_NAME Function
@@ -408,6 +652,39 @@ curl -X DELETE http://localhost:3000/$FUNCTION_NAME/?id=123
 2. Add dependencies to \`package.json\` if needed
 3. Update \`route.config.json\` if you need different routes
 4. The function will auto-reload when you save changes
+
+## Testing
+
+This function includes comprehensive test coverage using Jest and Nock:
+
+- \`handler.test.js\` - Unit tests for the main handler
+- Tests cover all HTTP methods (GET, POST, PUT, DELETE, OPTIONS)
+- Includes HTTP mocking for external API calls
+- Tests error handling and edge cases
+- Validates logging and response formats
+
+### Running Tests
+
+\`\`\`bash
+# Run all tests
+npm test
+
+# Run tests for this function only
+npm run test:functions
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+\`\`\`
+
+### Test Structure
+
+- **Unit Tests**: Test individual handler functions in isolation
+- **Integration Tests**: Test external API interactions using Nock
+- **Error Handling**: Test various error scenarios
+- **Logging**: Verify that requests are properly logged
 
 ## Environment Variables
 

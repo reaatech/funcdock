@@ -123,11 +123,31 @@ docker-logs: ## Show Docker container logs
 	@docker-compose logs -f
 
 # Testing
-test: ## Run tests
-	@echo "🧪 Running tests..."
+test: ## Run all tests with Jest
+	@echo "🧪 Running all tests..."
 	@npm test
 
-test-functions: ## Test all deployed functions
+test-watch: ## Run tests in watch mode
+	@echo "👀 Running tests in watch mode..."
+	@npm run test:watch
+
+test-coverage: ## Run tests with coverage report
+	@echo "📊 Running tests with coverage..."
+	@npm run test:coverage
+
+test-functions: ## Run tests for functions only
+	@echo "🧪 Testing functions only..."
+	@npm run test:functions
+
+test-unit: ## Run unit tests only
+	@echo "🧪 Running unit tests..."
+	@npm run test:unit
+
+test-integration: ## Run integration tests only
+	@echo "🧪 Running integration tests..."
+	@npm run test:integration
+
+test-functions-integration: ## Test all deployed functions (integration tests)
 	@echo "🧪 Testing all deployed functions..."
 	@chmod +x scripts/test-functions.sh
 	@./scripts/test-functions.sh

@@ -57,6 +57,7 @@ export default async function handler(req, res) {
 }
 
 async function handleGet(req, res) {
+  const { logger } = req;
   const { params } = req;
   const { id, postId } = params;
 
@@ -110,6 +111,7 @@ async function handleGet(req, res) {
 }
 
 async function handlePost(req, res) {
+  const { logger } = req;
   const { params, body } = req;
   const { id } = params;
 
@@ -140,6 +142,7 @@ async function handlePost(req, res) {
 }
 
 async function handlePut(req, res) {
+  const { logger } = req;
   const { params, body } = req;
   const { id } = params;
 
@@ -177,6 +180,7 @@ async function handlePut(req, res) {
 }
 
 async function handleDelete(req, res) {
+  const { logger } = req;
   const { params } = req;
   const { id } = params;
 

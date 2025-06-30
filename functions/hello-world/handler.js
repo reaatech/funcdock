@@ -26,16 +26,16 @@ export default async function handler(req, res) {
 
   switch (method) {
     case 'GET':
-      return handleGet(req, res);
+      return await handleGet(req, res);
 
     case 'POST':
-      return handlePost(req, res);
+      return await handlePost(req, res);
 
     case 'PUT':
-      return handlePut(req, res);
+      return await handlePut(req, res);
 
     case 'DELETE':
-      return handleDelete(req, res);
+      return await handleDelete(req, res);
 
     default:
       logger.warn(`Unsupported method: ${method}`, { supportedMethods: ['GET', 'POST', 'PUT', 'DELETE'] });

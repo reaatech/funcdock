@@ -449,7 +449,160 @@ export default async (req, res) => {
 
 ## 🧪 Testing
 
-### Test All Functions
+### Unit Testing with Jest and Nock
+
+FuncDock provides comprehensive testing capabilities using Jest and Nock for mocking external APIs.
+
+#### Test Structure
+
+Each function can include test files that follow this pattern:
+
+```
+functions/
+  my-function/
+    handler.js           # Main function code
+    handler.test.js      # Unit tests for handler
+    users.js             # Custom handler for /users route
+    users.test.js        # Tests for users handler
+    cron-handler.js      # Cron job handler
+    cron-handler.test.js # Tests for cron handler
+```
+
+#### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests for functions only
+npm run test:functions
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+```
+
+#### Test Utilities
+
+The testing framework provides several utilities in `test/setup.js`:
+
+```javascript
+import { 
+  testHandler,           // Test a handler function
+  createMockRequest,     // Create mock request object
+  createMockResponse,    // Create mock response object
+  expectStatus,          // Assert response status
+  expectResponseFields,  // Assert response fields
+  mockEnvVars,          // Mock environment variables
+  nock                  // HTTP mocking library
+} from '../../test/setup.js';
+```
+
+#### Example Test File
+
+```javascript
+// handler.test.js
+import { testHandler, expectStatus, expectResponseFields, nock } from '../../test/setup.js';
+import handler from './handler.js';
+
+describe('My Function Handler', () => {
+  describe('GET requests', () => {
+    it('should return successful response', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'GET',
+        query: { id: '123' }
+      });
+
+      expectStatus(res, 200);
+      expectResponseFields(res.body, {
+        message: 'Success',
+        function: 'my-function'
+      });
+    });
+  });
+
+  describe('External API calls', () => {
+    it('should handle external API calls', async () => {
+      // Mock external API
+      nock('https://api.example.com')
+        .get('/users/123')
+        .reply(200, { id: '123', name: 'John' });
+
+      const { res } = await testHandler(handler, {
+        method: 'GET',
+        query: { userId: '123' }
+      });
+
+      expectStatus(res, 200);
+      expect(res.body.data.name).toBe('John');
+    });
+  });
+});
+```
+
+#### Testing Features
+
+- ✅ **Isolated Testing**: Each function can be tested independently
+- ✅ **HTTP Mocking**: Nock integration for external API testing
+- ✅ **Mock Objects**: Pre-built request/response mocks
+- ✅ **Environment Mocking**: Easy environment variable mocking
+- ✅ **Logging Testing**: Verify logging behavior
+- ✅ **Error Testing**: Test error handling scenarios
+- ✅ **Coverage Reports**: Generate test coverage reports
+- ✅ **Watch Mode**: Automatic test re-runs on file changes
+
+#### Testing Dynamic Routes
+
+```javascript
+// users.test.js - Testing dynamic routing
+describe('Users Handler', () => {
+  it('should handle path parameters', async () => {
+    const { res } = await testHandler(handler, {
+      method: 'GET',
+      params: { id: '123', postId: '456' }
+    });
+
+    expectStatus(res, 200);
+    expect(res.body.data).toMatchObject({
+      userId: '123',
+      postId: '456'
+    });
+  });
+});
+```
+
+#### Testing Cron Jobs
+
+```javascript
+// cron-handler.test.js
+describe('Cron Handler', () => {
+  it('should handle scheduled tasks', async () => {
+    const { res } = await testHandler(handler, {
+      method: 'POST',
+      body: {
+        cronJob: 'daily-backup',
+        schedule: '0 2 * * *',
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    expectStatus(res, 200);
+    expect(res.body.data.tasksCompleted).toContain('Database backup');
+  });
+});
+```
+
+### Integration Testing
+
+#### Test All Functions
 ```bash
 # Run comprehensive test suite
 make test-functions
@@ -461,7 +614,7 @@ VERBOSE=true ./scripts/test-functions.sh
 ./scripts/test-functions.sh --url http://production.com --verbose
 ```
 
-### Manual Testing
+#### Manual Testing
 ```bash
 # Test example functions
 make example-test

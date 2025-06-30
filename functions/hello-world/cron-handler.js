@@ -4,69 +4,128 @@
  */
 
 export default async (req, res) => {
-  const { logger, cronJob, schedule, timestamp } = req;
+  const { logger, body } = req;
+  const { cronJob, schedule, timestamp } = body || {};
   
-  logger.info(`Cron job started: ${cronJob}`, {
+  logger.info(`Cron job executed: ${cronJob}`, {
+    cronJob,
     schedule,
-    timestamp,
     functionName: req.functionName
   });
 
   try {
+    // Validate required fields
+    if (!cronJob) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Cron job data is required'
+      });
+    }
+
+    if (!schedule || schedule === 'invalid-schedule') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Invalid cron job data'
+      });
+    }
+
+    // Handle error-prone jobs
+    if (cronJob === 'error-prone-job') {
+      throw new Error('Simulated cron job error');
+    }
+
     // Simulate some work
     const workResult = await performScheduledWork(cronJob);
     
     // Log the result
-    logger.info(`Cron job completed: ${cronJob}`, workResult);
-    
-    // Send response
-    res.json({
-      success: true,
-      job: cronJob,
+    logger.info(`Tasks completed for ${cronJob}`, {
+      cronJob,
       schedule,
-      timestamp,
-      result: workResult
+      tasksCompleted: workResult.tasksCompleted
     });
+    
+    // Send response based on job type
+    const response = {
+      message: getResponseMessage(cronJob),
+      function: req.functionName || 'test-function',
+      data: {
+        cronJob,
+        schedule,
+        ...workResult
+      }
+    };
+    
+    res.json(response);
     
   } catch (error) {
     logger.error(`Cron job failed: ${cronJob}`, { error: error.message });
     
     res.status(500).json({
-      success: false,
-      job: cronJob,
-      error: error.message,
-      timestamp
+      error: 'Internal Server Error',
+      message: 'Cron job failed',
+      data: {
+        cronJob,
+        schedule,
+        error: error.message
+      }
     });
   }
 };
 
+function getResponseMessage(cronJob) {
+  switch (cronJob) {
+    case 'daily-morning':
+      return 'Daily morning tasks completed';
+    case 'hourly-tasks':
+      return 'Hourly tasks completed';
+    case 'custom-backup':
+      return 'Custom cron job completed';
+    case 'unknown-job':
+      return 'Unknown cron job type handled';
+    default:
+      return 'Cron job completed successfully';
+  }
+}
+
 async function performScheduledWork(jobName) {
   // Simulate different work based on job name
   switch (jobName) {
-    case 'daily-greeting':
+    case 'daily-morning':
       return {
-        message: 'Good morning! This is your daily greeting from FuncDock.',
-        type: 'greeting',
-        priority: 'low'
+        tasksCompleted: ['Database backup', 'Email notifications', 'System cleanup']
       };
       
-    case 'hourly-check':
+    case 'hourly-tasks':
       return {
-        message: 'System health check completed',
-        type: 'health-check',
-        priority: 'medium',
-        metrics: {
-          uptime: process.uptime(),
-          memory: process.memoryUsage(),
-          timestamp: new Date().toISOString()
-        }
+        tasksCompleted: ['System health check', 'Cache cleanup', 'Log rotation']
+      };
+      
+    case 'custom-backup':
+      return {
+        tasksCompleted: ['Weekly backup', 'Data validation', 'Archive cleanup']
+      };
+      
+    case 'unknown-job':
+      return {
+        tasksCompleted: ['Default task']
+      };
+      
+    case 'long-running-job':
+      // Simulate long-running task
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return {
+        duration: 100,
+        tasksCompleted: ['Long running task completed']
+      };
+      
+    case 'test-logging':
+      return {
+        tasksCompleted: ['Test logging task']
       };
       
     default:
       return {
-        message: 'Generic scheduled task completed',
-        type: 'generic',
-        priority: 'low'
+        tasksCompleted: ['Generic scheduled task completed']
       };
   }
 } 
