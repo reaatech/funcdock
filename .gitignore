@@ -85,3 +85,4 @@ functions/*/.deployment.json
 tmp/
 temp/
 *.tmp
+.temp-deploy/

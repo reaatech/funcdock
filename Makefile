@@ -48,6 +48,7 @@ deploy-help: ## Show deployment help
 	@echo "📦 Function Deployment Commands:"
 	@echo "  make deploy-git REPO=<repo-url> NAME=<function-name> [BRANCH=<branch>]"
 	@echo "  make deploy-local PATH=<local-path> NAME=<function-name>"
+	@echo "  make deploy-host-git REPO=<repo-url> NAME=<function-name> [BRANCH=<branch>]"
 	@echo "  make list-functions"
 	@echo "  make update-function NAME=<function-name>"
 	@echo "  make remove-function NAME=<function-name>"
@@ -67,6 +68,14 @@ deploy-local: ## Deploy function from local directory
 	fi
 	@echo "📦 Deploying $(NAME) from $(PATH)..."
 	@node scripts/deploy.js --local "$(PATH)" --name "$(NAME)"
+
+deploy-host-git: ## Deploy function from Git using host credentials
+	@if [ -z "$(REPO)" ] || [ -z "$(NAME)" ]; then \
+		echo "❌ Usage: make deploy-host-git REPO=<repo-url> NAME=<function-name> [BRANCH=<branch>]"; \
+		exit 1; \
+	fi
+	@echo "🏠 Deploying $(NAME) from $(REPO) using host Git credentials..."
+	@node scripts/deploy-from-host.js --git "$(REPO)" --name "$(NAME)" $(if $(BRANCH),--branch "$(BRANCH)")
 
 list-functions: ## List all deployed functions
 	@echo "📋 Listing functions..."

@@ -197,12 +197,21 @@ make create-function NAME=my-api
 
 ### Deploy Functions
 
-#### From Git Repository
+#### From Git Repository (Host-based - Recommended)
 ```bash
-# Using Make
+# Using Make (uses your host Git credentials)
+make deploy-host-git REPO=https://github.com/user/my-function.git NAME=my-function
+
+# Using deployment script (uses your host Git credentials)
+npm run deploy-host -- --git https://github.com/user/my-function.git --name my-function --branch main
+```
+
+#### From Git Repository (Container-based)
+```bash
+# Using Make (requires Git credentials in container)
 make deploy-git REPO=https://github.com/user/my-function.git NAME=my-function
 
-# Using deployment script
+# Using deployment script (requires Git credentials in container)
 npm run deploy -- --git https://github.com/user/my-function.git --name my-function --branch main
 ```
 
@@ -214,6 +223,25 @@ make deploy-local PATH=./my-local-function NAME=my-function
 # Using deployment script
 npm run deploy -- --local ./my-local-function --name my-function
 ```
+
+### Deployment Methods Explained
+
+#### Host-based Deployment (Recommended)
+- **Use when**: Deploying from private Git repositories or when you have SSH keys/Git credentials on your host
+- **How it works**: 
+  1. Clones/pulls from Git on your host machine (using your credentials)
+  2. Copies the function to the container's mounted volume
+  3. Triggers automatic reload
+- **Commands**: `make deploy-host-git` or `npm run deploy-host`
+- **Benefits**: Uses your existing Git setup, works with private repos, no credential management needed
+
+#### Container-based Deployment
+- **Use when**: Deploying from public repositories or when you want to manage credentials in the container
+- **How it works**: 
+  1. Executes Git operations inside the container
+  2. Requires Git credentials to be configured in the container
+- **Commands**: `make deploy-git` or `npm run deploy`
+- **Benefits**: Self-contained, works in CI/CD environments
 
 #### Update Existing Function
 ```bash

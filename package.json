@@ -12,6 +12,7 @@
     "error-logs": "tail -f logs/error.log",
     "setup": "node scripts/setup.js",
     "deploy": "node scripts/deploy.js",
+    "deploy-host": "node scripts/deploy-from-host.js",
     "status": "curl -s http://localhost:3000/api/status | jq",
     "reload": "curl -X POST -H 'Content-Type: application/json' http://localhost:3000/api/reload",
     "docker:build": "docker build -t funcdock .",
