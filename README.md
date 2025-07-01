@@ -17,7 +17,7 @@
 
 # 🚀 FuncDock — The Ultimate Node.js FaaS Platform
 
-> **The first serverless platform with INSTANT hot reload, per-route handlers, real-time dashboards, and production-grade testing — all your functions in one blazing-fast container.**
+> **The first serverless platform with INSTANT hot reload, CI/CD deployments, per-route handlers, real-time dashboards, and production-grade testing — all your functions in one blazing-fast container.**
 
 ---
 
