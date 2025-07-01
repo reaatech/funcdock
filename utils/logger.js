@@ -12,6 +12,7 @@ class Logger {
     this.logDir = options.logDir || path.join(__dirname, '..', 'logs');
     this.maxLogSize = options.maxLogSize || 10 * 1024 * 1024; // 10MB
     this.maxLogFiles = options.maxLogFiles || 5;
+    this.functionName = options.functionName || null;
 
     this.levels = {
       error: 0,
@@ -76,8 +77,21 @@ class Logger {
     if (!this.logToFile) return;
 
     try {
-      const logFile = path.join(this.logDir, `app.log`);
-      const errorLogFile = path.join(this.logDir, `error.log`);
+      // Create function-specific log files if functionName is provided
+      let logFile, errorLogFile;
+      
+      if (this.functionName) {
+        // Function-specific logs
+        const functionLogDir = path.join(this.logDir, 'functions');
+        await fs.mkdir(functionLogDir, { recursive: true });
+        
+        logFile = path.join(functionLogDir, `${this.functionName}.log`);
+        errorLogFile = path.join(functionLogDir, `${this.functionName}-error.log`);
+      } else {
+        // System-wide logs
+        logFile = path.join(this.logDir, `app.log`);
+        errorLogFile = path.join(this.logDir, `error.log`);
+      }
 
       // Write to main log file
       await fs.appendFile(logFile, formattedMessage + '\n');
@@ -287,13 +301,22 @@ class Logger {
   }
 
   // Get recent logs
-  async getRecentLogs(lines = 100) {
+  async getRecentLogs(lines = 100, functionName = null) {
     if (!this.logToFile) {
       return { error: 'File logging is disabled' };
     }
 
     try {
-      const logFile = path.join(this.logDir, 'app.log');
+      let logFile;
+      
+      if (functionName) {
+        // Function-specific logs
+        const functionLogDir = path.join(this.logDir, 'functions');
+        logFile = path.join(functionLogDir, `${functionName}.log`);
+      } else {
+        // System-wide logs
+        logFile = path.join(this.logDir, 'app.log');
+      }
       
       // Validate path to prevent directory traversal
       const resolvedPath = path.resolve(logFile);
@@ -314,13 +337,22 @@ class Logger {
   }
 
   // Get error logs
-  async getErrorLogs(lines = 50) {
+  async getErrorLogs(lines = 50, functionName = null) {
     if (!this.logToFile) {
       return { error: 'File logging is disabled' };
     }
 
     try {
-      const errorLogFile = path.join(this.logDir, 'error.log');
+      let errorLogFile;
+      
+      if (functionName) {
+        // Function-specific error logs
+        const functionLogDir = path.join(this.logDir, 'functions');
+        errorLogFile = path.join(functionLogDir, `${functionName}-error.log`);
+      } else {
+        // System-wide error logs
+        errorLogFile = path.join(this.logDir, 'error.log');
+      }
       
       // Validate path to prevent directory traversal
       const resolvedPath = path.resolve(errorLogFile);
@@ -334,6 +366,79 @@ class Logger {
       return {
         total: logLines.length,
         lines: logLines.slice(-lines)
+      };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  // Get function-specific logs
+  async getFunctionLogs(functionName, lines = 100) {
+    return this.getRecentLogs(lines, functionName);
+  }
+
+  // Get function-specific error logs
+  async getFunctionErrorLogs(functionName, lines = 50) {
+    return this.getErrorLogs(lines, functionName);
+  }
+
+  // Get all function log files
+  async getFunctionLogFiles() {
+    if (!this.logToFile) {
+      return { error: 'File logging is disabled' };
+    }
+
+    try {
+      const functionLogDir = path.join(this.logDir, 'functions');
+      
+      // Check if function log directory exists
+      try {
+        await fs.access(functionLogDir);
+      } catch {
+        return { functions: [] };
+      }
+      
+      const files = await fs.readdir(functionLogDir);
+      const functionLogs = [];
+      
+      // Group by function name (remove -error suffix)
+      const functionMap = new Map();
+      
+      for (const file of files) {
+        if (file.endsWith('.log')) {
+          const functionName = file.replace('-error.log', '').replace('.log', '');
+          
+          if (!functionMap.has(functionName)) {
+            functionMap.set(functionName, {
+              name: functionName,
+              hasMainLog: false,
+              hasErrorLog: false,
+              mainLogSize: 0,
+              errorLogSize: 0
+            });
+          }
+          
+          const func = functionMap.get(functionName);
+          const filePath = path.join(functionLogDir, file);
+          
+          try {
+            const stats = await fs.stat(filePath);
+            
+            if (file.endsWith('-error.log')) {
+              func.hasErrorLog = true;
+              func.errorLogSize = stats.size;
+            } else {
+              func.hasMainLog = true;
+              func.mainLogSize = stats.size;
+            }
+          } catch (error) {
+            // File might not exist or be accessible
+          }
+        }
+      }
+      
+      return {
+        functions: Array.from(functionMap.values())
       };
     } catch (error) {
       return { error: error.message };

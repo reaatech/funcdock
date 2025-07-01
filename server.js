@@ -6,15 +6,115 @@ import chokidar from 'chokidar';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import cron from 'node-cron';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import morgan from 'morgan';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import multer from 'multer';
+import rateLimit from 'express-rate-limit';
+import { body, validationResult } from 'express-validator';
 import Logger from './utils/logger.js';
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Environment variables
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 
 // Middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+app.use(compression());
+app.use(cors());
+app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+app.use('/api/', limiter);
+
+// Serve static files for dashboard with proper MIME types
+app.use('/dashboard', express.static(path.join(__dirname, 'public/dashboard'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    } else if (path.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html');
+    }
+  }
+}));
+
+// JWT Authentication middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Socket.IO authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error'));
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return next(new Error('Authentication error'));
+    }
+    socket.user = user;
+    next();
+  });
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
 
 // Global state
 const loadedFunctions = new Map();
@@ -170,7 +270,8 @@ const loadFunction = async (functionDir) => {
           const functionLogger = new Logger({
             logLevel: process.env.LOG_LEVEL || 'info',
             logToFile: true,
-            logToConsole: true
+            logToConsole: true,
+            functionName: functionName // Pass function name to logger
           });
 
           // Add function context to request
@@ -213,11 +314,22 @@ const loadFunction = async (functionDir) => {
 
     // Store function info
     loadedFunctions.set(functionName, {
+      name: functionName,
       config,
       handler,
       routes: functionRoutes,
       loadedAt: new Date(),
-      functionDir
+      lastDeployed: new Date().toISOString(),
+      status: 'running',
+      path: functionDir
+    });
+
+    // Emit socket event for function loaded
+    io.emit('function:loaded', { 
+      name: functionName, 
+      status: 'running',
+      routes: functionRoutes.length,
+      cronJobs: activeCronJobs.has(functionName) ? activeCronJobs.get(functionName).length : 0
     });
 
     logger.info(`Successfully loaded function: ${functionName} with ${functionRoutes.length} routes`);
@@ -235,6 +347,10 @@ const unloadFunction = (functionName) => {
     unregisterFunctionRoutes(functionName);
     stopCronJobs(functionName);
     loadedFunctions.delete(functionName);
+    
+    // Emit socket event for function unloaded
+    io.emit('function:unloaded', { name: functionName });
+    
     logger.info(`Unloaded function: ${functionName}`);
   }
 };
@@ -438,6 +554,467 @@ app.post('/api/reload', async (req, res) => {
   }
 });
 
+// Authentication routes
+app.post('/api/auth/login', [
+  body('username').notEmpty().withMessage('Username is required'),
+  body('password').notEmpty().withMessage('Password is required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg });
+  }
+
+  const { username, password } = req.body;
+
+  try {
+    // Simple admin authentication (in production, use a database)
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      const token = jwt.sign(
+        { username, role: 'admin' },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({
+        token,
+        user: { username, role: 'admin' }
+      });
+    } else {
+      res.status(401).json({ message: 'Invalid credentials' });
+    }
+  } catch (error) {
+    logger.error(`Login error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.post('/api/auth/logout', authenticateToken, (req, res) => {
+  // In a real app, you might want to blacklist the token
+  res.json({ message: 'Logged out successfully' });
+});
+
+// Dashboard API routes
+app.get('/api/status', authenticateToken, (req, res) => {
+  const functions = Array.from(loadedFunctions.values()).map(func => ({
+    name: func.name,
+    status: func.status || 'running',
+    routes: func.routes || [],
+    cronJobs: activeCronJobs.has(func.name) ? activeCronJobs.get(func.name).length : 0,
+    lastDeployed: func.lastDeployed || new Date().toISOString()
+  }));
+
+  res.json({
+    status: 'running',
+    uptime: process.uptime(),
+    functions,
+    totalFunctions: loadedFunctions.size,
+    totalRoutes: registeredRoutes.size,
+    totalCronJobs: Array.from(activeCronJobs.values()).flat().length
+  });
+});
+
+app.get('/api/functions', authenticateToken, (req, res) => {
+  const functions = Array.from(loadedFunctions.values()).map(func => ({
+    name: func.name,
+    status: func.status || 'running',
+    routes: func.routes || [],
+    cronJobs: activeCronJobs.has(func.name) ? activeCronJobs.get(func.name).length : 0,
+    lastDeployed: func.lastDeployed || new Date().toISOString()
+  }));
+
+  res.json({ functions });
+});
+
+app.get('/api/functions/:name', authenticateToken, async (req, res) => {
+  const { name } = req.params;
+  const func = loadedFunctions.get(name);
+
+  if (!func) {
+    return res.status(404).json({ message: 'Function not found' });
+  }
+
+  // Read route.config.json to get base URL
+  let baseUrl = '';
+  try {
+    const configPath = path.join(func.path, 'route.config.json');
+    const configRaw = await fs.readFile(configPath, 'utf-8');
+    const config = JSON.parse(configRaw);
+    baseUrl = config.base || '';
+  } catch (e) {
+    baseUrl = '';
+  }
+
+  // Read cron.json to get cron job details
+  let cronJobDetails = [];
+  try {
+    const cronPath = path.join(func.path, 'cron.json');
+    const cronRaw = await fs.readFile(cronPath, 'utf-8');
+    const cronConfig = JSON.parse(cronRaw);
+    if (Array.isArray(cronConfig.jobs)) {
+      cronJobDetails = cronConfig.jobs.map(job => ({
+        schedule: job.schedule,
+        handler: job.handler,
+        description: job.description || ''
+      }));
+    }
+  } catch (e) {
+    cronJobDetails = [];
+  }
+
+  const functionData = {
+    name: func.name,
+    status: func.status || 'running',
+    routes: func.routes || [],
+    cronJobs: cronJobDetails,
+    lastDeployed: func.lastDeployed || new Date().toISOString(),
+    path: func.path,
+    baseUrl
+  };
+
+  res.json(functionData);
+});
+
+// File upload configuration for function deployment
+const upload = multer({
+  dest: 'temp/',
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 20 // Max 20 files
+  }
+});
+
+app.post('/api/functions/deploy/local', authenticateToken, upload.array('files'), async (req, res) => {
+  try {
+    const { name } = req.body;
+    const files = req.files;
+
+    if (!name || !files || files.length === 0) {
+      return res.status(400).json({ message: 'Function name and files are required' });
+    }
+
+    // Create function directory
+    const functionDir = path.join(__dirname, 'functions', name);
+    await fs.mkdir(functionDir, { recursive: true });
+
+    // Move uploaded files to function directory
+    for (const file of files) {
+      const destPath = path.join(functionDir, file.originalname);
+      await fs.rename(file.path, destPath);
+    }
+
+    // Load the function
+    const success = await loadFunction(functionDir);
+    
+    if (success) {
+      // Emit socket event
+      io.emit('function:deployed', { name, status: 'running' });
+      
+      res.json({ 
+        message: 'Function deployed successfully',
+        function: { name, status: 'running' }
+      });
+    } else {
+      res.status(500).json({ message: 'Failed to deploy function' });
+    }
+  } catch (error) {
+    logger.error(`Deployment error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.delete('/api/functions/:name', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    
+    // Unload function
+    unloadFunction(name);
+    
+    // Remove function directory
+    const functionDir = path.join(__dirname, 'functions', name);
+    await fs.rm(functionDir, { recursive: true, force: true });
+    
+    // Emit socket event
+    io.emit('function:deleted', { name });
+    
+    res.json({ message: 'Function deleted successfully' });
+  } catch (error) {
+    logger.error(`Delete function error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Update function
+app.put('/api/functions/:name', authenticateToken, upload.array('files'), async (req, res) => {
+  try {
+    const { name } = req.params;
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ message: 'Files are required' });
+    }
+
+    const functionDir = path.join(__dirname, 'functions', name);
+    
+    // Check if function exists
+    if (!loadedFunctions.has(name)) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    // Move uploaded files to function directory
+    for (const file of files) {
+      const destPath = path.join(functionDir, file.originalname);
+      await fs.rename(file.path, destPath);
+    }
+
+    // Reload the function
+    const success = await loadFunction(functionDir);
+    
+    if (success) {
+      // Emit socket event
+      io.emit('function:updated', { name, status: 'running' });
+      
+      res.json({ 
+        message: 'Function updated successfully',
+        function: { name, status: 'running' }
+      });
+    } else {
+      res.status(500).json({ message: 'Failed to update function' });
+    }
+  } catch (error) {
+    logger.error(`Update function error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Deploy function from Git
+app.post('/api/functions/deploy/git', authenticateToken, async (req, res) => {
+  try {
+    const { name, repo, branch = 'main', commit } = req.body;
+
+    if (!name || !repo) {
+      return res.status(400).json({ message: 'Function name and repository URL are required' });
+    }
+
+    const functionDir = path.join(__dirname, 'functions', name);
+    
+    // Clone or pull the repository
+    const gitCommand = commit 
+      ? `git clone -b ${branch} ${repo} ${functionDir} && cd ${functionDir} && git checkout ${commit}`
+      : `git clone -b ${branch} ${repo} ${functionDir}`;
+
+    await execAsync(gitCommand);
+
+    // Load the function
+    const success = await loadFunction(functionDir);
+    
+    if (success) {
+      // Emit socket event
+      io.emit('function:deployed', { name, status: 'running' });
+      
+      res.json({ 
+        message: 'Function deployed from Git successfully',
+        function: { name, status: 'running' }
+      });
+    } else {
+      res.status(500).json({ message: 'Failed to deploy function from Git' });
+    }
+  } catch (error) {
+    logger.error(`Git deployment error: ${error.message}`);
+    res.status(500).json({ message: 'Failed to deploy from Git repository' });
+  }
+});
+
+// Get function logs
+app.get('/api/functions/:name/logs', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { limit = 100, type = 'all' } = req.query;
+
+    // Use the logger to get function-specific logs
+    const functionLogger = new Logger({ functionName: name });
+    
+    let logs = [];
+    
+    if (type === 'error' || type === 'all') {
+      const errorLogs = await functionLogger.getFunctionErrorLogs(name, parseInt(limit));
+      if (!errorLogs.error) {
+        logs = logs.concat(errorLogs.lines.map(line => ({
+          message: line,
+          level: 'ERROR',
+          timestamp: new Date().toISOString()
+        })));
+      }
+    }
+    
+    if (type === 'all') {
+      const mainLogs = await functionLogger.getFunctionLogs(name, parseInt(limit));
+      if (!mainLogs.error) {
+        logs = logs.concat(mainLogs.lines.map(line => ({
+          message: line,
+          level: 'INFO',
+          timestamp: new Date().toISOString()
+        })));
+      }
+    }
+
+    // Sort by timestamp (newest first) and limit
+    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    logs = logs.slice(0, parseInt(limit));
+
+    res.json({ logs });
+  } catch (error) {
+    logger.error(`Get function logs error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get function metrics
+app.get('/api/functions/:name/metrics', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const func = loadedFunctions.get(name);
+
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    // Mock metrics for now - in a real implementation, you'd collect actual metrics
+    const metrics = {
+      name,
+      invocations: Math.floor(Math.random() * 1000),
+      errors: Math.floor(Math.random() * 50),
+      avgResponseTime: Math.random() * 100 + 50,
+      lastInvocation: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+      routes: func.routes || [],
+      cronJobs: activeCronJobs.has(name) ? activeCronJobs.get(name).length : 0
+    };
+
+    res.json(metrics);
+  } catch (error) {
+    logger.error(`Get function metrics error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Test function
+app.post('/api/functions/:name/test', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { method = 'GET', path = '/', data, headers = {} } = req.body;
+
+    const func = loadedFunctions.get(name);
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    // Create a mock request object
+    const mockReq = {
+      method: method.toUpperCase(),
+      url: path,
+      body: data,
+      headers: {
+        'content-type': 'application/json',
+        ...headers
+      },
+      params: {},
+      query: {}
+    };
+
+    // Create a mock response object
+    const mockRes = {
+      statusCode: 200,
+      headers: {},
+      body: null,
+      status: function(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json: function(data) {
+        this.body = data;
+        return this;
+      },
+      send: function(data) {
+        this.body = data;
+        return this;
+      }
+    };
+
+    // Try to execute the function
+    try {
+      const handlerPath = path.join(func.path, func.handler || 'handler.js');
+      const handler = await import(`${handlerPath}?update=${Date.now()}`);
+      
+      if (handler.default) {
+        await handler.default(mockReq, mockRes);
+      } else {
+        throw new Error('Handler does not export a default function');
+      }
+
+      res.json({
+        success: true,
+        statusCode: mockRes.statusCode,
+        response: mockRes.body,
+        headers: mockRes.headers
+      });
+    } catch (error) {
+      res.json({
+        success: false,
+        error: error.message,
+        statusCode: 500
+      });
+    }
+  } catch (error) {
+    logger.error(`Test function error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get system logs
+app.get('/api/logs', authenticateToken, async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+    const logs = await logger.getRecentLogs(parseInt(limit));
+    res.json(logs);
+  } catch (error) {
+    logger.error(`Get system logs error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get all function log files
+app.get('/api/logs/functions', authenticateToken, async (req, res) => {
+  try {
+    const functionLogs = await logger.getFunctionLogFiles();
+    res.json(functionLogs);
+  } catch (error) {
+    logger.error(`Get function logs error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get system metrics
+app.get('/api/metrics', authenticateToken, async (req, res) => {
+  try {
+    const metrics = {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      functions: loadedFunctions.size,
+      activeRoutes: registeredRoutes.size,
+      activeCronJobs: Array.from(activeCronJobs.values()).flat().length,
+      timestamp: new Date().toISOString()
+    };
+
+    res.json(metrics);
+  } catch (error) {
+    logger.error(`Get system metrics error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -446,6 +1023,13 @@ app.get('/health', (req, res) => {
     functions: loadedFunctions.size
   });
 });
+
+// Serve dashboard at root
+app.get('/', (req, res) => {
+  res.redirect('/dashboard');
+});
+
+// Catch-all route will be registered after functions are loaded
 
 // 404 handler for undefined routes
 app.use('*', (req, res) => {
@@ -475,12 +1059,32 @@ const initializeServer = async () => {
   // Load all functions
   await loadAllFunctions();
 
+  // Register catch-all route after functions are loaded
+  app.get('*', (req, res) => {
+    // Don't serve React app for API routes
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({
+        error: 'Route not found',
+        method: req.method,
+        path: req.path,
+        availableRoutes: Array.from(registeredRoutes.keys()),
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Function routes should be handled by their respective handlers
+    // If we reach here, it means no function route matched
+    
+    // Serve React app for all other routes
+    res.sendFile(path.join(__dirname, 'public/dashboard/index.html'));
+  });
+
   // Set up file watching
   const watcher = setupFileWatcher();
 
   // Start server
-  const PORT = process.env.PORT || 3000;
-  const server = app.listen(PORT, () => {
+  const PORT = process.env.PORT || 3001;
+  server.listen(PORT, () => {
     logger.info(`🚀 FuncDock platform running on http://localhost:${PORT}`);
     logger.info(`📊 Management API available at http://localhost:${PORT}/api/status`);
     logger.info(`🔄 Hot reload enabled - watching for changes...`);
@@ -576,20 +1180,29 @@ const loadCronJobs = async (functionDir) => {
         const functionLogger = new Logger({
           logLevel: process.env.LOG_LEVEL || 'info',
           logToFile: true,
-          logToConsole: true
+          logToConsole: true,
+          functionName: functionName // Pass function name to logger
         });
 
         // Add function context to request
         const req = {
           functionName,
-          functionPath,
+          functionPath: functionDir,
           logger: functionLogger
         };
 
         try {
-          await job.handler(req);
+          // Import and execute the handler
+          const handlerModule = await import(handlerPath);
+          const handlerFunction = handlerModule.default;
+          
+          if (typeof handlerFunction === 'function') {
+            await handlerFunction(req);
+          } else {
+            functionLogger.error(`Handler ${job.handler} does not export a default function`);
+          }
         } catch (err) {
-          functionLogger.error(`Error in ${functionName}: ${err.message}`);
+          functionLogger.error(`Error in ${functionName}/${job.handler}: ${err.message}`);
         }
       });
 
