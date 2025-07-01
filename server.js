@@ -1119,19 +1119,6 @@ app.get('/', (req, res) => {
   res.redirect('/dashboard');
 });
 
-// Catch-all route will be registered after functions are loaded
-
-// 404 handler for undefined routes
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    method: req.method,
-    path: req.originalUrl,
-    availableRoutes: Array.from(registeredRoutes.keys()),
-    timestamp: new Date().toISOString()
-  });
-});
-
 // Global error handler
 app.use((err, req, res, next) => {
   logger.error(`Unhandled error: ${err.message}`);
@@ -1167,6 +1154,17 @@ const initializeServer = async () => {
     
     // Serve React app for all other routes
     res.sendFile(path.join(__dirname, 'public/dashboard/index.html'));
+  });
+
+  // 404 handler for undefined routes (after catch-all)
+  app.use('*', (req, res) => {
+    res.status(404).json({
+      error: 'Route not found',
+      method: req.method,
+      path: req.originalUrl,
+      availableRoutes: Array.from(registeredRoutes.keys()),
+      timestamp: new Date().toISOString()
+    });
   });
 
   // Set up file watching
@@ -1281,6 +1279,7 @@ const loadCronJobs = async (functionDir) => {
         const req = {
           functionName,
           functionPath: functionDir,
+          jobName: job.name, // Add the job name
           logger: functionLogger,
           // Include function-specific environment variables
           env: functionInfo ? functionInfo.envVars : {}

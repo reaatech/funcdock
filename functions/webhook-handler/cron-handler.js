@@ -10,6 +10,12 @@ export default async function handler(req, res) {
   console.log(`Starting webhook cron job: ${jobName}`);
   
   try {
+    // Handle case where jobName is undefined (backward compatibility)
+    if (!jobName) {
+      console.log('No job name provided, running default health check');
+      return await handleHealthCheck(req, res);
+    }
+    
     switch (jobName) {
       case 'webhook-health-check':
         return await handleHealthCheck(req, res);
