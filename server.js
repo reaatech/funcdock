@@ -1231,7 +1231,8 @@ const loadCronJobs = async (functionDir) => {
 
     // Validate cron config
     if (!cronConfig.jobs || !Array.isArray(cronConfig.jobs)) {
-      throw new Error('Invalid cron.json: jobs array is required');
+      logger.info(`No cron jobs configured for ${functionName} (empty jobs array)`);
+      return true;
     }
 
     // Stop existing cron jobs for this function
@@ -1258,7 +1259,7 @@ const loadCronJobs = async (functionDir) => {
       try {
         await fs.access(handlerPath);
       } catch (error) {
-        logger.error(error);
+        logger.error(`Cron handler not found for ${functionName}: ${job.handler}`);
         continue;
       }
 
@@ -1311,8 +1312,14 @@ const loadCronJobs = async (functionDir) => {
     return true;
 
   } catch (error) {
-    logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
-    return false;
+    if (error.code === 'ENOENT') {
+      // No cron.json file exists - this is normal for functions without cron jobs
+      logger.info(`No cron.json found for ${functionName} - skipping cron jobs`);
+      return true;
+    } else {
+      logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
+      return false;
+    }
   }
 };
 
