@@ -1,3 +1,48 @@
+# 🚀 FuncDock — Cron Jobs Guide
+
+## Index
+- [Overview](#overview)
+- [Configuration](#configuration)
+- [Handlers](#handlers)
+- [Schedule Format](#schedule-format)
+- [Features](#features)
+- [Monitoring](#monitoring)
+- [Examples](#examples)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+FuncDock supports per-function cron jobs with hot reload and timezone support.
+
+## Configuration
+- Add a `cron.json` to your function directory.
+- Define jobs with `name`, `schedule`, `handler`, `timezone`, `description`.
+
+## Handlers
+- Each job points to a handler file (e.g., `cron-handler.js`).
+- Handler receives `req` with `env`, `logger`, etc.
+
+## Schedule Format
+- Standard cron syntax (`* * * * *`).
+- See [crontab.guru](https://crontab.guru/) for help.
+
+## Features
+- Automatic loading and hot reload
+- Timezone support
+- Error handling and logging
+- Status monitoring via API
+
+## Monitoring
+- Check status: `curl http://localhost:3000/api/status | jq '.cronJobs'`
+- View logs: `tail -f logs/app.log | grep "Cron job"`
+
+## Examples
+- See `functions/hello-world/cron.json` and `cron-handler.js` for real jobs.
+
+## Troubleshooting
+- See [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md) for common issues.
+
 # CRON JOBS
 
 FuncDock supports scheduled cron jobs for each function. Add a `cron.json` file to your function directory to define scheduled tasks.

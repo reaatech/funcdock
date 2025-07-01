@@ -1,4 +1,44 @@
-# TESTING
+# 🚀 FuncDock — Testing Guide
+
+## Index
+- [Overview](#overview)
+- [Unit Testing](#unit-testing)
+- [Integration Testing](#integration-testing)
+- [Dockerized Testing](#dockerized-testing)
+- [Test Utilities](#test-utilities)
+- [Examples](#examples)
+- [CI/CD](#cicd)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+FuncDock supports comprehensive testing with Jest, Nock, and Docker for true production parity.
+
+## Unit Testing
+- Write tests for each handler (e.g., `handler.test.js`).
+- Use Jest for assertions and mocking.
+
+## Integration Testing
+- Test API endpoints and external integrations.
+- Use Nock for HTTP mocking.
+
+## Dockerized Testing
+- Run tests in a Docker container for production parity.
+- `node scripts/test-function-in-docker.js --function=./functions/hello-world`
+
+## Test Utilities
+- Use helpers from `test/setup.js` (e.g., `testHandler`, `mockEnvVars`).
+
+## Examples
+- See `functions/hello-world/handler.test.js` for real tests.
+
+## CI/CD
+- Add tests to your pipeline to block bad deploys.
+- Use `make test-functions` for all functions.
+
+## Troubleshooting
+- See [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md) for test issues.
 
 ## Unit Testing with Jest and Nock
 

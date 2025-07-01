@@ -1,19 +1,39 @@
-# DASHBOARDS
+# 🚀 FuncDock — Dashboards Guide
 
-## Web Dashboard
+## Index
+- [Overview](#overview)
+- [Access](#access)
+- [Features](#features)
+- [Usage](#usage)
+- [Tips](#tips)
+- [Troubleshooting](#troubleshooting)
 
-Access the management dashboard at **http://localhost:3000/dashboard/** for:
-- Visual function management and monitoring
+---
+
+## Overview
+The FuncDock dashboard provides real-time management, monitoring, and debugging for all your functions.
+
+## Access
+- Visit [http://localhost:3000/dashboard/](http://localhost:3000/dashboard/)
+
+## Features
+- Visual function management
 - Real-time logs and debugging
 - Route testing and configuration
 - System metrics and health checks
-
-### Dashboard Features
-- Function monitoring and metrics
-- Real-time logs and debugging
-- Route management and testing
 - Cron job configuration
-- System health monitoring
+
+## Usage
+- Use the sidebar to navigate between functions and logs.
+- Click a function for details, routes, and cron jobs.
+- Use the log viewer for real-time debugging.
+
+## Tips
+- Use the dashboard for quick troubleshooting and monitoring.
+- Test routes and cron jobs directly from the UI.
+
+## Troubleshooting
+- See [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md) for dashboard issues.
 
 *For detailed dashboard usage, see this file.*
 

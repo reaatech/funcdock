@@ -1,4 +1,49 @@
-# CLI
+# 🚀 FuncDock — CLI Guide
+
+## Index
+- [Overview](#overview)
+- [Makefile Commands](#makefile-commands)
+- [npm Scripts](#npm-scripts)
+- [CLI Examples](#cli-examples)
+- [Automation Tips](#automation-tips)
+
+---
+
+## Overview
+FuncDock provides a rich CLI for development, deployment, and management.
+
+## Makefile Commands
+- `make quickstart` — Setup and start everything
+- `make dev` — Start dev server
+- `make create-function NAME=...` — Create a new function
+- `make deploy-git REPO=... NAME=...` — Deploy from Git
+- `make deploy-local PATH=... NAME=...` — Deploy from local
+- `make list-functions` — List all functions
+- `make update-function NAME=...` — Update a function
+- `make remove-function NAME=...` — Remove a function
+- `make logs` — View logs
+- `make build` — Build Docker image
+- `make production` — Start production
+
+## npm Scripts
+- `npm run setup` — Initial setup
+- `npm run dev` — Start dev server
+- `npm run deploy` — Deploy function
+- `npm run test` — Run all tests
+- `npm run logs` — View logs
+- ...and more
+
+## CLI Examples
+```bash
+make create-function NAME=api
+make deploy-git REPO=https://github.com/user/api.git NAME=api
+npm run deploy -- --update api
+```
+
+## Automation Tips
+- Use Makefile targets in CI/CD pipelines.
+- Combine commands for custom workflows.
+- See [DEPLOYMENT_README.md](DEPLOYMENT_README.md) for more.
 
 ## Makefile & npm Scripts
 
