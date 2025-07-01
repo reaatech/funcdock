@@ -1222,11 +1222,16 @@ const loadCronJobs = async (functionDir) => {
           functionName: functionName // Pass function name to logger
         });
 
+        // Get function info including environment variables
+        const functionInfo = loadedFunctions.get(functionName);
+
         // Add function context to request
         const req = {
           functionName,
           functionPath: functionDir,
-          logger: functionLogger
+          logger: functionLogger,
+          // Include function-specific environment variables
+          env: functionInfo ? functionInfo.envVars : {}
         };
 
         try {

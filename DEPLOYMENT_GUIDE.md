@@ -232,6 +232,15 @@ export default async function handler(req, res) {
 }
 ```
 
+**Accessing in cron jobs:**
+```javascript
+export default async function handler(req) {
+  const { env, logger } = req; // Function-specific environment variables and logger
+  const dbUrl = env.DATABASE_URL;
+  // Your cron job logic here...
+}
+```
+
 **Security Notes:**
 - Environment variables are scoped to individual functions
 - `.env` files should be included in deployment (not gitignored)

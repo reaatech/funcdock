@@ -13,6 +13,20 @@
       "handler": "cron-handler.js",
       "timezone": "UTC",
       "description": "Runs every hour to check system status"
+    },
+    {
+      "name": "example-job",
+      "schedule": "0 */6 * * *",
+      "handler": "cron-handler.js",
+      "timezone": "UTC",
+      "description": "Example cron job that runs every 6 hours"
+    },
+    {
+      "name": "env-test-job",
+      "schedule": "*/5 * * * *",
+      "handler": "cron-env-test.js",
+      "timezone": "UTC",
+      "description": "Test cron job that demonstrates environment variable access (runs every 5 minutes)"
     }
   ]
 } 

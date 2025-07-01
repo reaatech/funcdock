@@ -139,6 +139,21 @@ export default async function handler(req, res) {
 }
 ```
 
+**Accessing Environment Variables in Cron Jobs:**
+```javascript
+export default async function handler(req) {
+  const { env, logger } = req; // Get function-specific environment variables and logger
+  
+  // Access your environment variables
+  const dbUrl = env.DATABASE_URL;
+  const apiKey = env.API_KEY;
+  
+  logger.info('Cron job running with env vars', { hasApiKey: !!env.API_KEY });
+  
+  // Your cron job logic here...
+}
+```
+
 **Environment Variable Features:**
 - **Function Isolation**: Each function has its own environment variables
 - **Security**: Variables are scoped to individual functions
