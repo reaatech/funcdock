@@ -81,8 +81,30 @@ Thumbs.db
 # Function deployment metadata
 functions/*/.deployment.json
 
+# Deployment backup files
+*.backup
+*.backup.*
+backup/
+backups/
+.deployment-backups/
+
 # Temporary files
 tmp/
 temp/
 *.tmp
 .temp-deploy/
+
+# Test artifacts
+test-results/
+coverage/
+.nyc_output/
+
+# Build artifacts
+dist/
+build/
+*.tgz
+*.tar.gz
+
+# Local development artifacts
+.local/
+.dev/

@@ -257,14 +257,20 @@ export async function safeDeploy(functionName, deploymentFn, validationFn = null
     log(`🚀 Starting deployment for: ${functionName}`, 'blue');
     await deploymentFn();
     
-    // Run validation if provided
-    if (validationFn) {
-      log(`🔍 Running post-deployment validation for: ${functionName}`, 'blue');
-      const validationResult = await validationFn();
-      
-      if (!validationResult.valid) {
-        throw new Error(`Validation failed: ${validationResult.message}`);
-      }
+    // Run validation (tests)
+    let validationResult;
+    try {
+      validationResult = await validationFn();
+    } catch (error) {
+      log(`❌ Validation error: ${error.message}`, 'red');
+      await rollbackFunction(functionName, backupPath);
+      return { success: false, error: error.message };
+    }
+
+    if (validationResult && validationResult.valid === false) {
+      log(`❌ Validation failed: ${validationResult.message || 'Tests failed'}`, 'red');
+      await rollbackFunction(functionName, backupPath);
+      return { success: false, error: validationResult.message || 'Tests failed' };
     }
     
     // Cleanup old backups on successful deployment

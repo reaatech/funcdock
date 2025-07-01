@@ -1,0 +1,10 @@
+{
+  "handler": "handler.js",
+  "base": "/test-deploy",
+  "routes": [
+    {
+      "path": "/",
+      "methods": ["GET", "POST"]
+    }
+  ]
+} 

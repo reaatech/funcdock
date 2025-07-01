@@ -272,7 +272,11 @@ const setupFileWatcher = () => {
   const functionsDir = path.join(__dirname, 'functions');
 
   const watcher = chokidar.watch(functionsDir, {
-    ignored: /node_modules|\.git/,
+    ignored: [
+      '**/node_modules/**',
+      '**/.git/**',
+      '**/package-lock.json'
+    ],
     persistent: true,
     ignoreInitial: true,
     depth: 3
@@ -562,111 +566,70 @@ const loadCronJobs = async (functionDir) => {
       try {
         await fs.access(handlerPath);
       } catch (error) {
-        logger.error(`Cron handler not found in ${functionName}: ${job.handler}`);
+        logger.error(error);
         continue;
       }
 
-      // Create function-specific logger for cron jobs
-      const cronLogger = new Logger({
-        logLevel: process.env.LOG_LEVEL || 'info',
-        logToFile: true,
-        logToConsole: true
-      });
+      // Register the cron job
+      const cronJob = cron.schedule(job.schedule, async () => {
+        // Create function-specific logger
+        const functionLogger = new Logger({
+          logLevel: process.env.LOG_LEVEL || 'info',
+          logToFile: true,
+          logToConsole: true
+        });
 
-      // Schedule the cron job
-      const cronTask = cron.schedule(job.schedule, async () => {
+        // Add function context to request
+        const req = {
+          functionName,
+          functionPath,
+          logger: functionLogger
+        };
+
         try {
-          // Import handler with cache busting
-          const handlerModule = await import(`${handlerPath}?update=${Date.now()}`);
-          const handler = handlerModule.default;
-
-          if (typeof handler !== 'function') {
-            throw new Error(`Cron handler ${job.handler} must export a default function`);
-          }
-
-          // Create mock request and response objects for cron context
-          const mockReq = {
-            functionName,
-            functionPath: functionDir,
-            cronJob: job.name || 'unnamed',
-            schedule: job.schedule,
-            logger: cronLogger,
-            timestamp: new Date().toISOString()
-          };
-
-          const mockRes = {
-            status: (code) => ({
-              json: (data) => {
-                cronLogger.info(`Cron job ${job.name || 'unnamed'} completed with status ${code}`, data);
-              }
-            }),
-            json: (data) => {
-              cronLogger.info(`Cron job ${job.name || 'unnamed'} completed`, data);
-            }
-          };
-
-          // Execute the cron handler
-          await handler(mockReq, mockRes);
-          
-          cronLogger.info(`Cron job executed successfully: ${functionName}/${job.handler} (${job.schedule})`);
-        } catch (error) {
-          cronLogger.error(`Cron job failed: ${functionName}/${job.handler} - ${error.message}`);
+          await job.handler(req);
+        } catch (err) {
+          functionLogger.error(`Error in ${functionName}: ${err.message}`);
         }
-      }, {
-        scheduled: false, // Don't start immediately
-        timezone: job.timezone || 'UTC'
       });
 
-      // Start the cron job
-      cronTask.start();
-
-      functionCronJobs.push({
-        name: job.name || 'unnamed',
-        schedule: job.schedule,
-        handler: job.handler,
-        timezone: job.timezone || 'UTC',
-        task: cronTask
-      });
-
-      logger.info(`Scheduled cron job: ${functionName}/${job.handler} (${job.schedule})`);
+      functionCronJobs.push(cronJob);
+      logger.info(`Registered cron job: ${job.schedule} -> ${functionName}: ${job.handler}`);
     }
 
-    // Store cron jobs for this function
+    // Store cron jobs
     activeCronJobs.set(functionName, functionCronJobs);
-    
-    logger.info(`Loaded ${functionCronJobs.length} cron jobs for function: ${functionName}`);
+
+    logger.info(`Successfully loaded ${functionCronJobs.length} cron jobs for ${functionName}`);
     return true;
 
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      // No cron.json file, which is fine
-      return true;
-    }
     logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
     return false;
   }
 };
 
+// Stop all cron jobs for a function
 const stopCronJobs = (functionName) => {
   if (activeCronJobs.has(functionName)) {
-    const jobs = activeCronJobs.get(functionName);
-    jobs.forEach(job => {
-      job.task.stop();
-      logger.info(`Stopped cron job: ${functionName}/${job.handler}`);
-    });
+    const functionCronJobs = activeCronJobs.get(functionName);
+    functionCronJobs.forEach(cronJob => cronJob.stop());
     activeCronJobs.delete(functionName);
+    logger.info(`Stopped all cron jobs for ${functionName}`);
   }
 };
 
+// Get cron jobs status
 const getCronJobsStatus = () => {
-  const status = {};
-  for (const [functionName, jobs] of activeCronJobs.entries()) {
-    status[functionName] = jobs.map(job => ({
+  const status = Array.from(activeCronJobs.entries()).map(([name, jobs]) => ({
+    name,
+    jobs: jobs.map(job => ({
       name: job.name,
       schedule: job.schedule,
       handler: job.handler,
       timezone: job.timezone
-    }));
-  }
+    }))
+  }));
+
   return status;
 };

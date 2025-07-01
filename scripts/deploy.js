@@ -302,7 +302,8 @@ async function deployFromLocal(localPath, functionName) {
   const functionPath = path.join(functionsDir, functionName);
   const absoluteLocalPath = path.resolve(localPath);
 
-  try {
+  // Define the deployment function
+  const deploymentFunction = async () => {
     // Validate source exists
     await fs.access(absoluteLocalPath);
 
@@ -341,14 +342,23 @@ async function deployFromLocal(localPath, functionName) {
       JSON.stringify(metadata, null, 2)
     );
 
-    log(`✅ Successfully deployed function: ${functionName}`, 'green');
-
     // Trigger reload
     await reloadFunction(functionName);
+  };
 
-  } catch (error) {
-    log(`❌ Failed to deploy function: ${error.message}`, 'red');
-    throw error;
+  // Define the validation function
+  const validationFunction = async () => {
+    return await validateFunctionDeployment(functionPath, functionName);
+  };
+
+  // Execute safe deployment
+  const result = await safeDeploy(functionName, deploymentFunction, validationFunction);
+
+  if (result.success) {
+    log(`✅ Successfully deployed function: ${functionName}`, 'green');
+  } else {
+    log(`❌ Deployment failed: ${result.error}`, 'red');
+    throw new Error(result.error);
   }
 }
 

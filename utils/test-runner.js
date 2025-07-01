@@ -37,7 +37,7 @@ function log(message, color = 'reset') {
 export async function hasTestFiles(functionPath) {
   try {
     const files = await fs.readdir(functionPath);
-    return files.some(file => file.endsWith('.test.js') || file.endsWith('.spec.js'));
+    return files.some(file => file.endsWith('.test.js') || file.endsWith('.spec.js') || file.endsWith('.test.mjs') || file.endsWith('.spec.mjs'));
   } catch (error) {
     return false;
   }
@@ -52,7 +52,7 @@ export async function getTestFiles(functionPath) {
   try {
     const files = await fs.readdir(functionPath);
     return files
-      .filter(file => file.endsWith('.test.js') || file.endsWith('.spec.js'))
+      .filter(file => file.endsWith('.test.js') || file.endsWith('.spec.js') || file.endsWith('.test.mjs') || file.endsWith('.spec.mjs'))
       .map(file => path.join(functionPath, file));
   } catch (error) {
     return [];
@@ -85,10 +85,11 @@ export async function runFunctionTests(functionPath, functionName) {
   try {
     // Run Jest tests for this function
     const { stdout, stderr } = await execAsync(
-      `node --experimental-vm-modules $(which npx) jest --testPathPattern="${functionPath}" --verbose --json --silent`,
+      `npx jest --config jest.config.mjs --testPathPattern="${functionPath}" --verbose --json --silent`,
       { 
         cwd: projectRoot,
-        timeout: 30000 // 30 second timeout
+        timeout: 30000, // 30 second timeout
+        env: { ...process.env, NODE_OPTIONS: '--experimental-vm-modules' }
       }
     );
 
