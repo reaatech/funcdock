@@ -41,7 +41,7 @@
 We didn't just build another FaaS platform — we **reimagined serverless development** from the ground up:
 
 ### ⚡️ **INSTANT Hot Reload** — Industry's First
-Save your code and see it live in **milliseconds**. No builds, no deploys, no Docker restarts. Edit `handler.js` → refresh browser → see changes instantly. This changes everything about serverless development.
+Deploy your code and see it live in **milliseconds**. No container restarts, no downtime, no waiting. Git push → CI/CD deploys → functions hot reload instantly in production. Or deploy manually via CLI/dashboard and watch changes go live immediately. This changes everything about serverless deployment.
 
 ### 🎯 **Per-Route Handlers** — Revolutionary Architecture
 Unlike every other platform, each route can have its own handler file. `/api` uses `api.js`, `/webhook` uses `webhook.js`, `/users/:id` uses `users.js`. Maximum code organization, zero complexity.
@@ -59,7 +59,8 @@ Jest + Nock testing that runs in identical Docker environments. Test locally, de
 
 ## 🚀 Why Developers Are Obsessed
 
-- **⚡ MILLISECOND HOT RELOAD** — Save file → see changes instantly (no other platform has this)
+- **⚡ INSTANT HOT RELOAD** — Deploy → changes live in milliseconds (no other platform has this)
+- **🚀 CI/CD READY** — Git push → test → deploy → hot reload in production with zero downtime
 - **🎯 PER-ROUTE HANDLERS** — `/api` → `api.js`, `/users` → `users.js` (revolutionary organization)
 - **👁️ REAL-TIME EVERYTHING** — Live logs, metrics, cron monitoring, route health
 - **💡 ZERO CONFIG MAGIC** — Drop functions in, start coding, deploy anywhere
@@ -158,24 +159,39 @@ node scripts/test-function-in-docker.js --function=./functions/hello-world
 
 ### 5. Experience Hot Reload Magic ✨
 
-**Edit any file. Save. BOOM — It's live.** No builds, no deploys, no container restarts. Routes, handlers, cron jobs, dependencies — everything hot reloads instantly.
+**Deploy any way. Changes go live instantly.**
 
-### 6. Deploy Like a Pro
+- **CI/CD Pipeline**: Git push → automated tests → deploy → hot reload in production (zero downtime)
+- **Manual CLI**: `make deploy-git` → functions reload instantly
+- **Dashboard Deploy**: Upload via UI → see changes live immediately
+- **Local Development**: File changes trigger automatic reload
+
+No builds, no container restarts, no downtime. Routes, handlers, cron jobs, dependencies — everything hot reloads in milliseconds.
+
+### 6. Deploy Like a Pro (Zero Downtime)
 
 ```bash
-# Host-based Git deployment (uses your credentials)
+# Git-based deployments (perfect for CI/CD)
 make deploy-host-git REPO=https://github.com/user/my-function.git NAME=my-function
 
-# Local deployment
+# CI/CD Pipeline Integration
+# Add this to your .github/workflows/deploy.yml:
+# - name: Deploy to FuncDock
+#   run: make deploy-host-git REPO=${{ github.repository }} NAME=my-function
+
+# Local deployment (instant hot reload)
 make deploy-local PATH=./my-function NAME=my-function
 
-# Create new functions instantly
+# Create new functions
 make create-function NAME=payment-processor
 
-# Update existing functions
+# Update existing functions (zero downtime)
 make update-function NAME=my-function
 
-# Watch everything in real-time
+# Test in production-identical environment before deploy
+node scripts/test-function-in-docker.js --function=./functions/my-function
+
+# Watch everything happen in real-time
 npm run logs
 ```
 
@@ -239,6 +255,9 @@ make create-function NAME=my-awesome-api
 - **Production-identical Docker testing** for FaaS
 
 ### 🧠 **Intelligent Features**
+- **Zero-downtime deployments** with instant hot reload in production
+- **CI/CD integration** — use Makefile targets in any pipeline (GitHub Actions, GitLab, Jenkins)
+- **Pre-deployment testing** with production-identical Docker environments
 - **Automatic route conflict detection** prevents deployment disasters
 - **Smart dependency management** with hot reload
 - **Intelligent logging** with structured output and real-time streaming
@@ -286,7 +305,8 @@ Thousands of developers have discovered the joy of instant deployments, real-tim
 ## 🚀 Built Different
 
 **Key Differentiators:**
-- ⚡ **Instant hot reload** (industry first)
+- ⚡ **Instant hot reload** (deploy → live in milliseconds, industry first)
+- 🚀 **CI/CD native** (GitHub Actions, GitLab, Jenkins ready)
 - 🎯 **Per-route handlers** (revolutionary organization)
 - 🎛️ **Real-time dashboard** (complete visibility)
 - 🐳 **Perfect dev-prod parity** (Docker everywhere)
