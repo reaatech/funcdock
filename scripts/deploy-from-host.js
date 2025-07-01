@@ -19,6 +19,8 @@ import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
+import { validateFunctionDeployment } from '../utils/test-runner.js';
+import { safeDeploy, listBackups, manualRollback } from '../utils/deployment-backup.js';
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -51,6 +53,8 @@ function showUsage() {
   log('  npm run deploy-host -- --update <function-name> --commit <commit-hash>', 'blue');
   log('  npm run deploy-host -- --list', 'blue');
   log('  npm run deploy-host -- --remove <function-name>', 'blue');
+  log('  npm run deploy-host -- --backups [function-name]', 'blue');
+  log('  npm run deploy-host -- --rollback <backup-name>', 'blue');
 
   log('\nOptions:', 'yellow');
   log('  --git <url>       Deploy from Git repository (uses host credentials)', 'blue');
@@ -71,6 +75,8 @@ function showUsage() {
   log('  npm run deploy-host -- --update my-function --branch feature/new-feature', 'blue');
   log('  npm run deploy-host -- --update my-function --commit abc123def', 'blue');
   log('  npm run deploy-host -- --remove old-function', 'blue');
+  log('  npm run deploy-host -- --backups my-function', 'blue');
+  log('  npm run deploy-host -- --rollback my-function-2025-06-30T22-56-12-364Z', 'blue');
   
   log('\nNote: This tool uses your host Git credentials and syncs to the container.', 'yellow');
 }
@@ -109,6 +115,12 @@ async function parseArgs() {
         break;
       case '--update':
         options.update = args[++i];
+        break;
+      case '--backups':
+        options.backups = args[++i] || true; // If no value provided, show all backups
+        break;
+      case '--rollback':
+        options.rollback = args[++i];
         break;
       case '--help':
       case '-h':
@@ -164,7 +176,8 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
   const functionPath = path.join(functionsDir, functionName);
   const tempFunctionPath = path.join(tempDir, functionName);
 
-  try {
+  // Define the deployment function
+  const deploymentFunction = async () => {
     await ensureTempDir();
 
     // Remove existing temp function if it exists
@@ -222,25 +235,32 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
       JSON.stringify(metadata, null, 2)
     );
 
-    log(`✅ Successfully deployed function: ${functionName}`, 'green');
-    log(`🔄 Function will be automatically loaded by the container`, 'blue');
-
     // Trigger reload via API
     await reloadFunction(functionName);
+  };
 
-  } catch (error) {
-    log(`❌ Failed to deploy function: ${error.message}`, 'red');
+  // Define the validation function
+  const validationFunction = async () => {
+    return await validateFunctionDeployment(functionPath, functionName);
+  };
 
-    // Clean up on failure
-    try {
-      await fs.rm(functionPath, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+  // Execute safe deployment
+  const result = await safeDeploy(functionName, deploymentFunction, validationFunction);
 
-    throw error;
-  } finally {
-    await cleanupTempDir();
+  if (result.success) {
+    log(`✅ Successfully deployed function: ${functionName}`, 'green');
+    log(`🔄 Function will be automatically loaded by the container`, 'blue');
+  } else {
+    log(`❌ Deployment failed and was rolled back: ${result.error}`, 'red');
+    log(`🚨 ALERT: Function ${functionName} deployment failed due to test failures!`, 'red');
+    log(`📦 Backup available for manual recovery if needed.`, 'yellow');
+  }
+
+  // Cleanup temp directory
+  await cleanupTempDir();
+
+  if (!result.success) {
+    throw new Error(result.error);
   }
 }
 
@@ -251,7 +271,8 @@ async function deployFromPullRequest(gitUrl, functionName, prNumber) {
   const functionPath = path.join(functionsDir, functionName);
   const tempFunctionPath = path.join(tempDir, functionName);
 
-  try {
+  // Define the deployment function
+  const deploymentFunction = async () => {
     await ensureTempDir();
 
     // Remove existing temp function if it exists
@@ -321,25 +342,32 @@ async function deployFromPullRequest(gitUrl, functionName, prNumber) {
       JSON.stringify(metadata, null, 2)
     );
 
-    log(`✅ Successfully deployed function: ${functionName} from PR #${prNumber}`, 'green');
-    log(`🔄 Function will be automatically loaded by the container`, 'blue');
-
     // Trigger reload via API
     await reloadFunction(functionName);
+  };
 
-  } catch (error) {
-    log(`❌ Failed to deploy function: ${error.message}`, 'red');
+  // Define the validation function
+  const validationFunction = async () => {
+    return await validateFunctionDeployment(functionPath, functionName);
+  };
 
-    // Clean up on failure
-    try {
-      await fs.rm(functionPath, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+  // Execute safe deployment
+  const result = await safeDeploy(functionName, deploymentFunction, validationFunction);
 
-    throw error;
-  } finally {
-    await cleanupTempDir();
+  if (result.success) {
+    log(`✅ Successfully deployed function: ${functionName} from PR #${prNumber}`, 'green');
+    log(`🔄 Function will be automatically loaded by the container`, 'blue');
+  } else {
+    log(`❌ Deployment failed and was rolled back: ${result.error}`, 'red');
+    log(`🚨 ALERT: Function ${functionName} deployment failed due to test failures!`, 'red');
+    log(`📦 Backup available for manual recovery if needed.`, 'yellow');
+  }
+
+  // Cleanup temp directory
+  await cleanupTempDir();
+
+  if (!result.success) {
+    throw new Error(result.error);
   }
 }
 
@@ -514,6 +542,13 @@ async function main() {
       if (options.branch) updateOptions.branch = options.branch;
       if (options.commit) updateOptions.commit = options.commit;
       await updateFunction(options.update, updateOptions);
+    } else if (options.backups) {
+      await listBackups(options.backups === true ? null : options.backups);
+    } else if (options.rollback) {
+      const success = await manualRollback(options.rollback);
+      if (!success) {
+        process.exit(1);
+      }
     } else if (options.git) {
       if (!options.name) {
         throw new Error('Function name is required when deploying from Git');

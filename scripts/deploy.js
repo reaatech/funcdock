@@ -10,6 +10,8 @@ import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
+import { validateFunctionDeployment } from '../utils/test-runner.js';
+import { safeDeploy } from '../utils/deployment-backup.js';
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -136,7 +138,8 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
 
   const functionPath = path.join(functionsDir, functionName);
 
-  try {
+  // Define the deployment function
+  const deploymentFunction = async () => {
     // Remove existing function if it exists
     try {
       await fs.rm(functionPath, { recursive: true, force: true });
@@ -184,22 +187,28 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
       JSON.stringify(metadata, null, 2)
     );
 
-    log(`✅ Successfully deployed function: ${functionName}`, 'green');
-
     // Trigger reload
     await reloadFunction(functionName);
+  };
 
-  } catch (error) {
-    log(`❌ Failed to deploy function: ${error.message}`, 'red');
+  // Define the validation function
+  const validationFunction = async () => {
+    return await validateFunctionDeployment(functionPath, functionName);
+  };
 
-    // Clean up on failure
-    try {
-      await fs.rm(functionPath, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+  // Execute safe deployment
+  const result = await safeDeploy(functionName, deploymentFunction, validationFunction);
 
-    throw error;
+  if (result.success) {
+    log(`✅ Successfully deployed function: ${functionName}`, 'green');
+  } else {
+    log(`❌ Deployment failed and was rolled back: ${result.error}`, 'red');
+    log(`🚨 ALERT: Function ${functionName} deployment failed due to test failures!`, 'red');
+    log(`📦 Backup available for manual recovery if needed.`, 'yellow');
+  }
+
+  if (!result.success) {
+    throw new Error(result.error);
   }
 }
 
