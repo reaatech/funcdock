@@ -12,7 +12,9 @@
 
 ---
 
-# 🚀 FuncDock
+# USAGE
+
+> **Note:** A Redis server is available on `localhost:6379` for all functions. See [SETUP_README.md](SETUP_README.md) for details.
 
 A lightweight, production-ready serverless platform that runs multiple Node.js functions in a single Docker container with hot-reload capabilities, comprehensive logging, and deployment automation.
 
@@ -20,7 +22,7 @@ A lightweight, production-ready serverless platform that runs multiple Node.js f
 
 - 🐳 **Single Container**: All functions run in one Docker container
 - 🔄 **Hot Reload**: Automatic reloading with filesystem watching
-- ⏰ **Cron Jobs**: Scheduled task execution with timezone support ([see details](CRONJOBS_README.md))
+- ⏰ **Cron Jobs**: Scheduled task execution with timezone support
 - 📁 **Git Integration**: Deploy functions directly from Git repositories
 - 🛣️ **Smart Routing**: Custom routing per function with conflict prevention
 - 📊 **Monitoring**: Built-in status monitoring and health checks
@@ -33,7 +35,7 @@ A lightweight, production-ready serverless platform that runs multiple Node.js f
 ## 🏃‍♂️ Quick Start
 
 ### Prerequisites
-- Node.js 22+ 
+- Node.js 22+
 - Docker (optional, for containerized deployment)
 - `jq` (for JSON processing in scripts): `brew install jq` (macOS) or `apt-get install jq` (Ubuntu)
 
@@ -83,14 +85,14 @@ Access the management dashboard at **http://localhost:3000/dashboard/** for:
 - Route testing and configuration
 - System metrics and health checks
 
-*For detailed dashboard usage, see [DASHBOARDS_README.md](DASHBOARDS_README.md)*
+*For detailed dashboard usage, see the [Dashboard README](DASHBOARD_README.md)*
 
 ## 📚 Documentation
 
 FuncDock includes comprehensive documentation for different aspects of the platform:
 
 ### 🎛️ **Dashboard & Management UI**
-- **[DASHBOARDS_README.md](DASHBOARDS_README.md)** - Complete guide to the web-based management interface
+- **[Dashboard README](DASHBOARD_README.md)** - Complete guide to the web-based management interface
   - Function monitoring and metrics
   - Real-time logs and debugging
   - Route management and testing
@@ -98,7 +100,7 @@ FuncDock includes comprehensive documentation for different aspects of the platf
   - System health monitoring
 
 ### 🚀 **Deployment & Operations**
-- **[DEPLOYMENT_README.md](DEPLOYMENT_README.md)** - Comprehensive deployment strategies
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Comprehensive deployment strategies
   - Git-based deployment workflows
   - Pull request testing and staging
   - Production deployment best practices
@@ -359,7 +361,7 @@ npm run deploy -- --local ./my-local-function --name my-function
 
 #### Host-based Deployment (Recommended)
 - **Use when**: Deploying from private Git repositories or when you have SSH keys/Git credentials on your host
-- **How it works**: 
+- **How it works**:
   1. Clones/pulls from Git on your host machine (using your credentials)
   2. Copies the function to the container's mounted volume
   3. Triggers automatic reload
@@ -368,7 +370,7 @@ npm run deploy -- --local ./my-local-function --name my-function
 
 #### Container-based Deployment
 - **Use when**: Deploying from public repositories or when you want to manage credentials in the container
-- **How it works**: 
+- **How it works**:
   1. Executes Git operations inside the container
   2. Requires Git credentials to be configured in the container
 - **Commands**: `make deploy-git` or `npm run deploy`
@@ -395,6 +397,581 @@ make list-functions
 npm run deploy -- --list
 ```
 
-Each function can have its own `.env` file for environment-specific configuration. See [SETUP_README.md](SETUP_README.md) for more details.
+## ⏰ Cron Jobs
 
-For advanced routing, monitoring, deployment, cron jobs, dashboards, and testing, see the respective documentation files linked above.
+FuncDock supports scheduled cron jobs for each function. Add a `cron.json` file to your function directory to define scheduled tasks.
+
+### Cron Job Configuration
+
+**cron.json:**
+```json
+{
+  "jobs": [
+    {
+      "name": "daily-backup",
+      "schedule": "0 2 * * *",
+      "handler": "cron-handler.js",
+      "timezone": "UTC",
+      "description": "Daily backup at 2 AM UTC"
+    },
+    {
+      "name": "hourly-cleanup",
+      "schedule": "0 * * * *",
+      "handler": "cleanup.js",
+      "timezone": "America/New_York",
+      "description": "Hourly cleanup task"
+    }
+  ]
+}
+```
+
+### Cron Handler
+
+**cron-handler.js:**
+```javascript
+export default async (req, res) => {
+  const { logger, cronJob, schedule, timestamp } = req;
+  
+  logger.info(`Cron job started: ${cronJob}`, {
+    schedule,
+    timestamp,
+    functionName: req.functionName
+  });
+
+  try {
+    // Implement your scheduled task logic here
+    const result = await performScheduledWork(cronJob);
+    
+    logger.info(`Cron job completed: ${cronJob}`, result);
+    
+    res.json({
+      success: true,
+      job: cronJob,
+      result
+    });
+    
+  } catch (error) {
+    logger.error(`Cron job failed: ${cronJob}`, { error: error.message });
+    
+    res.status(500).json({
+      success: false,
+      job: cronJob,
+      error: error.message
+    });
+  }
+};
+```
+
+### Cron Schedule Format
+
+Use standard cron syntax: `* * * * *`
+
+```
+┌───────────── minute (0 - 59)
+│ ┌───────────── hour (0 - 23)
+│ │ ┌───────────── day of the month (1 - 31)
+│ │ │ ┌───────────── month (1 - 12)
+│ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
+│ │ │ │ │
+* * * * *
+```
+
+**Common Examples:**
+- `0 * * * *` - Every hour
+- `0 9 * * *` - Every day at 9 AM
+- `0 0 * * 0` - Every Sunday at midnight
+- `*/15 * * * *` - Every 15 minutes
+- `0 2 * * 1-5` - Weekdays at 2 AM
+
+### Cron Job Features
+
+- ✅ **Automatic Loading**: Cron jobs are loaded when functions are loaded
+- ✅ **Hot Reload**: Changes to `cron.json` trigger automatic reload
+- ✅ **Timezone Support**: Specify timezone for each job
+- ✅ **Error Handling**: Failed jobs are logged with full error details
+- ✅ **Logging**: Each job gets its own logger instance
+- ✅ **Status Monitoring**: View cron job status via `/api/status`
+
+### Monitoring Cron Jobs
+
+```bash
+# Check cron job status
+curl http://localhost:3000/api/status | jq '.cronJobs'
+
+# View cron job logs
+tail -f logs/app.log | grep "Cron job"
+```
+
+### Example Cron Jobs
+
+**Data Cleanup:**
+```javascript
+// cleanup.js
+export default async (req, res) => {
+  const { logger } = req;
+  
+  try {
+    // Clean up old data
+    const deletedCount = await cleanupOldRecords();
+    
+    logger.info(`Cleanup completed`, { deletedCount });
+    res.json({ success: true, deletedCount });
+  } catch (error) {
+    logger.error(`Cleanup failed`, { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+```
+
+**Health Check:**
+```javascript
+// health-check.js
+export default async (req, res) => {
+  const { logger } = req;
+  
+  try {
+    const health = await checkSystemHealth();
+    
+    if (health.status === 'healthy') {
+      logger.info(`Health check passed`, health);
+      res.json({ success: true, health });
+    } else {
+      logger.warn(`Health check failed`, health);
+      res.status(500).json({ success: false, health });
+    }
+  } catch (error) {
+    logger.error(`Health check error`, { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+```
+
+## 🧪 Testing
+
+### Unit Testing with Jest and Nock
+
+FuncDock provides comprehensive testing capabilities using Jest and Nock for mocking external APIs.
+
+#### Test Structure
+
+Each function can include test files that follow this pattern:
+
+```
+functions/
+  my-function/
+    handler.js           # Main function code
+    handler.test.js      # Unit tests for handler
+    users.js             # Custom handler for /users route
+    users.test.js        # Tests for users handler
+    cron-handler.js      # Cron job handler
+    cron-handler.test.js # Tests for cron handler
+```
+
+#### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests for functions only
+npm run test:functions
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+```
+
+#### Test Utilities
+
+The testing framework provides several utilities in `test/setup.js`:
+
+```javascript
+import { 
+  testHandler,           // Test a handler function
+  createMockRequest,     // Create mock request object
+  createMockResponse,    // Create mock response object
+  expectStatus,          // Assert response status
+  expectResponseFields,  // Assert response fields
+  mockEnvVars,          // Mock environment variables
+  nock                  // HTTP mocking library
+} from '../../test/setup.js';
+```
+
+#### Example Test File
+
+```javascript
+// handler.test.js
+import { testHandler, expectStatus, expectResponseFields, nock } from '../../test/setup.js';
+import handler from './handler.js';
+
+describe('My Function Handler', () => {
+  describe('GET requests', () => {
+    it('should return successful response', async () => {
+      const { res } = await testHandler(handler, {
+        method: 'GET',
+        query: { id: '123' }
+      });
+
+      expectStatus(res, 200);
+      expectResponseFields(res.body, {
+        message: 'Success',
+        function: 'my-function'
+      });
+    });
+  });
+
+  describe('External API calls', () => {
+    it('should handle external API calls', async () => {
+      // Mock external API
+      nock('https://api.example.com')
+        .get('/users/123')
+        .reply(200, { id: '123', name: 'John' });
+
+      const { res } = await testHandler(handler, {
+        method: 'GET',
+        query: { userId: '123' }
+      });
+
+      expectStatus(res, 200);
+      expect(res.body.data.name).toBe('John');
+    });
+  });
+});
+```
+
+#### Testing Features
+
+- ✅ **Isolated Testing**: Each function can be tested independently
+- ✅ **HTTP Mocking**: Nock integration for external API testing
+- ✅ **Mock Objects**: Pre-built request/response mocks
+- ✅ **Environment Mocking**: Easy environment variable mocking
+- ✅ **Logging Testing**: Verify logging behavior
+- ✅ **Error Testing**: Test error handling scenarios
+- ✅ **Coverage Reports**: Generate test coverage reports
+- ✅ **Watch Mode**: Automatic test re-runs on file changes
+
+#### Testing Dynamic Routes
+
+```javascript
+// users.test.js - Testing dynamic routing
+describe('Users Handler', () => {
+  it('should handle path parameters', async () => {
+    const { res } = await testHandler(handler, {
+      method: 'GET',
+      params: { id: '123', postId: '456' }
+    });
+
+    expectStatus(res, 200);
+    expect(res.body.data).toMatchObject({
+      userId: '123',
+      postId: '456'
+    });
+  });
+});
+```
+
+#### Testing Cron Jobs
+
+```javascript
+// cron-handler.test.js
+describe('Cron Handler', () => {
+  it('should handle scheduled tasks', async () => {
+    const { res } = await testHandler(handler, {
+      method: 'POST',
+      body: {
+        cronJob: 'daily-backup',
+        schedule: '0 2 * * *',
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    expectStatus(res, 200);
+    expect(res.body.data.tasksCompleted).toContain('Database backup');
+  });
+});
+```
+
+### Dockerized Pre-Deployment Function Testing
+
+For true production parity, you can run Jest+Nock unit tests for any function in a Docker environment that matches production. This is the recommended way to ensure your function will work after deployment.
+
+#### Run all tests for a function
+```bash
+node scripts/test-function-in-docker.js --function=./functions/hello-world
+```
+
+#### Run only tests for a specific route/handler
+```bash
+node scripts/test-function-in-docker.js --function=./functions/hello-world --route=/greet
+```
+
+- Uses `Dockerfile.test` to match the production environment (Node 22, Redis, etc.)
+- Mounts your function directory into the container
+- Runs all Jest tests (or just the test file for the specified route)
+- Proxies all output to your terminal
+- Exits with the same code as Jest (for CI/CD)
+
+**Tip:** Add this to your CI/CD pipeline to ensure functions pass all tests before deployment!
+
+### Integration Testing
+
+#### Test All Functions
+```bash
+# Run comprehensive test suite
+make test-functions
+
+# With verbose output
+VERBOSE=true ./scripts/test-functions.sh
+
+# Test specific URL
+./scripts/test-functions.sh --url http://production.com --verbose
+```
+
+#### Manual Testing
+```bash
+# Test example functions
+make example-test
+
+# Individual function tests
+curl http://localhost:3000/hello-world/
+curl -X POST http://localhost:3000/webhook-handler/github
+```
+
+## 📊 Monitoring & Management
+
+### Platform Status
+```bash
+# Check status via Make
+make status
+
+# Direct API calls
+curl http://localhost:3000/api/status | jq
+curl http://localhost:3000/health
+```
+
+### View Logs
+```bash
+# Application logs
+make logs
+npm run logs
+
+# Error logs only  
+make error-logs
+npm run error-logs
+
+# Docker logs
+make docker-logs
+```
+
+### Reload Functions
+```bash
+# Reload all functions
+make reload
+npm run reload
+
+# Reload specific function
+curl -X POST http://localhost:3000/api/reload \
+  -H "Content-Type: application/json" \
+  -d '{"functionName": "my-function"}'
+```
+
+## 🐳 Docker & Production
+
+### Development with Docker
+```bash
+# Quick start
+make docker-dev
+docker-compose up
+
+# Build and run manually
+make build
+make run
+```
+
+### Production Deployment
+```bash
+# With Caddy reverse proxy (recommended)
+make production
+docker-compose --profile production up -d
+
+# Check health
+make health
+make ping
+```
+
+### Docker Commands
+```bash
+# Build image
+make build
+docker build -t funcdock .
+
+# Run container
+docker run -p 3000:3000 -v $(pwd)/functions:/app/functions funcdock
+
+# View logs
+docker logs funcdock
+```
+
+## 🌐 Reverse Proxy (Caddy)
+
+FuncDock includes Caddy configuration for production:
+
+### Basic Setup
+```bash
+# Edit Caddyfile for your domain
+# Replace 'localhost' with 'your-domain.com'
+
+# Start with Caddy
+docker-compose --profile production up
+```
+
+### Caddy Features
+- ✨ **Automatic HTTPS** with Let's Encrypt
+- 🔒 **Security headers** built-in
+- 📊 **JSON logging**
+- ⚡ **Rate limiting** and compression
+- 🚀 **Simple configuration**
+
+### Custom Domain Setup
+```caddyfile
+your-domain.com {
+    reverse_proxy funcdock:3000
+    tls your-email@domain.com
+}
+```
+
+## ⚙️ Environment Variables
+
+Configure via `.env` file:
+
+```bash
+# Server
+PORT=3000
+NODE_ENV=production
+LOG_LEVEL=info
+
+# Webhooks  
+GITHUB_WEBHOOK_SECRET=your_secret
+STRIPE_WEBHOOK_SECRET=whsec_your_secret
+
+# Alerts
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+
+# Database (for your functions)
+DATABASE_URL=postgresql://user:pass@host:5432/db
+REDIS_URL=redis://localhost:6379
+
+# External APIs
+OPENAI_API_KEY=sk-your_key
+SENDGRID_API_KEY=SG.your_key
+```
+
+## 🔧 Development Workflow
+
+### Quick Start for New Projects
+```bash
+# Complete setup
+make quickstart
+
+# Or step by step  
+make setup
+make install
+make dev
+```
+
+### Daily Development
+```bash
+# Create new function
+make create-function NAME=user-service
+
+# Edit function code
+# functions/user-service/handler.js (auto-reloads)
+
+# Test function
+curl http://localhost:3000/user-service/
+
+# Deploy to production when ready
+make deploy-git REPO=https://github.com/me/user-service.git NAME=user-service
+```
+
+### Maintenance
+```bash
+# Clean logs and temp files
+make clean
+
+# Deep clean including Docker
+make clean-all
+
+# Update all functions
+make list-functions
+make update-function NAME=each-function
+```
+
+## 📋 Make Commands Reference
+
+| Command | Description |
+|---------|-------------|
+| `make help` | Show all available commands |
+| `make quickstart` | Complete setup and start |
+| `make dev` | Start development server |
+| `make create-function NAME=x` | Create new function template |
+| `make deploy-git REPO=x NAME=y` | Deploy from Git |
+| `make deploy-local PATH=x NAME=y` | Deploy from local |
+| `make list-functions` | List all functions |
+| `make update-function NAME=x` | Update function |
+| `make remove-function NAME=x` | Remove function |
+| `make test-functions` | Test all functions |
+| `make status` | Check platform status |
+| `make logs` | View application logs |
+| `make build` | Build Docker image |
+| `make production` | Start production environment |
+
+*For detailed deployment strategies and workflows, see the [Deployment Guide](DEPLOYMENT_GUIDE.md)*
+
+## 🚨 Alerting
+
+Configure Slack alerts in `.env`:
+
+```bash
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+```
+
+Alerts are sent for:
+- Function deployment failures
+- Route conflicts
+- Platform errors
+- Health check failures
+
+## 🔒 Security
+
+- **Route Conflict Prevention**: Functions can't override each other's routes
+- **CORS Support**: Built-in CORS headers for browser requests
+- **Security Headers**: Caddy adds security headers automatically
+- **Rate Limiting**: Configurable via Caddy
+- **Webhook Validation**: Built-in signature validation for GitHub/Stripe
+
+## 📚 Function Examples
+
+FuncDock includes sample functions:
+
+- **hello-world**: Basic HTTP methods demo
+- **webhook-handler**: GitHub, Stripe, Slack webhook processing
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your function: `make create-function NAME=my-feature`
+3. Test thoroughly: `make test-functions`
+4. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
