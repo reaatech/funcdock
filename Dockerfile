@@ -1,9 +1,11 @@
 FROM node:22-slim
 
-# Install git for cloning function repositories
+# Install git for cloning function repositories, Redis server, and Redis client tools
 RUN apt-get update && apt-get install -y \
     git \
     curl \
+    redis-server \
+    redis-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -21,6 +23,10 @@ COPY . .
 # Create functions directory
 RUN mkdir -p functions logs
 
+# Configure Redis
+RUN mkdir -p /var/lib/redis
+RUN chown -R redis:redis /var/lib/redis
+
 # Create non-root user for security
 RUN groupadd -r serverless && useradd -r -g serverless serverless
 RUN chown -R serverless:serverless /app
@@ -37,5 +43,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 ENV NODE_ENV=production
 ENV LOG_LEVEL=info
 
-# Start the application
-CMD ["node", "server.js"]
+# Start Redis and the application
+CMD ["sh", "-c", "redis-server --daemonize yes && node server.js"]
