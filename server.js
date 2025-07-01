@@ -160,9 +160,43 @@ const loadFunctionEnv = async (functionDir) => {
 // Install dependencies for a function
 const installDependencies = async (functionPath) => {
   const packageJsonPath = path.join(functionPath, 'package.json');
+  const packageLockPath = path.join(functionPath, 'package-lock.json');
+  const nodeModulesPath = path.join(functionPath, 'node_modules');
 
   try {
     await fs.access(packageJsonPath);
+    
+    // Check if dependencies are already installed and up to date
+    let needsInstall = false;
+    
+    try {
+      // Check if node_modules exists
+      await fs.access(nodeModulesPath);
+      
+      // Check if package-lock.json exists and is newer than package.json
+      try {
+        await fs.access(packageLockPath);
+        const packageJsonStats = await fs.stat(packageJsonPath);
+        const packageLockStats = await fs.stat(packageLockPath);
+        
+        // If package.json is newer than package-lock.json, we need to install
+        if (packageJsonStats.mtime > packageLockStats.mtime) {
+          needsInstall = true;
+        }
+      } catch {
+        // No package-lock.json, need to install
+        needsInstall = true;
+      }
+    } catch {
+      // No node_modules, need to install
+      needsInstall = true;
+    }
+    
+    if (!needsInstall) {
+      logger.info(`Dependencies already up to date for ${path.basename(functionPath)}`);
+      return true;
+    }
+
     logger.info(`Installing dependencies for ${path.basename(functionPath)}`);
 
     const { stdout, stderr } = await execAsync('npm install', {
@@ -429,7 +463,25 @@ const setupFileWatcher = () => {
     ignored: [
       '**/node_modules/**',
       '**/.git/**',
-      '**/package-lock.json'
+      '**/package-lock.json',
+      '**/.package-lock.json',
+      '**/npm-debug.log*',
+      '**/yarn-debug.log*',
+      '**/yarn-error.log*',
+      '**/.npm/**',
+      '**/.cache/**',
+      '**/coverage/**',
+      '**/.nyc_output/**',
+      '**/.npmrc',
+      '**/.yarnrc',
+      '**/yarn.lock',
+      '**/pnpm-lock.yaml',
+      '**/bun.lockb',
+      '**/.pnpm/**',
+      '**/.yarn/**',
+      '**/node_modules/.cache/**',
+      '**/node_modules/.package-lock.json',
+      '**/node_modules/.staging/**'
     ],
     persistent: true,
     ignoreInitial: true,
