@@ -1,0 +1,32 @@
+{
+  "jobs": [
+    {
+      "name": "webhook-health-check",
+      "schedule": "0 */6 * * *",
+      "handler": "cron-handler.js",
+      "timezone": "UTC",
+      "description": "Checks webhook endpoint health every 6 hours"
+    },
+    {
+      "name": "webhook-stats-cleanup",
+      "schedule": "0 2 * * *",
+      "handler": "cron-handler.js",
+      "timezone": "UTC",
+      "description": "Cleans up old webhook statistics daily at 2:00 AM UTC"
+    },
+    {
+      "name": "webhook-rate-limit-reset",
+      "schedule": "0 0 * * *",
+      "handler": "cron-handler.js",
+      "timezone": "UTC",
+      "description": "Resets webhook rate limiting counters daily at midnight UTC"
+    },
+    {
+      "name": "webhook-test-ping",
+      "schedule": "*/15 * * * *",
+      "handler": "cron-handler.js",
+      "timezone": "UTC",
+      "description": "Sends test ping to webhook endpoints every 15 minutes for monitoring"
+    }
+  ]
+} 
