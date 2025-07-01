@@ -109,9 +109,42 @@ functions/
     handler.js           # Main function code (default)
     package.json         # Dependencies
     route.config.json    # Routing configuration
+    .env                 # Function-specific environment variables (optional)
 ```
 
 **Note:** You can specify a custom handler file in `route.config.json` using the `handler` field. If not specified, it defaults to `handler.js`.
+
+### Function-Specific Environment Variables
+
+Each function can have its own `.env` file for environment-specific configuration:
+
+```bash
+# functions/my-function/.env
+DATABASE_URL=postgresql://user:pass@localhost:5432/myapp
+API_KEY=your_api_key_here
+REDIS_URL=redis://localhost:6379
+DEBUG=true
+```
+
+**Accessing Environment Variables in Handlers:**
+```javascript
+export default async function handler(req, res) {
+  const { env } = req; // Get function-specific environment variables
+  
+  // Access your environment variables
+  const dbUrl = env.DATABASE_URL;
+  const apiKey = env.API_KEY;
+  
+  // Your logic here...
+}
+```
+
+**Environment Variable Features:**
+- **Function Isolation**: Each function has its own environment variables
+- **Security**: Variables are scoped to individual functions
+- **Flexibility**: Different functions can use different configurations
+- **Hot Reload**: Changes to `.env` files trigger function reload
+- **Fallback**: Functions can still access global environment variables via `process.env`
 
 ### Per-Route Handler Files
 

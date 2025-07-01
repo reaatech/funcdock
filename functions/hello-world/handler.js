@@ -5,7 +5,7 @@
 
 export default async function handler(req, res) {
   const { method, query, body, headers } = req;
-  const { logger } = req; // Get the injected logger
+  const { logger, env } = req; // Get the injected logger and environment variables
 
   // Log the incoming request
   logger.info(`Request received: ${method} ${req.routePath}`, {
@@ -13,6 +13,16 @@ export default async function handler(req, res) {
     hasBody: !!body,
     userAgent: headers['user-agent']
   });
+
+  // Log environment variable usage (if available)
+  if (env) {
+    logger.info('Function environment variables available', {
+      hasApiKey: !!env.API_KEY,
+      hasDatabaseUrl: !!env.DATABASE_URL,
+      debugMode: env.DEBUG === 'true',
+      logLevel: env.LOG_LEVEL
+    });
+  }
 
   // Add CORS headers for browser requests
   res.header('Access-Control-Allow-Origin', '*');

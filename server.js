@@ -125,8 +125,36 @@ const logger = new Logger();
 // Helper function to clear module cache (ES modules don't have require.cache)
 // ES modules are cached differently and the ?update= parameter handles cache busting
 const clearModuleCache = (modulePath) => {
-  // ES modules don't have a cache that can be cleared like CommonJS
-  // The import with ?update=${Date.now()} handles cache busting
+  delete require.cache[require.resolve(modulePath)];
+};
+
+// Load environment variables from function's .env file
+const loadFunctionEnv = async (functionDir) => {
+  const envPath = path.join(functionDir, '.env');
+  
+  try {
+    await fs.access(envPath);
+    const envContent = await fs.readFile(envPath, 'utf-8');
+    const envVars = {};
+    
+    // Parse .env file content
+    envContent.split('\n').forEach(line => {
+      line = line.trim();
+      if (line && !line.startsWith('#')) {
+        const [key, ...valueParts] = line.split('=');
+        if (key && valueParts.length > 0) {
+          const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove quotes
+          envVars[key.trim()] = value.trim();
+        }
+      }
+    });
+    
+    logger.info(`Loaded ${Object.keys(envVars).length} environment variables for function ${path.basename(functionDir)}`);
+    return envVars;
+  } catch (error) {
+    // .env file doesn't exist, return empty object
+    return {};
+  }
 };
 
 // Install dependencies for a function
@@ -280,6 +308,12 @@ const loadFunction = async (functionDir) => {
           req.routePath = route.path;
           req.routeHandler = routeHandler;
           req.logger = functionLogger; // Inject logger into request
+          
+          // Add function-specific environment variables
+          const functionInfo = loadedFunctions.get(functionName);
+          if (functionInfo && functionInfo.envVars) {
+            req.env = functionInfo.envVars;
+          }
 
           try {
             await routeHandlerFunction(req, res);
@@ -312,6 +346,9 @@ const loadFunction = async (functionDir) => {
     // Load cron jobs for this function
     await loadCronJobs(functionDir);
 
+    // Load environment variables for this function
+    const envVars = await loadFunctionEnv(functionDir);
+
     // Store function info
     loadedFunctions.set(functionName, {
       name: functionName,
@@ -321,7 +358,8 @@ const loadFunction = async (functionDir) => {
       loadedAt: new Date(),
       lastDeployed: new Date().toISOString(),
       status: 'running',
-      path: functionDir
+      path: functionDir,
+      envVars
     });
 
     // Emit socket event for function loaded

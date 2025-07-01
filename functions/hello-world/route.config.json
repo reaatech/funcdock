@@ -17,6 +17,11 @@
       "methods": ["GET"]
     },
     {
+      "path": "/test-env",
+      "handler": "test-env.js",
+      "methods": ["GET"]
+    },
+    {
       "path": "/users",
       "handler": "users.js",
       "methods": ["GET", "POST"]

@@ -208,7 +208,34 @@ All functions must include:
 
 Optional files:
 - `cron.json` - Cron job configuration
+- `.env` - Function-specific environment variables
 - `.deployment.json` - Deployment metadata (auto-generated)
+
+### Environment Variables
+
+Functions can have their own `.env` files for environment-specific configuration:
+
+```bash
+# functions/my-function/.env
+DATABASE_URL=postgresql://user:pass@localhost:5432/myapp
+API_KEY=your_api_key_here
+REDIS_URL=redis://localhost:6379
+DEBUG=true
+```
+
+**Accessing in handlers:**
+```javascript
+export default async function handler(req, res) {
+  const { env } = req; // Function-specific environment variables
+  const dbUrl = env.DATABASE_URL;
+  // Your logic here...
+}
+```
+
+**Security Notes:**
+- Environment variables are scoped to individual functions
+- `.env` files should be included in deployment (not gitignored)
+- Sensitive values should be managed through your deployment process
 
 ## Best Practices
 
