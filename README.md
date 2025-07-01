@@ -62,6 +62,41 @@ Once running, visit these endpoints:
 - **Sample Function**: http://localhost:3000/hello-world/
 - **Webhook Handler**: http://localhost:3000/webhook-handler/
 
+### 🎛️ **Web Dashboard**
+Access the management dashboard at **http://localhost:3000/dashboard/** for:
+- Visual function management and monitoring
+- Real-time logs and debugging
+- Route testing and configuration
+- System metrics and health checks
+
+*For detailed dashboard usage, see the [Dashboard README](DASHBOARD_README.md)*
+
+## 📚 Documentation
+
+FuncDock includes comprehensive documentation for different aspects of the platform:
+
+### 🎛️ **Dashboard & Management UI**
+- **[Dashboard README](DASHBOARD_README.md)** - Complete guide to the web-based management interface
+  - Function monitoring and metrics
+  - Real-time logs and debugging
+  - Route management and testing
+  - Cron job configuration
+  - System health monitoring
+
+### 🚀 **Deployment & Operations**
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Comprehensive deployment strategies
+  - Git-based deployment workflows
+  - Pull request testing and staging
+  - Production deployment best practices
+  - Host-based vs container-based deployment
+  - CI/CD integration examples
+
+### 📖 **Additional Resources**
+- **Function Examples**: See the `functions/` directory for working examples
+- **API Reference**: Built-in API endpoints for management and monitoring
+- **Configuration**: Environment variables and platform settings
+- **Troubleshooting**: Common issues and solutions
+
 ## 🏗️ Function Development
 
 ### Function Structure
@@ -812,6 +847,8 @@ make update-function NAME=each-function
 | `make logs` | View application logs |
 | `make build` | Build Docker image |
 | `make production` | Start production environment |
+
+*For detailed deployment strategies and workflows, see the [Deployment Guide](DEPLOYMENT_GUIDE.md)*
 
 ## 🚨 Alerting
 
