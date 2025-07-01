@@ -1,5 +1,21 @@
 # 🚀 FuncDock
 
+## 📚 Documentation Index
+
+- [CLI](CLI_README.md) — Command-line tools and automation
+- [CRON JOBS](CRONJOBS_README.md) — Scheduled tasks and cron job configuration
+- [DASHBOARDS](DASHBOARDS_README.md) — Web dashboard usage and features
+- [DEPLOYMENT](DEPLOYMENT_README.md) — Deployment strategies and workflows
+- [SETUP](SETUP_README.md) — Installation and environment setup
+- [TESTING](TESTING_README.md) — Unit, integration, and Dockerized testing
+- [USAGE](#usage) — How to use FuncDock and its main features
+
+---
+
+# USAGE
+
+> **Note:** A Redis server is available on `localhost:6379` for all functions. See [SETUP_README.md](SETUP_README.md) for details.
+
 A lightweight, production-ready serverless platform that runs multiple Node.js functions in a single Docker container with hot-reload capabilities, comprehensive logging, and deployment automation.
 
 ## ✨ Features
