@@ -152,6 +152,10 @@ test-functions-integration: ## Test all deployed functions (integration tests)
 	@chmod +x scripts/test-functions.sh
 	@./scripts/test-functions.sh
 
+test-function-docker: ## Run Jest tests for a function in a Dockerized prod-like environment
+	@echo "🧪 Running function tests in Docker..."
+	@node scripts/test-function-in-docker.js --function=$(FUNCTION)$(if $(ROUTE), --route=$(ROUTE))
+
 # Maintenance
 clean: ## Clean up logs and temporary files
 	@echo "🧹 Cleaning up..."

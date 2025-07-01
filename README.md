@@ -937,3 +937,25 @@ FuncDock includes sample functions:
 ## 📄 License
 
 MIT License - see LICENSE file for details.
+
+## 🧪 Pre-Deployment Function Testing (Dockerized)
+
+You can run Jest+Nock unit tests for any function in a true-to-production Docker environment before deploying:
+
+### Run all tests for a function
+```bash
+node scripts/test-function-in-docker.js --function=./functions/hello-world
+```
+
+### Run only tests for a specific route/handler
+```bash
+node scripts/test-function-in-docker.js --function=./functions/hello-world --route=/greet
+```
+
+- Uses `Dockerfile.test` to match the production environment (Node 22, Redis, etc.)
+- Mounts your function directory into the container
+- Runs all Jest tests (or just the test file for the specified route)
+- Proxies all output to your terminal
+- Exits with the same code as Jest (for CI/CD)
+
+**Tip:** Add this to your CI/CD pipeline to ensure functions pass all tests before deployment!
