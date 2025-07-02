@@ -126,10 +126,25 @@ export default async function handler(req, res, next) {
 
 ```js
 // functions/hello-world/cron-handler.js
+// Cron handlers only use req and logger (no res). Throw errors with a code and log with logger.log('CRON_ERROR', ...)
 export default async function handler(req) {
   const { logger, cronJob, schedule } = req;
-  logger.info(`Cron job started: ${cronJob}`, { schedule });
-  // Your scheduled work here
+  logger.log('CRON', `Cron job started: ${cronJob}`, { cronJob, schedule });
+  try {
+    if (!cronJob) {
+      const err = new Error('Missing cron job name');
+      err.code = 'MISSING_CRON_JOB';
+      logger.log('CRON_ERROR', err.message, { code: err.code, cronJob, schedule });
+      throw err;
+    }
+    // Simulate work
+    await doWork(cronJob);
+    logger.log('CRON', `Cron job completed: ${cronJob}`, { cronJob, schedule });
+    return { success: true };
+  } catch (error) {
+    // Already logged above, but you can log here as well if needed
+    throw error;
+  }
 }
 ```
 

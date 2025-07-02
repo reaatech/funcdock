@@ -313,43 +313,28 @@ cat > "$FUNCTION_DIR/cron-handler.js" << EOF
  * This handler is called by scheduled cron jobs
  */
 
-export default async (req, res) => {
-  const { logger, cronJob, schedule, timestamp } = req;
-  
-  logger.info(\`Cron job started: \${cronJob}\`, {
-    schedule,
-    timestamp,
-    functionName: req.functionName
-  });
+export default async function handler(req) {
+  const { logger, cronJob, schedule } = req;
+
+  logger.log('CRON', `Cron job started: ${cronJob}`, { cronJob, schedule });
 
   try {
-    // Implement your scheduled task logic here
-    const result = {
-      message: \`Cron job \${cronJob} executed successfully\`,
-      function: '$FUNCTION_NAME',
-      timestamp,
-      schedule
-    };
-    
-    logger.info(\`Cron job completed: \${cronJob}\`, result);
-    
-    res.json({
-      success: true,
-      job: cronJob,
-      result
-    });
-    
+    // Example: throw an error with a code
+    if (!cronJob) {
+      const err = new Error('Missing cron job name');
+      err.code = 'MISSING_CRON_JOB';
+      logger.log('CRON_ERROR', err.message, { code: err.code, cronJob, schedule });
+      throw err;
+    }
+    // Simulate work
+    await doWork(cronJob);
+    logger.log('CRON', `Cron job completed: ${cronJob}`, { cronJob, schedule });
+    return { success: true };
   } catch (error) {
-    logger.error(\`Cron job failed: \${cronJob}\`, { error: error.message });
-    
-    res.status(500).json({
-      success: false,
-      job: cronJob,
-      error: error.message,
-      timestamp
-    });
+    // Already logged above, but you can log here as well if needed
+    throw error;
   }
-};
+}
 EOF
 
 log $GREEN "✅ Created cron-handler.js (optional - remove if not needed)"

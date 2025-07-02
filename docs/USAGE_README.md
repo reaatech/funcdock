@@ -172,6 +172,33 @@ export default async function handler(req, res, next) {
 }
 ```
 
+### Writing Cron Handlers
+
+Cron handlers are background jobs, not HTTP endpoints. They receive only a req object (no res), and should use logger for output. To signal errors, throw an Error with a code property and log with logger.log('CRON_ERROR', ...).
+
+```js
+// cron-handler.js
+export default async function handler(req) {
+  const { logger, cronJob, schedule } = req;
+  logger.log('CRON', `Cron job started: ${cronJob}`, { cronJob, schedule });
+  try {
+    if (!cronJob) {
+      const err = new Error('Missing cron job name');
+      err.code = 'MISSING_CRON_JOB';
+      logger.log('CRON_ERROR', err.message, { code: err.code, cronJob, schedule });
+      throw err;
+    }
+    // Simulate work
+    await doWork(cronJob);
+    logger.log('CRON', `Cron job completed: ${cronJob}`, { cronJob, schedule });
+    return { success: true };
+  } catch (error) {
+    // Already logged above, but you can log here as well if needed
+    throw error;
+  }
+}
+```
+
 ---
 
 ## 🚀 Deployment

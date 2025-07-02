@@ -3,7 +3,7 @@
  * This handler is called by scheduled cron jobs
  */
 
-export default async (req, res) => {
+export default async (req) => {
   const { logger, body } = req;
   const { cronJob, schedule, timestamp } = body || {};
   
@@ -16,25 +16,25 @@ export default async (req, res) => {
   try {
     // Validate required fields
     if (!cronJob) {
-      logger.log('CRON_ERROR', 'Bad Request: Cron job data is required', { cronJob, schedule });
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Cron job data is required'
-      });
+      const err = new Error('Cron job data is required');
+      err.code = 'MISSING_CRON_JOB';
+      logger.log('CRON_ERROR', err.message, { code: err.code, cronJob, schedule });
+      throw err;
     }
 
     if (!schedule || schedule === 'invalid-schedule') {
-      logger.log('CRON_ERROR', 'Bad Request: Invalid cron job data', { cronJob, schedule });
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Invalid cron job data'
-      });
+      const err = new Error('Invalid cron job data');
+      err.code = 'INVALID_SCHEDULE';
+      logger.log('CRON_ERROR', err.message, { code: err.code, cronJob, schedule });
+      throw err;
     }
 
     // Handle error-prone jobs
     if (cronJob === 'error-prone-job') {
-      logger.log('CRON_ERROR', 'Simulated cron job error', { cronJob, schedule });
-      throw new Error('Simulated cron job error');
+      const err = new Error('Simulated cron job error');
+      err.code = 'SIMULATED_ERROR';
+      logger.log('CRON_ERROR', err.message, { code: err.code, cronJob, schedule });
+      throw err;
     }
 
     // Simulate some work
@@ -47,8 +47,8 @@ export default async (req, res) => {
       tasksCompleted: workResult.tasksCompleted
     });
     
-    // Send response based on job type
-    const response = {
+    // Optionally return a result for testing
+    return {
       message: getResponseMessage(cronJob),
       function: req.functionName || 'test-function',
       data: {
@@ -58,19 +58,9 @@ export default async (req, res) => {
       }
     };
     
-    res.json(response);
-    
   } catch (error) {
-    logger.log('CRON_ERROR', `Cron job failed: ${cronJob}`, { error: error.message, cronJob, schedule });
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Cron job failed',
-      data: {
-        cronJob,
-        schedule,
-        error: error.message
-      }
-    });
+    // Already logged above, but you can log here as well if needed
+    throw error; // Let the platform catch and log as CRON_ERROR
   }
 };
 
