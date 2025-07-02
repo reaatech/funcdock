@@ -1238,14 +1238,25 @@ const loadCronJobs = async (functionDir) => {
     return true;
   }
 
+  let cronConfigRaw;
   try {
-    const cronConfigRaw = await fs.readFile(cronConfigPath, 'utf-8');
-    const cronConfig = JSON.parse(cronConfigRaw);
-
-    // Validate cron config
-    if (!cronConfig.jobs || !Array.isArray(cronConfig.jobs)) {
+    cronConfigRaw = await fs.readFile(cronConfigPath, 'utf-8');
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      // File was deleted between existsSync and readFile, skip silently
       return true;
     }
+    // Only log truly unexpected errors
+    logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
+    return false;
+  }
+
+  const cronConfig = JSON.parse(cronConfigRaw);
+
+  // Validate cron config
+  if (!cronConfig.jobs || !Array.isArray(cronConfig.jobs)) {
+    return true;
+  }
 
     // Stop existing cron jobs for this function
     stopCronJobs(functionName);
@@ -1303,13 +1314,6 @@ const loadCronJobs = async (functionDir) => {
     // Store cron jobs
     activeCronJobs.set(functionName, functionCronJobs);
     return true;
-  } catch (error) {
-    // Only log errors that are NOT about missing cron.json
-    if (error.code !== 'ENOENT') {
-      logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
-    }
-    return false;
-  }
 };
 
 // Stop all cron jobs for a function
