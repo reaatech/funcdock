@@ -136,6 +136,7 @@ const Logs = () => {
   const getLogLevelColor = (level) => {
     switch (level) {
       case 'ERROR':
+      case 'CRON_ERROR':
         return 'text-red-600 bg-red-50 dark:bg-red-900/20'
       case 'WARN':
         return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'

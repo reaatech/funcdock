@@ -405,6 +405,20 @@ const FunctionDetail = () => {
     return true
   })
 
+  const getLogLevelColor = (level) => {
+    switch (level) {
+      case 'ERROR':
+      case 'CRON_ERROR':
+        return 'text-red-600 bg-red-50 dark:bg-red-900/20'
+      case 'WARN':
+        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
+      case 'INFO':
+        return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+      default:
+        return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20'
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1055,7 +1069,7 @@ const FunctionDetail = () => {
                       {filteredLogs.map((log, index) => (
                         <tr key={index}>
                           <td className="font-mono px-2 py-1">{log.timestamp || ''}</td>
-                          <td className="font-mono px-2 py-1">{log.level || ''}</td>
+                          <td className={`font-mono px-2 py-1 ${getLogLevelColor(log.level)}`}>{log.level || ''}</td>
                           <td className="font-mono px-2 py-1">{log.message || (typeof log === 'string' ? log : '')}</td>
                         </tr>
                       ))}
