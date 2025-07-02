@@ -1098,22 +1098,34 @@ app.get('/api/functions/:name/logs', authenticateToken, async (req, res) => {
     if (type === 'error' || type === 'all') {
       const errorLogs = await functionLogger.getFunctionErrorLogs(name, parseInt(limit));
       if (!errorLogs.error) {
-        logs = logs.concat(errorLogs.lines.map(line => ({
-          message: line,
-          level: 'ERROR',
-          timestamp: new Date().toISOString()
-        })));
+        logs = logs.concat(errorLogs.lines.map(line => {
+          let entry;
+          try {
+            entry = JSON.parse(line);
+          } catch {
+            entry = { message: line, level: 'ERROR', timestamp: new Date().toISOString() };
+          }
+          // Only include if level is ERROR
+          if (entry.level === 'ERROR') return entry;
+          return null;
+        }).filter(Boolean));
       }
     }
     
-    if (type === 'all') {
+    if (type === 'all' || type === 'ACCESS' || type === 'INFO' || type === 'WARN' || type === 'ERROR') {
       const mainLogs = await functionLogger.getFunctionLogs(name, parseInt(limit));
       if (!mainLogs.error) {
-        logs = logs.concat(mainLogs.lines.map(line => ({
-          message: line,
-          level: 'INFO',
-          timestamp: new Date().toISOString()
-        })));
+        logs = logs.concat(mainLogs.lines.map(line => {
+          let entry;
+          try {
+            entry = JSON.parse(line);
+          } catch {
+            entry = { message: line, level: 'INFO', timestamp: new Date().toISOString() };
+          }
+          // If a specific type is requested, filter by that level
+          if (type !== 'all' && entry.level !== type) return null;
+          return entry;
+        }).filter(Boolean));
       }
     }
 
