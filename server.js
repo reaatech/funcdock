@@ -535,8 +535,11 @@ const setupFileWatcher = () => {
 
       // If it's a critical file, unload the function
       const fileName = path.basename(filePath);
-      if (['route.config.json', 'cron.json'].includes(fileName)) {
+      if (fileName === 'route.config.json') {
         unloadFunction(functionName);
+      } else if (fileName === 'cron.json') {
+        // For cron.json deletion, just reload the function without cron jobs
+        debounceReload(functionName);
       } else if (fileName.endsWith('.js')) {
         // Check if this is any handler file for this function
         try {
