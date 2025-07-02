@@ -7,7 +7,7 @@
  */
 
 export default async function handler(req, res) {
-  const { method, headers, body, query } = req;
+  const { method, headers, body, query, logger } = req;
 
   // Add CORS headers
   res.header('Access-Control-Allow-Origin', '*');
@@ -32,10 +32,11 @@ export default async function handler(req, res) {
     if (method === 'GET') {
       return handleStatus(req, res);
     } else {
-      return handleGenericWebhook(req, res);
+      return handleGenericWebhook(req, res, logger);
     }
   } catch (error) {
-    console.error('Generic webhook processing error:', error);
+    if (logger) logger.log('CRON_ERROR', 'Generic webhook processing error', { error: error.message });
+    else console.error('Generic webhook processing error:', error);
     return res.status(500).json({
       error: 'Generic webhook processing failed',
       handler: 'generic.js',
@@ -60,7 +61,7 @@ async function handleStatus(req, res) {
   });
 }
 
-async function handleGenericWebhook(req, res) {
+async function handleGenericWebhook(req, res, logger) {
   const { headers, body, query } = req;
 
   const responseData = {
@@ -109,7 +110,8 @@ async function handleGenericWebhook(req, res) {
     userAgent: headers['user-agent']
   };
 
-  console.log('Generic webhook processed:', responseData);
+  if (logger) logger.log('CRON', 'Generic webhook processed', responseData);
+  else console.log('Generic webhook processed:', responseData);
 
   return res.status(200).json(responseData);
 }

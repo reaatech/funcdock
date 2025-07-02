@@ -5,29 +5,29 @@
  */
 
 export default async function handler(req, res) {
-  const { jobName } = req;
+  const { jobName, logger } = req;
   
-  console.log(`Starting webhook cron job: ${jobName}`);
+  logger.log('CRON', `Starting webhook cron job: ${jobName}`);
   
   try {
     // Handle case where jobName is undefined (backward compatibility)
     if (!jobName) {
-      console.log('No job name provided, running default health check');
-      return await handleHealthCheck(req, res);
+      logger.log('CRON', 'No job name provided, running default health check');
+      return await handleHealthCheck(req, res, logger);
     }
     
     switch (jobName) {
       case 'webhook-health-check':
-        return await handleHealthCheck(req, res);
+        return await handleHealthCheck(req, res, logger);
         
       case 'webhook-stats-cleanup':
-        return await handleStatsCleanup(req, res);
+        return await handleStatsCleanup(req, res, logger);
         
       case 'webhook-rate-limit-reset':
-        return await handleRateLimitReset(req, res);
+        return await handleRateLimitReset(req, res, logger);
         
       case 'webhook-test-ping':
-        return await handleTestPing(req, res);
+        return await handleTestPing(req, res, logger);
         
       default:
         return res.status(400).json({
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
         });
     }
   } catch (error) {
-    console.error(`Cron job ${jobName} failed:`, error);
+    logger.log('CRON_ERROR', `Cron job ${jobName} failed: ${error.message}`);
     return res.status(500).json({
       error: 'Cron job failed',
       jobName,
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function handleHealthCheck(req, res) {
+async function handleHealthCheck(req, res, logger) {
   const healthStatus = {
     jobName: 'webhook-health-check',
     status: 'healthy',
@@ -90,12 +90,12 @@ async function handleHealthCheck(req, res) {
     }
   }
 
-  console.log('Webhook health check completed:', healthStatus);
+  logger.log('CRON', 'Webhook health check completed', healthStatus);
   
   return res.status(200).json(healthStatus);
 }
 
-async function handleStatsCleanup(req, res) {
+async function handleStatsCleanup(req, res, logger) {
   const cleanupResult = {
     jobName: 'webhook-stats-cleanup',
     status: 'completed',
@@ -130,12 +130,12 @@ async function handleStatsCleanup(req, res) {
     }
   }
 
-  console.log('Webhook stats cleanup completed:', cleanupResult);
+  logger.log('CRON', 'Webhook stats cleanup completed', cleanupResult);
   
   return res.status(200).json(cleanupResult);
 }
 
-async function handleRateLimitReset(req, res) {
+async function handleRateLimitReset(req, res, logger) {
   const resetResult = {
     jobName: 'webhook-rate-limit-reset',
     status: 'completed',
@@ -165,12 +165,12 @@ async function handleRateLimitReset(req, res) {
     }
   }
 
-  console.log('Webhook rate limit reset completed:', resetResult);
+  logger.log('CRON', 'Webhook rate limit reset completed', resetResult);
   
   return res.status(200).json(resetResult);
 }
 
-async function handleTestPing(req, res) {
+async function handleTestPing(req, res, logger) {
   const pingResult = {
     jobName: 'webhook-test-ping',
     status: 'completed',
@@ -208,7 +208,7 @@ async function handleTestPing(req, res) {
     }
   }
 
-  console.log('Webhook test ping completed:', pingResult);
+  logger.log('CRON', 'Webhook test ping completed', pingResult);
   
   return res.status(200).json(pingResult);
 } 

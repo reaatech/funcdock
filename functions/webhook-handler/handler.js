@@ -6,7 +6,7 @@
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
-  const { method, headers, body, query } = req;
+  const { method, headers, body, query, logger } = req;
 
   // Add CORS headers
   res.header('Access-Control-Allow-Origin', '*');
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       return handleStatus(req, res);
 
     case 'POST':
-      return handleWebhook(req, res);
+      return handleWebhook(req, res, logger);
 
     default:
       return res.status(405).json({
@@ -48,26 +48,27 @@ async function handleStatus(req, res) {
   });
 }
 
-async function handleWebhook(req, res) {
+async function handleWebhook(req, res, logger) {
   const { headers, body } = req;
   const webhookType = determineWebhookType(headers, body);
 
   try {
     switch (webhookType) {
       case 'github':
-        return await handleGitHubWebhook(req, res);
+        return await handleGitHubWebhook(req, res, logger);
 
       case 'stripe':
-        return await handleStripeWebhook(req, res);
+        return await handleStripeWebhook(req, res, logger);
 
       case 'slack':
-        return await handleSlackWebhook(req, res);
+        return await handleSlackWebhook(req, res, logger);
 
       default:
-        return await handleGenericWebhook(req, res);
+        return await handleGenericWebhook(req, res, logger);
     }
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    if (logger) logger.log('CRON_ERROR', 'Webhook processing error', { error: error.message });
+    else console.error('Webhook processing error:', error);
     return res.status(500).json({
       error: 'Webhook processing failed',
       message: error.message,
@@ -95,7 +96,7 @@ function determineWebhookType(headers, body) {
   return 'generic';
 }
 
-async function handleGitHubWebhook(req, res) {
+async function handleGitHubWebhook(req, res, logger) {
   const { headers, body } = req;
   const event = headers['x-github-event'];
   const signature = headers['x-hub-signature-256'];
@@ -153,12 +154,13 @@ async function handleGitHubWebhook(req, res) {
       break;
   }
 
-  console.log('GitHub webhook processed:', responseData);
+  if (logger) logger.log('CRON', 'GitHub webhook processed', responseData);
+  else console.log('GitHub webhook processed:', responseData);
 
   return res.status(200).json(responseData);
 }
 
-async function handleStripeWebhook(req, res) {
+async function handleStripeWebhook(req, res, logger) {
   const { headers, body } = req;
   const signature = headers['stripe-signature'];
 
@@ -207,7 +209,8 @@ async function handleStripeWebhook(req, res) {
           break;
       }
 
-      console.log('Stripe webhook processed:', responseData);
+      if (logger) logger.log('CRON', 'Stripe webhook processed', responseData);
+      else console.log('Stripe webhook processed:', responseData);
       return res.status(200).json(responseData);
       
     } catch (err) {
@@ -249,12 +252,13 @@ async function handleStripeWebhook(req, res) {
       break;
   }
 
-  console.log('Stripe webhook processed (unverified):', responseData);
+  if (logger) logger.log('CRON', 'Stripe webhook processed (unverified)', responseData);
+  else console.log('Stripe webhook processed (unverified):', responseData);
 
   return res.status(200).json(responseData);
 }
 
-async function handleSlackWebhook(req, res) {
+async function handleSlackWebhook(req, res, logger) {
   const { body } = req;
 
   // Handle Slack URL verification challenge
@@ -285,12 +289,13 @@ async function handleSlackWebhook(req, res) {
     }
   }
 
-  console.log('Slack webhook processed:', responseData);
+  if (logger) logger.log('CRON', 'Slack webhook processed', responseData);
+  else console.log('Slack webhook processed:', responseData);
 
   return res.status(200).json(responseData);
 }
 
-async function handleGenericWebhook(req, res) {
+async function handleGenericWebhook(req, res, logger) {
   const { headers, body, query } = req;
 
   const responseData = {
@@ -312,7 +317,8 @@ async function handleGenericWebhook(req, res) {
     responseData.bodySize = JSON.stringify(body).length;
   }
 
-  console.log('Generic webhook processed:', responseData);
+  if (logger) logger.log('CRON', 'Generic webhook processed', responseData);
+  else console.log('Generic webhook processed:', responseData);
 
   return res.status(200).json(responseData);
 }
