@@ -105,7 +105,9 @@ const Logs = () => {
       }
       
       // Filter by log level
-      if (logLevel !== 'all' && log.level !== logLevel) {
+      if (logLevel === 'CRON') {
+        return log.level === 'CRON' || log.level === 'CRON_ERROR';
+      } else if (logLevel !== 'all' && log.level !== logLevel) {
         return false
       }
       

@@ -215,12 +215,17 @@ Each log entry shows:
 
 #### Log Levels
 
-| Level | Color | Description | Use Case |
-|-------|-------|-------------|----------|
-| **ERROR** | 🔴 Red | Critical errors | Function failures, crashes |
-| **WARN** | 🟡 Yellow | Warning messages | Deprecated features, issues |
-| **INFO** | 🔵 Blue | Information | Function calls, status updates |
-| **DEBUG** | ⚪ Gray | Debug information | Development debugging |
+| Level        | Color | Description                | Use Case                        |
+|--------------|-------|----------------------------|---------------------------------|
+| ERROR        | 🔴 Red | Critical errors            | Function failures, crashes      |
+| WARN         | 🟡 Yellow | Warning messages         | Deprecated features, issues     |
+| INFO         | 🔵 Blue | Information               | Function calls, status updates  |
+| DEBUG        | ⚪ Gray | Debug information         | Development debugging           |
+| ACCESS       | 🟢 Green | HTTP access logs         | HTTP requests to functions      |
+| CRON         | 🟢 Green | Cron job events          | Cron job started/completed      |
+| CRON_ERROR   | 🔴 Red | Cron job errors           | Cron job failures or warnings   |
+
+> **Note:** Filtering by "CRON" in the dashboard will show both CRON and CRON_ERROR logs.
 
 ---
 
@@ -407,127 +412,3 @@ DEBUG=funcdock:* npm run dev
 # Check debug logs in dashboard
 # Navigate to Settings > Debug Mode
 ```
-
-### Support Resources
-
-- **Documentation**: [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md)
-- **Community**: Check main [README.md](../README.md) for community links
-- **Issues**: Report bugs via GitHub issues
-
----
-
-## ⌨️ Keyboard Shortcuts
-
-| Shortcut | Action | Description |
-|----------|--------|-------------|
-| `Ctrl/Cmd + K` | Search | Quick search across functions |
-| `Ctrl/Cmd + L` | Logs | Jump to logs view |
-| `Ctrl/Cmd + D` | Deploy | Open deployment page |
-| `Ctrl/Cmd + S` | Settings | Open settings page |
-| `Ctrl/Cmd + R` | Refresh | Refresh current view |
-| `Ctrl/Cmd + E` | Export | Export current data |
-| `Ctrl/Cmd + T` | Test | Test current function |
-| `Ctrl/Cmd + F` | Find | Search within current page |
-
----
-
-## 💡 Best Practices
-
-### Dashboard Usage
-
-1. **Monitor Regularly**: Check dashboard daily for function health
-2. **Use Filters**: Leverage log filters for efficient debugging
-3. **Test Functions**: Use built-in testing before production deployment
-4. **Export Logs**: Regularly export logs for analysis and compliance
-5. **Configure Alerts**: Set up notifications for critical issues
-
-### Function Management
-
-1. **Organize Functions**: Use descriptive names and clear structure
-2. **Version Control**: Use Git for function deployment and versioning
-3. **Documentation**: Include README files in function directories
-4. **Testing**: Write comprehensive tests for all functions
-5. **Monitoring**: Set up proper logging and metrics collection
-
-### Performance Optimization
-
-1. **Monitor Metrics**: Track function performance over time
-2. **Optimize Dependencies**: Minimize package sizes and load times
-3. **Use Caching**: Implement appropriate caching strategies
-4. **Error Handling**: Implement robust error handling and recovery
-5. **Resource Limits**: Set appropriate memory and CPU limits
-
-### Security
-
-1. **Authentication**: Enable authentication for production deployments
-2. **Input Validation**: Validate all function inputs
-3. **Secret Management**: Use environment variables for sensitive data
-4. **Access Control**: Implement proper route-level access controls
-5. **Audit Logging**: Maintain comprehensive audit trails
-
----
-
-## 🎯 Next Steps
-
-- **Explore Functions**: Check out the example functions in the `functions/` directory
-- **Read Documentation**: Review [USAGE_README.md](USAGE_README.md) for function development
-- **Deploy Your First Function**: Use the dashboard to deploy a simple function
-- **Join the Community**: Connect with other FuncDock developers
-
----
-
-**Need Help?** See [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md) for detailed solutions and support resources.
-
----
-
-## 🚀 Deploying Functions via GitHub & Bitbucket (OAuth)
-
-FuncDock lets you deploy functions directly from your GitHub or Bitbucket repositories using a secure OAuth flow, right from the dashboard.
-
-### How It Works
-- **Connect** your GitHub or Bitbucket account via the dashboard.
-- **Select** a repository from your account.
-- **Deploy** the function with a single click—FuncDock will clone the repo and deploy it automatically.
-
-### Setup Instructions
-
-1. **Register an OAuth App**
-   - For **GitHub**: Go to [GitHub Developer Settings](https://github.com/settings/developers) → "OAuth Apps" → "New OAuth App".
-   - For **Bitbucket**: Go to [Bitbucket OAuth Consumers](https://bitbucket.org/account/settings/app-passwords/) → "Add consumer".
-   - Set the callback URLs to:
-     - `http://localhost:3003/api/oauth/github/callback` (for GitHub)
-     - `http://localhost:3003/api/oauth/bitbucket/callback` (for Bitbucket)
-
-2. **Configure Your .env**
-   Create a `.env` file in your project root (or update it) with:
-   ```env
-   # GitHub OAuth
-   GITHUB_CLIENT_ID=your_github_client_id
-   GITHUB_CLIENT_SECRET=your_github_client_secret
-   GITHUB_REDIRECT_URI=http://localhost:3003/api/oauth/github/callback
-
-   # Bitbucket OAuth
-   BITBUCKET_CLIENT_ID=your_bitbucket_client_id
-   BITBUCKET_CLIENT_SECRET=your_bitbucket_client_secret
-   BITBUCKET_REDIRECT_URI=http://localhost:3003/api/oauth/bitbucket/callback
-
-   # JWT Secret
-   JWT_SECRET=your_jwt_secret
-   ```
-
-3. **Restart the FuncDock backend**
-   - This loads your new credentials.
-
-### Using the Dashboard
-
-1. Go to the **Deploy** tab in the dashboard.
-2. Choose **GitHub** or **Bitbucket** as your deployment method.
-3. Click **Connect** and complete the OAuth flow.
-4. Select a repository from the list.
-5. Enter a function name and click **Deploy**.
-
-FuncDock will clone the selected repo and deploy it as a new function. You can monitor deployment status and logs in real time.
-
-**Note:**
-- Only public repos or private repos you have access to will be shown.
-- For production, consider using persistent token storage (see Security Best Practices). 

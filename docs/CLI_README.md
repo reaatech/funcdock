@@ -116,8 +116,8 @@ npm run logs
 make error-logs
 npm run error-logs
 
-# Docker logs
-make docker-logs
+# Cron job logs only (CRON and CRON_ERROR)
+cat logs/functions/my-function.log | jq 'select(.level=="CRON" or .level=="CRON_ERROR")'
 ```
 
 ### Reload Functions

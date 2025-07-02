@@ -6,7 +6,7 @@
 export default async function handler(req) {
   const { logger, env } = req;
 
-  logger.info('Cron job testing environment variables', {
+  logger.log('CRON', 'Cron job testing environment variables', {
     hasEnv: !!env,
     envKeys: env ? Object.keys(env) : [],
     functionName: req.functionName
@@ -14,7 +14,7 @@ export default async function handler(req) {
 
   // Test accessing environment variables
   if (env) {
-    logger.info('Environment variables available in cron job', {
+    logger.log('CRON', 'Environment variables available in cron job', {
       hasApiKey: !!env.API_KEY,
       hasDatabaseUrl: !!env.DATABASE_URL,
       debugMode: env.DEBUG,
@@ -24,20 +24,20 @@ export default async function handler(req) {
 
     // You can use the environment variables for your cron job logic
     if (env.DEBUG === 'true') {
-      logger.info('Debug mode is enabled for this function');
+      logger.log('CRON', 'Debug mode is enabled for this function');
     }
 
     if (env.API_KEY) {
-      logger.info('API key is available for external API calls');
+      logger.log('CRON', 'API key is available for external API calls');
       // Example: Make API call using the key
       // const response = await fetch('https://api.example.com', {
       //   headers: { 'Authorization': `Bearer ${env.API_KEY}` }
       // });
     }
   } else {
-    logger.warn('No environment variables available in cron job');
+    logger.log('CRON_ERROR', 'No environment variables available in cron job');
   }
 
   // Your cron job logic here...
-  logger.info('Cron job completed successfully');
+  logger.log('CRON', 'Cron job completed successfully');
 } 

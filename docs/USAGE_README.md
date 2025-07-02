@@ -184,6 +184,9 @@ npm run logs my-function
 
 # Follow logs in real-time
 npm run logs my-function --follow
+
+# View only cron job logs (CRON and CRON_ERROR)
+cat logs/functions/my-function.log | jq 'select(.level=="CRON" or .level=="CRON_ERROR")'
 ```
 
 ### Health Checks
@@ -227,13 +230,20 @@ module.exports = async (req, res) => {
 
 Schedule functions to run automatically:
 
-```json
-// cron.json
-{
-  "daily-backup": "0 2 * * *",
-  "hourly-cleanup": "0 * * * *",
-  "weekly-report": "0 9 * * 1"
-}
+```javascript
+// cron-handler.js
+export default async (req, res) => {
+  const { logger, cronJob, schedule } = req;
+  logger.log('CRON', `Cron job started: ${cronJob}`);
+  try {
+    // ...cron logic...
+    logger.log('CRON', `Cron job completed: ${cronJob}`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.log('CRON_ERROR', `Cron job failed: ${cronJob}`, { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
 ```
 
 ### Environment Variables

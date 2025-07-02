@@ -7,7 +7,7 @@ export default async (req, res) => {
   const { logger, body } = req;
   const { cronJob, schedule, timestamp } = body || {};
   
-  logger.info(`Cron job executed: ${cronJob}`, {
+  logger.log('CRON', `Cron job executed: ${cronJob}`, {
     cronJob,
     schedule,
     functionName: req.functionName
@@ -16,6 +16,7 @@ export default async (req, res) => {
   try {
     // Validate required fields
     if (!cronJob) {
+      logger.log('CRON_ERROR', 'Bad Request: Cron job data is required', { cronJob, schedule });
       return res.status(400).json({
         error: 'Bad Request',
         message: 'Cron job data is required'
@@ -23,6 +24,7 @@ export default async (req, res) => {
     }
 
     if (!schedule || schedule === 'invalid-schedule') {
+      logger.log('CRON_ERROR', 'Bad Request: Invalid cron job data', { cronJob, schedule });
       return res.status(400).json({
         error: 'Bad Request',
         message: 'Invalid cron job data'
@@ -31,6 +33,7 @@ export default async (req, res) => {
 
     // Handle error-prone jobs
     if (cronJob === 'error-prone-job') {
+      logger.log('CRON_ERROR', 'Simulated cron job error', { cronJob, schedule });
       throw new Error('Simulated cron job error');
     }
 
@@ -38,7 +41,7 @@ export default async (req, res) => {
     const workResult = await performScheduledWork(cronJob);
     
     // Log the result
-    logger.info(`Tasks completed for ${cronJob}`, {
+    logger.log('CRON', `Tasks completed for ${cronJob}`, {
       cronJob,
       schedule,
       tasksCompleted: workResult.tasksCompleted
@@ -58,8 +61,7 @@ export default async (req, res) => {
     res.json(response);
     
   } catch (error) {
-    logger.error(`Cron job failed: ${cronJob}`, { error: error.message });
-    
+    logger.log('CRON_ERROR', `Cron job failed: ${cronJob}`, { error: error.message, cronJob, schedule });
     res.status(500).json({
       error: 'Internal Server Error',
       message: 'Cron job failed',

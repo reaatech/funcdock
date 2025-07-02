@@ -400,6 +400,7 @@ const FunctionDetail = () => {
 
   // Filter logs by selected log level
   const filteredLogs = logs.filter(log => {
+    if (logLevel === 'CRON') return log.level === 'CRON' || log.level === 'CRON_ERROR';
     if (logLevel !== 'all' && log.level !== logLevel) return false
     return true
   })

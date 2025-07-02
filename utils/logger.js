@@ -19,7 +19,9 @@ class Logger {
       alert: 1,
       warn: 2,
       info: 3,
-      debug: 4
+      debug: 4,
+      CRON: 5,
+      CRON_ERROR: 6
     };
 
     this.colors = {
@@ -28,6 +30,8 @@ class Logger {
       warn: '\x1b[33m',    // Yellow
       info: '\x1b[36m',    // Cyan
       debug: '\x1b[37m',   // White
+      CRON: '\x1b[32m',    // Green
+      CRON_ERROR: '\x1b[41m', // Red background
       reset: '\x1b[0m'     // Reset
     };
 

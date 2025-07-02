@@ -1702,9 +1702,8 @@ const loadCronJobs = async (functionDir) => {
         functionName: functionName
       });
       const functionInfo = loadedFunctions.get(functionName);
-      // Log CRON invocation
-      functionLogger.info('CRON job triggered', {
-        level: 'CRON',
+      // Log CRON invocation (start)
+      functionLogger.log('CRON', 'CRON job started', {
         function: functionName,
         job: job.name,
         schedule: job.schedule,
@@ -1722,11 +1721,28 @@ const loadCronJobs = async (functionDir) => {
         const handlerFunction = handlerModule.default;
         if (typeof handlerFunction === 'function') {
           await handlerFunction(req);
+          // Log CRON completion
+          functionLogger.log('CRON', 'CRON job completed', {
+            function: functionName,
+            job: job.name,
+            schedule: job.schedule,
+            timestamp: new Date().toISOString()
+          });
         } else {
-          functionLogger.error(`Handler ${job.handler} does not export a default function`);
+          functionLogger.log('CRON_ERROR', `Handler ${job.handler} does not export a default function`, {
+            function: functionName,
+            job: job.name,
+            schedule: job.schedule,
+            timestamp: new Date().toISOString()
+          });
         }
       } catch (err) {
-        functionLogger.error(`Error in ${functionName}/${job.handler}: ${err.message}`);
+        functionLogger.log('CRON_ERROR', `Error in ${functionName}/${job.handler}: ${err.message}`, {
+          function: functionName,
+          job: job.name,
+          schedule: job.schedule,
+          timestamp: new Date().toISOString()
+        });
       }
     });
     functionCronJobs.push(cronJob);

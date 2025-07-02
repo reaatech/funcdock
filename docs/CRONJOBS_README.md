@@ -78,7 +78,7 @@ FuncDock supports scheduled cron jobs for each function. Add a `cron.json` file 
 export default async (req, res) => {
   const { logger, cronJob, schedule, timestamp } = req;
   
-  logger.info(`Cron job started: ${cronJob}`, {
+  logger.log('CRON', `Cron job started: ${cronJob}`, {
     schedule,
     timestamp,
     functionName: req.functionName
@@ -88,7 +88,7 @@ export default async (req, res) => {
     // Implement your scheduled task logic here
     const result = await performScheduledWork(cronJob);
     
-    logger.info(`Cron job completed: ${cronJob}`, result);
+    logger.log('CRON', `Cron job completed: ${cronJob}`, result);
     
     res.json({
       success: true,
@@ -97,7 +97,7 @@ export default async (req, res) => {
     });
     
   } catch (error) {
-    logger.error(`Cron job failed: ${cronJob}`, { error: error.message });
+    logger.log('CRON_ERROR', `Cron job failed: ${cronJob}`, { error: error.message });
     
     res.status(500).json({
       success: false,
@@ -144,8 +144,9 @@ Use standard cron syntax: `* * * * *`
 # Check cron job status
 curl http://localhost:3000/api/status | jq '.cronJobs'
 
-# View cron job logs
-tail -f logs/app.log | grep "Cron job"
+# View cron job logs (CRON and CRON_ERROR levels)
+tail -f logs/app.log | grep '"level":"CRON"' | jq .
+tail -f logs/app.log | grep '"level":"CRON_ERROR"' | jq .
 ```
 
 ## Example Cron Jobs
@@ -190,4 +191,11 @@ export default async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
-``` 
+```
+
+## Log Levels for Cron Jobs
+
+| Level        | Description                        | Use Case                        |
+|--------------|------------------------------------|---------------------------------|
+| CRON         | Cron job started/completed         | Normal cron job events          |
+| CRON_ERROR   | Cron job error/failure             | Cron job failures or warnings   |
