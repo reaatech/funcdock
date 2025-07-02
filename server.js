@@ -1234,10 +1234,7 @@ const loadCronJobs = async (functionDir) => {
   const cronConfigPath = path.join(functionDir, 'cron.json');
 
   // Only proceed if cron.json exists
-  try {
-    await fs.access(cronConfigPath);
-  } catch (err) {
-    // File does not exist: silently skip cron jobs for this function
+  if (!fs.existsSync(cronConfigPath)) {
     return true;
   }
 
@@ -1266,11 +1263,9 @@ const loadCronJobs = async (functionDir) => {
         continue;
       }
 
-      // Determine handler path
+      // Determine handler path and check if it exists
       const handlerPath = path.join(functionDir, job.handler);
-      try {
-        await fs.access(handlerPath);
-      } catch (error) {
+      if (!fs.existsSync(handlerPath)) {
         continue;
       }
 
@@ -1309,7 +1304,10 @@ const loadCronJobs = async (functionDir) => {
     activeCronJobs.set(functionName, functionCronJobs);
     return true;
   } catch (error) {
-    // Only log errors that aren't ENOENT (should never happen here)
+    // Only log errors that are NOT about missing cron.json
+    if (error.code !== 'ENOENT') {
+      logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
+    }
     return false;
   }
 };
