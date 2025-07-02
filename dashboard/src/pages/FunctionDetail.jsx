@@ -75,6 +75,10 @@ const FunctionDetail = () => {
   const [fileLoading, setFileLoading] = useState(false)
   const [expandedFolders, setExpandedFolders] = useState(new Set())
 
+  // New state for environment variables
+  const [envVars, setEnvVars] = useState(null)
+  const [envLoading, setEnvLoading] = useState(false)
+
   useEffect(() => {
     fetchFunctionData()
 
@@ -89,6 +93,16 @@ const FunctionDetail = () => {
       // Cleanup socket listeners
     }
   }, [name, on])
+
+  useEffect(() => {
+    if (activeTab === 'env') {
+      setEnvLoading(true)
+      functionsApi.getEnv(name)
+        .then(res => setEnvVars(res.data.env || {}))
+        .catch(() => setEnvVars({}))
+        .finally(() => setEnvLoading(false))
+    }
+  }, [activeTab, name])
 
   const fetchFunctionData = async () => {
     try {
@@ -459,6 +473,7 @@ const FunctionDetail = () => {
             { id: 'logs', label: 'Logs', icon: FileText },
             { id: 'metrics', label: 'Metrics', icon: Activity },
             { id: 'test', label: 'Test', icon: TestTube },
+            { id: 'env', label: 'Env', icon: Settings },
             { id: 'update', label: 'Update', icon: Upload }
           ].map((tab) => {
             const Icon = tab.icon
@@ -1155,6 +1170,41 @@ const FunctionDetail = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Env Tab */}
+          {activeTab === 'env' && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Environment Variables</h3>
+              {envLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <LoadingSpinner size="sm" text="Loading environment variables..." />
+                </div>
+              ) : envVars && Object.keys(envVars).length > 0 ? (
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-left px-2 py-1">Key</th>
+                        <th className="text-left px-2 py-1">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(envVars).map(([key, value]) => (
+                        <tr key={key}>
+                          <td className="font-mono px-2 py-1 text-gray-900 dark:text-white">{key}</td>
+                          <td className="font-mono px-2 py-1 text-gray-700 dark:text-gray-300">{value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  No environment variables found for this function.
+                </div>
+              )}
             </div>
           )}
 

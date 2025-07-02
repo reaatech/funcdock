@@ -116,7 +116,10 @@ export const functionsApi = {
   // Download file
   downloadFile: (name, filePath) => api.get(`/api/functions/${name}/files/download?path=${encodeURIComponent(filePath)}`, {
     responseType: 'blob'
-  })
+  }),
+  
+  // Get function environment variables
+  getEnv: (name) => api.get(`/api/functions/${name}/env`),
 }
 
 export const authApi = {

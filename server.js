@@ -131,24 +131,23 @@ const clearModuleCache = (modulePath) => {
 // Load environment variables from function's .env file
 const loadFunctionEnv = async (functionDir) => {
   const envPath = path.join(functionDir, '.env');
-  
   try {
     await fs.access(envPath);
     const envContent = await fs.readFile(envPath, 'utf-8');
     const envVars = {};
-    
-    // Parse .env file content
+    // Parse .env file content, support both '=' and ':' delimiters
     envContent.split('\n').forEach(line => {
       line = line.trim();
       if (line && !line.startsWith('#')) {
-        const [key, ...valueParts] = line.split('=');
-        if (key && valueParts.length > 0) {
-          const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove quotes
-          envVars[key.trim()] = value.trim();
+        // Accept both KEY=VALUE and KEY: VALUE
+        let match = line.match(/^([^=:#]+)\s*[:=]\s*(.*)$/);
+        if (match) {
+          let key = match[1].trim();
+          let value = match[2].replace(/^\"|\"$/g, '').replace(/^'|'$/g, '').trim();
+          envVars[key] = value;
         }
       }
     });
-    
     logger.info(`Loaded ${Object.keys(envVars).length} environment variables for function ${path.basename(functionDir)}`);
     return envVars;
   } catch (error) {
@@ -1415,7 +1414,7 @@ const initializeServer = async () => {
   const watcher = setupFileWatcher();
 
   // Start server
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT || 3003;
   server.listen(PORT, () => {
     logger.info(`🚀 FuncDock platform running on http://localhost:${PORT}`);
     logger.info(`📊 Management API available at http://localhost:${PORT}/api/status`);
@@ -1576,3 +1575,19 @@ const getCronJobsStatus = () => {
 
   return status;
 };
+
+// Dashboard API routes
+app.get('/api/functions/:name/env', authenticateToken, async (req, res) => {
+  const { name } = req.params;
+  const func = loadedFunctions.get(name);
+  if (!func) {
+    return res.status(404).json({ message: 'Function not found' });
+  }
+  try {
+    const envVars = await loadFunctionEnv(func.path);
+    res.json({ env: envVars });
+  } catch (error) {
+    logger.error(`Failed to load env for function ${name}: ${error.message}`);
+    res.status(500).json({ message: 'Failed to load environment variables' });
+  }
+});
