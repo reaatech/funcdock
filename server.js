@@ -1230,11 +1230,19 @@ const loadCronJobs = async (functionDir) => {
   const cronConfigPath = path.join(functionDir, 'cron.json');
 
   try {
-    // Check if cron.json exists
-    await fs.access(cronConfigPath);
+    // Check if cron.json exists and read it
+    let cronConfigRaw;
+    try {
+      cronConfigRaw = await fs.readFile(cronConfigPath, 'utf-8');
+    } catch (readError) {
+      if (readError.code === 'ENOENT') {
+        // No cron.json file exists - this is normal for functions without cron jobs
+        logger.info(`No cron.json found for ${functionName} - skipping cron jobs`);
+        return true;
+      }
+      throw readError; // Re-throw other read errors
+    }
     
-    // Read and parse cron config
-    const cronConfigRaw = await fs.readFile(cronConfigPath, 'utf-8');
     const cronConfig = JSON.parse(cronConfigRaw);
 
     // Validate cron config
@@ -1320,14 +1328,8 @@ const loadCronJobs = async (functionDir) => {
     return true;
 
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      // No cron.json file exists - this is normal for functions without cron jobs
-      logger.info(`No cron.json found for ${functionName} - skipping cron jobs`);
-      return true;
-    } else {
-      logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
-      return false;
-    }
+    logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
+    return false;
   }
 };
 
