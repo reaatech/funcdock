@@ -1329,7 +1329,10 @@ const loadCronJobs = async (functionDir) => {
     return true;
 
   } catch (error) {
-    logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
+    // Only log errors that aren't ENOENT (missing file)
+    if (error.code !== 'ENOENT') {
+      logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
+    }
     return false;
   }
 };
