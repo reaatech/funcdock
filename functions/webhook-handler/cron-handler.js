@@ -30,7 +30,7 @@ export default async function handler(req, res) {
         return await handleTestPing(req, res, logger);
         
       default:
-        return res.status(400).json({
+        const errorResponse = {
           error: 'Unknown cron job',
           jobName,
           availableJobs: [
@@ -40,16 +40,30 @@ export default async function handler(req, res) {
             'webhook-test-ping'
           ],
           timestamp: new Date().toISOString()
-        });
+        };
+        
+        if (res) {
+          return res.status(400).json(errorResponse);
+        } else {
+          logger.log('CRON_ERROR', 'Unknown cron job', errorResponse);
+          return errorResponse;
+        }
     }
   } catch (error) {
-    logger.log('CRON_ERROR', `Cron job ${jobName} failed: ${error.message}`);
-    return res.status(500).json({
+    const errorResponse = {
       error: 'Cron job failed',
       jobName,
       message: error.message,
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    logger.log('CRON_ERROR', `Cron job ${jobName} failed: ${error.message}`);
+    
+    if (res) {
+      return res.status(500).json(errorResponse);
+    } else {
+      return errorResponse;
+    }
   }
 }
 
@@ -92,7 +106,11 @@ async function handleHealthCheck(req, res, logger) {
 
   logger.log('CRON', 'Webhook health check completed', healthStatus);
   
-  return res.status(200).json(healthStatus);
+  if (res) {
+    return res.status(200).json(healthStatus);
+  } else {
+    return healthStatus;
+  }
 }
 
 async function handleStatsCleanup(req, res, logger) {
@@ -132,7 +150,11 @@ async function handleStatsCleanup(req, res, logger) {
 
   logger.log('CRON', 'Webhook stats cleanup completed', cleanupResult);
   
-  return res.status(200).json(cleanupResult);
+  if (res) {
+    return res.status(200).json(cleanupResult);
+  } else {
+    return cleanupResult;
+  }
 }
 
 async function handleRateLimitReset(req, res, logger) {
@@ -167,7 +189,11 @@ async function handleRateLimitReset(req, res, logger) {
 
   logger.log('CRON', 'Webhook rate limit reset completed', resetResult);
   
-  return res.status(200).json(resetResult);
+  if (res) {
+    return res.status(200).json(resetResult);
+  } else {
+    return resetResult;
+  }
 }
 
 async function handleTestPing(req, res, logger) {
@@ -210,5 +236,9 @@ async function handleTestPing(req, res, logger) {
 
   logger.log('CRON', 'Webhook test ping completed', pingResult);
   
-  return res.status(200).json(pingResult);
+  if (res) {
+    return res.status(200).json(pingResult);
+  } else {
+    return pingResult;
+  }
 } 

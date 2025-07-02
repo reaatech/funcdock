@@ -20,7 +20,7 @@ RUN npm ci --only=production
 # Copy application code
 COPY . .
 
-# Create functions directory
+# Create functions directory and set proper permissions
 RUN mkdir -p functions logs
 
 # Configure Redis
@@ -29,7 +29,13 @@ RUN chown -R redis:redis /var/lib/redis
 
 # Create non-root user for security
 RUN groupadd -r serverless && useradd -r -g serverless serverless
+
+# Set proper ownership and permissions for the app directory
 RUN chown -R serverless:serverless /app
+RUN chmod -R 755 /app
+RUN chmod -R 777 /app/functions  # Ensure functions directory is writable
+
+# Switch to serverless user
 USER serverless
 
 # Expose port
