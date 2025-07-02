@@ -378,15 +378,7 @@ const loadFunction = async (functionDir) => {
     }
 
     // Load cron jobs for this function
-    try {
-      await loadCronJobs(functionDir);
-    } catch (error) {
-      // Cron job loading errors are handled within loadCronJobs function
-      // Only log if it's not a missing cron.json file
-      if (error.code !== 'ENOENT') {
-        logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
-      }
-    }
+    await loadCronJobs(functionDir);
 
     // Load environment variables for this function
     const envVars = await loadFunctionEnv(functionDir);
@@ -750,9 +742,13 @@ app.get('/api/functions/:name', authenticateToken, async (req, res) => {
   }
 
   // Read cron.json to get cron job details
-  let cronJobDetails = [];
+let cronJobDetails = [];
+const cronPath = path.join(func.path, 'cron.json');
+
+try {
+  await fs.access(cronPath);
+  // File exists, proceed to read it
   try {
-    const cronPath = path.join(func.path, 'cron.json');
     const cronRaw = await fs.readFile(cronPath, 'utf-8');
     const cronConfig = JSON.parse(cronRaw);
     if (Array.isArray(cronConfig.jobs)) {
@@ -763,9 +759,12 @@ app.get('/api/functions/:name', authenticateToken, async (req, res) => {
       }));
     }
   } catch (e) {
-    // No cron.json file exists - this is normal for functions without cron jobs
+    // If the file exists but is unreadable or invalid, still do not log an error
     cronJobDetails = [];
   }
+} catch (error) {
+  // File doesn't exist, this is normal - leave cronJobDetails as empty array
+}
 
   const functionData = {
     name: func.name,
@@ -1231,24 +1230,25 @@ initializeServer().catch(error => {
 // Cron job management
 const loadCronJobs = async (functionDir) => {
   const functionName = path.basename(functionDir);
+  
+  // Check if cron.json exists BEFORE creating any paths or doing anything else
   const cronConfigPath = path.join(functionDir, 'cron.json');
-
-  // Only proceed if cron.json exists
-  if (!fs.existsSync(cronConfigPath)) {
+  
+  try {
+    await fs.access(cronConfigPath);
+    // File exists, proceed to read it
+  } catch (error) {
+    // File doesn't exist, this is normal - return silently
     return true;
   }
 
+  // Only proceed if the file actually exists
   let cronConfigRaw;
   try {
     cronConfigRaw = await fs.readFile(cronConfigPath, 'utf-8');
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      // File was deleted between existsSync and readFile, skip silently
-      return true;
-    }
-    // Only log truly unexpected errors
-    logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
-    return false;
+    // File exists but can't be read - still don't log anything
+    return true;
   }
 
   const cronConfig = JSON.parse(cronConfigRaw);
@@ -1258,62 +1258,65 @@ const loadCronJobs = async (functionDir) => {
     return true;
   }
 
-    // Stop existing cron jobs for this function
-    stopCronJobs(functionName);
+  // Stop existing cron jobs for this function
+  stopCronJobs(functionName);
 
-    const functionCronJobs = [];
+  const functionCronJobs = [];
 
-    for (const job of cronConfig.jobs) {
-      // Validate job config
-      if (!job.schedule || !job.handler) {
-        continue;
-      }
-
-      // Validate cron schedule
-      if (!cron.validate(job.schedule)) {
-        continue;
-      }
-
-      // Determine handler path and check if it exists
-      const handlerPath = path.join(functionDir, job.handler);
-      if (!fs.existsSync(handlerPath)) {
-        continue;
-      }
-
-      // Register the cron job
-      const cronJob = cron.schedule(job.schedule, async () => {
-        const functionLogger = new Logger({
-          logLevel: process.env.LOG_LEVEL || 'info',
-          logToFile: true,
-          logToConsole: true,
-          functionName: functionName
-        });
-        const functionInfo = loadedFunctions.get(functionName);
-        const req = {
-          functionName,
-          functionPath: functionDir,
-          jobName: job.name,
-          logger: functionLogger,
-          env: functionInfo ? functionInfo.envVars : {}
-        };
-        try {
-          const handlerModule = await import(handlerPath);
-          const handlerFunction = handlerModule.default;
-          if (typeof handlerFunction === 'function') {
-            await handlerFunction(req);
-          } else {
-            functionLogger.error(`Handler ${job.handler} does not export a default function`);
-          }
-        } catch (err) {
-          functionLogger.error(`Error in ${functionName}/${job.handler}: ${err.message}`);
-        }
-      });
-      functionCronJobs.push(cronJob);
+  for (const job of cronConfig.jobs) {
+    // Validate job config
+    if (!job.schedule || !job.handler) {
+      continue;
     }
 
-    // Store cron jobs
-    activeCronJobs.set(functionName, functionCronJobs);
-    return true;
+    // Validate cron schedule
+    if (!cron.validate(job.schedule)) {
+      continue;
+    }
+
+    // Determine handler path and check if it exists
+    const handlerPath = path.join(functionDir, job.handler);
+    try {
+      await fs.access(handlerPath);
+    } catch (error) {
+      // Handler doesn't exist, skip this job
+      continue;
+    }
+
+    // Register the cron job
+    const cronJob = cron.schedule(job.schedule, async () => {
+      const functionLogger = new Logger({
+        logLevel: process.env.LOG_LEVEL || 'info',
+        logToFile: true,
+        logToConsole: true,
+        functionName: functionName
+      });
+      const functionInfo = loadedFunctions.get(functionName);
+      const req = {
+        functionName,
+        functionPath: functionDir,
+        jobName: job.name,
+        logger: functionLogger,
+        env: functionInfo ? functionInfo.envVars : {}
+      };
+      try {
+        const handlerModule = await import(handlerPath);
+        const handlerFunction = handlerModule.default;
+        if (typeof handlerFunction === 'function') {
+          await handlerFunction(req);
+        } else {
+          functionLogger.error(`Handler ${job.handler} does not export a default function`);
+        }
+      } catch (err) {
+        functionLogger.error(`Error in ${functionName}/${job.handler}: ${err.message}`);
+      }
+    });
+    functionCronJobs.push(cronJob);
+  }
+
+  // Store cron jobs
+  activeCronJobs.set(functionName, functionCronJobs);
+  return true;
 };
 
 // Stop all cron jobs for a function
