@@ -41,6 +41,7 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@qdrant/js-client-rest": "^1.14.1",
     "bcryptjs": "^2.4.3",
     "chokidar": "^4.0.3",
     "compression": "^1.7.4",
