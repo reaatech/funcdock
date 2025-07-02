@@ -89,6 +89,12 @@ make deploy-local PATH=./my-local-function NAME=my-function
 npm run deploy -- --local ./my-local-function --name my-function
 ```
 
+### 4. Dashboard-Based Deployment (OAuth)
+**Best for**: Users who want a no-CLI, browser-based experience
+- Deploy directly from your GitHub or Bitbucket account using OAuth
+- Select a repo and deploy with a few clicks
+- See [Dashboard Deployment Methods](./DASHBOARDS_README.md#deploying-functions-via-github--bitbucket-oauth) for setup and usage
+
 ---
 
 ## Step-by-Step Deployment

@@ -18,6 +18,9 @@ import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
 import Logger from './utils/logger.js';
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -121,6 +124,113 @@ const loadedFunctions = new Map();
 const registeredRoutes = new Map();
 const activeCronJobs = new Map(); // Track active cron jobs
 const logger = new Logger();
+
+// In-memory token storage (for demo; use DB/Redis in production)
+const userTokens = {};
+
+// --- GitHub OAuth ---
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || 'YOUR_GITHUB_CLIENT_ID';
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || 'YOUR_GITHUB_CLIENT_SECRET';
+const GITHUB_REDIRECT_URI = process.env.GITHUB_REDIRECT_URI || 'http://localhost:3003/api/oauth/github/callback';
+
+app.get('/api/oauth/github', authenticateToken, (req, res) => {
+  const state = Math.random().toString(36).substring(2);
+  const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(GITHUB_REDIRECT_URI)}&scope=repo&state=${state}`;
+  res.json({ url });
+});
+
+app.get('/api/oauth/github/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send('Missing code');
+  try {
+    const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: GITHUB_CLIENT_ID,
+        client_secret: GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: GITHUB_REDIRECT_URI
+      })
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return res.status(400).json({ error: 'No access token' });
+    // For demo, associate token with user (by username)
+    const userRes = await fetch('https://api.github.com/user', {
+      headers: { Authorization: `token ${tokenData.access_token}` }
+    });
+    const user = await userRes.json();
+    userTokens[`github:${user.login}`] = tokenData.access_token;
+    // Redirect to dashboard with success (in production, use a better flow)
+    res.redirect('/dashboard?github=success');
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/github/repos', authenticateToken, async (req, res) => {
+  try {
+    const username = req.user.username;
+    const token = userTokens[`github:${username}`];
+    if (!token) return res.status(401).json({ error: 'Not connected to GitHub' });
+    const ghRes = await fetch('https://api.github.com/user/repos?per_page=100', {
+      headers: { Authorization: `token ${token}` }
+    });
+    const repos = await ghRes.json();
+    res.json(repos);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Bitbucket OAuth ---
+const BITBUCKET_CLIENT_ID = process.env.BITBUCKET_CLIENT_ID || 'YOUR_BITBUCKET_CLIENT_ID';
+const BITBUCKET_CLIENT_SECRET = process.env.BITBUCKET_CLIENT_SECRET || 'YOUR_BITBUCKET_CLIENT_SECRET';
+const BITBUCKET_REDIRECT_URI = process.env.BITBUCKET_REDIRECT_URI || 'http://localhost:3003/api/oauth/bitbucket/callback';
+
+app.get('/api/oauth/bitbucket', authenticateToken, (req, res) => {
+  const state = Math.random().toString(36).substring(2);
+  const url = `https://bitbucket.org/site/oauth2/authorize?client_id=${BITBUCKET_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(BITBUCKET_REDIRECT_URI)}&state=${state}`;
+  res.json({ url });
+});
+
+app.get('/api/oauth/bitbucket/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send('Missing code');
+  try {
+    const tokenRes = await fetch('https://bitbucket.org/site/oauth2/access_token', {
+      method: 'POST',
+      headers: { 'Authorization': 'Basic ' + Buffer.from(`${BITBUCKET_CLIENT_ID}:${BITBUCKET_CLIENT_SECRET}`).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(BITBUCKET_REDIRECT_URI)}`
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return res.status(400).json({ error: 'No access token' });
+    // For demo, associate token with user (by username)
+    const userRes = await fetch('https://api.bitbucket.org/2.0/user', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const user = await userRes.json();
+    userTokens[`bitbucket:${user.username}`] = tokenData.access_token;
+    res.redirect('/dashboard?bitbucket=success');
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/bitbucket/repos', authenticateToken, async (req, res) => {
+  try {
+    const username = req.user.username;
+    const token = userTokens[`bitbucket:${username}`];
+    if (!token) return res.status(401).json({ error: 'Not connected to Bitbucket' });
+    const bbRes = await fetch('https://api.bitbucket.org/2.0/repositories?role=member', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await bbRes.json();
+    res.json(data.values || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Helper function to clear module cache (ES modules don't have require.cache)
 // ES modules are cached differently and the ?update= parameter handles cache busting

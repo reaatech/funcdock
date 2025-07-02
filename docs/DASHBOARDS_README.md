@@ -14,6 +14,7 @@
 - [Troubleshooting](#troubleshooting)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Best Practices](#best-practices)
+- [Deploying Functions via GitHub & Bitbucket (OAuth)](#deploying-functions-via-github--bitbucket-oauth)
 
 ---
 
@@ -475,4 +476,58 @@ DEBUG=funcdock:* npm run dev
 
 ---
 
-**Need Help?** See [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md) for detailed solutions and support resources. 
+**Need Help?** See [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md) for detailed solutions and support resources.
+
+---
+
+## 🚀 Deploying Functions via GitHub & Bitbucket (OAuth)
+
+FuncDock lets you deploy functions directly from your GitHub or Bitbucket repositories using a secure OAuth flow, right from the dashboard.
+
+### How It Works
+- **Connect** your GitHub or Bitbucket account via the dashboard.
+- **Select** a repository from your account.
+- **Deploy** the function with a single click—FuncDock will clone the repo and deploy it automatically.
+
+### Setup Instructions
+
+1. **Register an OAuth App**
+   - For **GitHub**: Go to [GitHub Developer Settings](https://github.com/settings/developers) → "OAuth Apps" → "New OAuth App".
+   - For **Bitbucket**: Go to [Bitbucket OAuth Consumers](https://bitbucket.org/account/settings/app-passwords/) → "Add consumer".
+   - Set the callback URLs to:
+     - `http://localhost:3003/api/oauth/github/callback` (for GitHub)
+     - `http://localhost:3003/api/oauth/bitbucket/callback` (for Bitbucket)
+
+2. **Configure Your .env**
+   Create a `.env` file in your project root (or update it) with:
+   ```env
+   # GitHub OAuth
+   GITHUB_CLIENT_ID=your_github_client_id
+   GITHUB_CLIENT_SECRET=your_github_client_secret
+   GITHUB_REDIRECT_URI=http://localhost:3003/api/oauth/github/callback
+
+   # Bitbucket OAuth
+   BITBUCKET_CLIENT_ID=your_bitbucket_client_id
+   BITBUCKET_CLIENT_SECRET=your_bitbucket_client_secret
+   BITBUCKET_REDIRECT_URI=http://localhost:3003/api/oauth/bitbucket/callback
+
+   # JWT Secret
+   JWT_SECRET=your_jwt_secret
+   ```
+
+3. **Restart the FuncDock backend**
+   - This loads your new credentials.
+
+### Using the Dashboard
+
+1. Go to the **Deploy** tab in the dashboard.
+2. Choose **GitHub** or **Bitbucket** as your deployment method.
+3. Click **Connect** and complete the OAuth flow.
+4. Select a repository from the list.
+5. Enter a function name and click **Deploy**.
+
+FuncDock will clone the selected repo and deploy it as a new function. You can monitor deployment status and logs in real time.
+
+**Note:**
+- Only public repos or private repos you have access to will be shown.
+- For production, consider using persistent token storage (see Security Best Practices). 

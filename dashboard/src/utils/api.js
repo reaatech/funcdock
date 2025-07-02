@@ -133,4 +133,16 @@ export const systemApi = {
   getMetrics: () => api.get('/api/metrics'),
   getLogs: (limit = 100) => api.get(`/api/logs?limit=${limit}`),
   getFunctionLogs: () => api.get('/api/logs/functions'),
+}
+
+// GitHub OAuth and Repos
+export const githubApi = {
+  getGithubOAuthUrl: () => api.get('/api/oauth/github'),
+  getGithubRepos: () => api.get('/api/github/repos'),
+}
+
+// Bitbucket OAuth and Repos
+export const bitbucketApi = {
+  getBitbucketOAuthUrl: () => api.get('/api/oauth/bitbucket'),
+  getBitbucketRepos: () => api.get('/api/bitbucket/repos'),
 } 

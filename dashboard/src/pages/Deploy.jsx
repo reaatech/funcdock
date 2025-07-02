@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { functionsApi } from '../utils/api'
+import { functionsApi, githubApi, bitbucketApi } from '../utils/api'
 import { Upload, GitBranch, File, Folder, X } from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
@@ -13,6 +13,12 @@ const Deploy = () => {
   const [gitBranch, setGitBranch] = useState('main')
   const [gitCommit, setGitCommit] = useState('')
   const [loading, setLoading] = useState(false)
+  const [githubConnected, setGithubConnected] = useState(false)
+  const [bitbucketConnected, setBitbucketConnected] = useState(false)
+  const [githubRepos, setGithubRepos] = useState([])
+  const [bitbucketRepos, setBitbucketRepos] = useState([])
+  const [selectedGithubRepo, setSelectedGithubRepo] = useState('')
+  const [selectedBitbucketRepo, setSelectedBitbucketRepo] = useState('')
   const navigate = useNavigate()
 
   const handleFileSelect = (event) => {
@@ -42,15 +48,35 @@ const Deploy = () => {
       return
     }
 
+    if (deployMethod === 'github' && !selectedGithubRepo) {
+      toast.error('Please select a GitHub repository')
+      return
+    }
+
+    if (deployMethod === 'bitbucket' && !selectedBitbucketRepo) {
+      toast.error('Please select a Bitbucket repository')
+      return
+    }
+
     setLoading(true)
 
     try {
       if (deployMethod === 'local') {
         await functionsApi.deployFromLocal(functionName, files)
         toast.success('Function deployed successfully!')
-      } else {
+      } else if (deployMethod === 'git') {
         await functionsApi.deployFromGit(functionName, gitRepo, gitBranch, gitCommit)
         toast.success('Function deployed from Git successfully!')
+      } else if (deployMethod === 'github') {
+        // selectedGithubRepo is the repo full_name (e.g. user/repo)
+        const repoUrl = `https://github.com/${selectedGithubRepo}.git`
+        await functionsApi.deployFromGit(functionName, repoUrl, 'main', '')
+        toast.success('Function deployed from GitHub successfully!')
+      } else if (deployMethod === 'bitbucket') {
+        // selectedBitbucketRepo is the repo full_name (e.g. user/repo)
+        const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`
+        await functionsApi.deployFromGit(functionName, repoUrl, 'main', '')
+        toast.success('Function deployed from Bitbucket successfully!')
       }
       
       navigate('/functions')
@@ -61,6 +87,22 @@ const Deploy = () => {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    // Check for OAuth redirect success
+    if (window.location.search.includes('github=success')) {
+      setGithubConnected(true)
+      githubApi.getGithubRepos().then(({ data }) => {
+        setGithubRepos(data)
+      })
+    }
+    if (window.location.search.includes('bitbucket=success')) {
+      setBitbucketConnected(true)
+      bitbucketApi.getBitbucketRepos().then(({ data }) => {
+        setBitbucketRepos(data)
+      })
+    }
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -96,6 +138,28 @@ const Deploy = () => {
           >
             <GitBranch className="h-4 w-4 inline mr-2" />
             Git Repository
+          </button>
+          <button
+            onClick={() => setDeployMethod('github')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              deployMethod === 'github'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <GitBranch className="h-4 w-4 inline mr-2" />
+            GitHub
+          </button>
+          <button
+            onClick={() => setDeployMethod('bitbucket')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              deployMethod === 'bitbucket'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <GitBranch className="h-4 w-4 inline mr-2" />
+            Bitbucket
           </button>
         </nav>
       </div>
@@ -228,6 +292,84 @@ const Deploy = () => {
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* GitHub Deployment */}
+        {deployMethod === 'github' && (
+          <div className="space-y-4">
+            {!githubConnected ? (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={async () => {
+                  // Start GitHub OAuth
+                  try {
+                    const { data } = await githubApi.getGithubOAuthUrl();
+                    window.location.href = data.url;
+                  } catch (err) {
+                    toast.error('Failed to start GitHub OAuth');
+                  }
+                }}
+              >
+                Connect to GitHub
+              </button>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Select a GitHub Repository
+                </label>
+                <select
+                  className="input mt-1"
+                  value={selectedGithubRepo}
+                  onChange={e => setSelectedGithubRepo(e.target.value)}
+                >
+                  <option value="">-- Select a repository --</option>
+                  {githubRepos.map(repo => (
+                    <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bitbucket Deployment */}
+        {deployMethod === 'bitbucket' && (
+          <div className="space-y-4">
+            {!bitbucketConnected ? (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={async () => {
+                  // Start Bitbucket OAuth
+                  try {
+                    const { data } = await bitbucketApi.getBitbucketOAuthUrl();
+                    window.location.href = data.url;
+                  } catch (err) {
+                    toast.error('Failed to start Bitbucket OAuth');
+                  }
+                }}
+              >
+                Connect to Bitbucket
+              </button>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Select a Bitbucket Repository
+                </label>
+                <select
+                  className="input mt-1"
+                  value={selectedBitbucketRepo}
+                  onChange={e => setSelectedBitbucketRepo(e.target.value)}
+                >
+                  <option value="">-- Select a repository --</option>
+                  {bitbucketRepos.map(repo => (
+                    <option key={repo.uuid} value={repo.full_name}>{repo.full_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
 
