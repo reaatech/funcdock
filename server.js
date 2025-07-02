@@ -348,11 +348,20 @@ const loadFunction = async (functionDir) => {
             req.env = functionInfo.envVars;
           }
 
+          // Capture start time for duration
+          const start = Date.now();
+          let statusCode = 200;
+          // Patch res.status to capture status code
+          const origStatus = res.status;
+          res.status = function(code) {
+            statusCode = code;
+            return origStatus.call(this, code);
+          };
+
           try {
             await routeHandlerFunction(req, res);
           } catch (err) {
             functionLogger.error(`Error in ${fullPath} (${functionName}/${routeHandler}): ${err.message}`);
-
             // Only send response if not already sent
             if (!res.headersSent) {
               res.status(500).json({
@@ -363,6 +372,23 @@ const loadFunction = async (functionDir) => {
                 timestamp: new Date().toISOString()
               });
             }
+            statusCode = 500;
+          } finally {
+            // Log HTTP access line for all requests
+            const duration = Date.now() - start;
+            const method = req.method;
+            const ip = req.ip || req.connection?.remoteAddress || '';
+            const userAgent = req.headers['user-agent'] || '';
+            functionLogger.info('HTTP access', {
+              level: 'ACCESS',
+              function: functionName,
+              method,
+              path: req.originalUrl || req.url,
+              statusCode,
+              duration,
+              ip,
+              userAgent
+            });
           }
         });
 
@@ -1002,13 +1028,43 @@ app.get('/api/functions/:name/metrics', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Function not found' });
     }
 
-    // Mock metrics for now - in a real implementation, you'd collect actual metrics
+    // Count invocations from function log file
+    let invocations = 0;
+    try {
+      const Logger = (await import('./utils/logger.js')).default;
+      const logger = new Logger({ functionName: name });
+      const logResult = await logger.getFunctionLogs(name, 10000); // Read up to 10k lines
+      if (!logResult.error) {
+        for (const line of logResult.lines) {
+          let entry;
+          if (typeof line === 'object' && line !== null) {
+            entry = line;
+          } else {
+            try {
+              entry = JSON.parse(line);
+            } catch { continue; }
+          }
+          if (
+            entry &&
+            entry.level === 'ACCESS' &&
+            typeof entry.method === 'string' &&
+            ['GET','POST','PUT','DELETE'].includes(entry.method.toUpperCase())
+          ) {
+            invocations++;
+          }
+        }
+      }
+    } catch (e) {
+      // If log file missing or unreadable, invocations = 0
+    }
+
+    // Mock other metrics for now
     const metrics = {
       name,
-      invocations: Math.floor(Math.random() * 1000),
-      errors: Math.floor(Math.random() * 50),
-      avgResponseTime: Math.random() * 100 + 50,
-      lastInvocation: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+      invocations,
+      errors: 0,
+      avgResponseTime: 0,
+      lastInvocation: null,
       routes: func.routes || [],
       cronJobs: activeCronJobs.has(name) ? activeCronJobs.get(name).length : 0
     };

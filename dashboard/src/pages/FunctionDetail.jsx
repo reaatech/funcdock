@@ -79,6 +79,8 @@ const FunctionDetail = () => {
   const [envVars, setEnvVars] = useState(null)
   const [envLoading, setEnvLoading] = useState(false)
 
+  const [logLevel, setLogLevel] = useState('all')
+
   useEffect(() => {
     fetchFunctionData()
 
@@ -395,6 +397,12 @@ const FunctionDetail = () => {
       )
     })
   }
+
+  // Filter logs by selected log level
+  const filteredLogs = logs.filter(log => {
+    if (logLevel !== 'all' && log.level !== logLevel) return false
+    return true
+  })
 
   if (loading) {
     return (
@@ -1009,6 +1017,17 @@ const FunctionDetail = () => {
                     <option value={100}>Last 100</option>
                     <option value={200}>Last 200</option>
                   </select>
+                  <select
+                    value={logLevel}
+                    onChange={e => setLogLevel(e.target.value)}
+                    className="input text-sm"
+                  >
+                    <option value="all">All Levels</option>
+                    <option value="ERROR">ERROR</option>
+                    <option value="WARN">WARN</option>
+                    <option value="INFO">INFO</option>
+                    <option value="ACCESS">ACCESS</option>
+                  </select>
                   <button
                     onClick={() => fetchFunctionData()}
                     className="btn-secondary text-sm"
@@ -1018,7 +1037,7 @@ const FunctionDetail = () => {
                   </button>
                 </div>
               </div>
-              {logs.length > 0 ? (
+              {filteredLogs.length > 0 ? (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   <table className="min-w-full text-sm">
                     <thead>
@@ -1029,7 +1048,7 @@ const FunctionDetail = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {logs.map((log, index) => (
+                      {filteredLogs.map((log, index) => (
                         <tr key={index}>
                           <td className="font-mono px-2 py-1">{log.timestamp || ''}</td>
                           <td className="font-mono px-2 py-1">{log.level || ''}</td>
