@@ -1233,25 +1233,20 @@ const loadCronJobs = async (functionDir) => {
   const functionName = path.basename(functionDir);
   const cronConfigPath = path.join(functionDir, 'cron.json');
 
+  // Only proceed if cron.json exists
   try {
-    // Check if cron.json exists and read it
-    let cronConfigRaw;
-    try {
-      cronConfigRaw = await fs.readFile(cronConfigPath, 'utf-8');
-    } catch (readError) {
-      if (readError.code === 'ENOENT') {
-        // No cron.json file exists - this is normal for functions without cron jobs
-        logger.info(`No cron.json found for ${functionName} - skipping cron jobs`);
-        return true;
-      }
-      throw readError; // Re-throw other read errors
-    }
-    
+    await fs.access(cronConfigPath);
+  } catch (err) {
+    // File does not exist: silently skip cron jobs for this function
+    return true;
+  }
+
+  try {
+    const cronConfigRaw = await fs.readFile(cronConfigPath, 'utf-8');
     const cronConfig = JSON.parse(cronConfigRaw);
 
     // Validate cron config
     if (!cronConfig.jobs || !Array.isArray(cronConfig.jobs)) {
-      logger.info(`No cron jobs configured for ${functionName} (empty jobs array)`);
       return true;
     }
 
@@ -1263,54 +1258,41 @@ const loadCronJobs = async (functionDir) => {
     for (const job of cronConfig.jobs) {
       // Validate job config
       if (!job.schedule || !job.handler) {
-        logger.error(`Invalid cron job in ${functionName}: schedule and handler are required`);
         continue;
       }
 
       // Validate cron schedule
       if (!cron.validate(job.schedule)) {
-        logger.error(`Invalid cron schedule in ${functionName}: ${job.schedule}`);
         continue;
       }
 
       // Determine handler path
       const handlerPath = path.join(functionDir, job.handler);
-      
       try {
         await fs.access(handlerPath);
       } catch (error) {
-        logger.error(`Cron handler not found for ${functionName}: ${job.handler}`);
         continue;
       }
 
       // Register the cron job
       const cronJob = cron.schedule(job.schedule, async () => {
-        // Create function-specific logger
         const functionLogger = new Logger({
           logLevel: process.env.LOG_LEVEL || 'info',
           logToFile: true,
           logToConsole: true,
-          functionName: functionName // Pass function name to logger
+          functionName: functionName
         });
-
-        // Get function info including environment variables
         const functionInfo = loadedFunctions.get(functionName);
-
-        // Add function context to request
         const req = {
           functionName,
           functionPath: functionDir,
-          jobName: job.name, // Add the job name
+          jobName: job.name,
           logger: functionLogger,
-          // Include function-specific environment variables
           env: functionInfo ? functionInfo.envVars : {}
         };
-
         try {
-          // Import and execute the handler
           const handlerModule = await import(handlerPath);
           const handlerFunction = handlerModule.default;
-          
           if (typeof handlerFunction === 'function') {
             await handlerFunction(req);
           } else {
@@ -1320,22 +1302,14 @@ const loadCronJobs = async (functionDir) => {
           functionLogger.error(`Error in ${functionName}/${job.handler}: ${err.message}`);
         }
       });
-
       functionCronJobs.push(cronJob);
-      logger.info(`Registered cron job: ${job.schedule} -> ${functionName}: ${job.handler}`);
     }
 
     // Store cron jobs
     activeCronJobs.set(functionName, functionCronJobs);
-
-    logger.info(`Successfully loaded ${functionCronJobs.length} cron jobs for ${functionName}`);
     return true;
-
   } catch (error) {
-    // Only log errors that aren't ENOENT (missing file)
-    if (error.code !== 'ENOENT') {
-      logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
-    }
+    // Only log errors that aren't ENOENT (should never happen here)
     return false;
   }
 };
