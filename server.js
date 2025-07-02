@@ -760,6 +760,7 @@ app.get('/api/functions/:name', authenticateToken, async (req, res) => {
       }));
     }
   } catch (e) {
+    // No cron.json file exists - this is normal for functions without cron jobs
     cronJobDetails = [];
   }
 
