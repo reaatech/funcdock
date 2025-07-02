@@ -1702,6 +1702,14 @@ const loadCronJobs = async (functionDir) => {
         functionName: functionName
       });
       const functionInfo = loadedFunctions.get(functionName);
+      // Log CRON invocation
+      functionLogger.info('CRON job triggered', {
+        level: 'CRON',
+        function: functionName,
+        job: job.name,
+        schedule: job.schedule,
+        timestamp: new Date().toISOString()
+      });
       const req = {
         functionName,
         functionPath: functionDir,

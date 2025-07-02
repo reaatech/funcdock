@@ -1029,6 +1029,7 @@ const FunctionDetail = () => {
                     <option value="WARN">WARN</option>
                     <option value="INFO">INFO</option>
                     <option value="ACCESS">ACCESS</option>
+                    <option value="CRON">CRON</option>
                   </select>
                   <button
                     onClick={() => fetchFunctionData()}

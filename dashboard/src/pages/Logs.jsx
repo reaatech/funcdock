@@ -219,6 +219,7 @@ const Logs = () => {
                 <option value="ERROR">Error</option>
                 <option value="WARN">Warning</option>
                 <option value="INFO">Info</option>
+                <option value="CRON">CRON</option>
               </select>
             </div>
 
