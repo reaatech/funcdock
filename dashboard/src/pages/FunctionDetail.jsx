@@ -115,7 +115,17 @@ const FunctionDetail = () => {
       ])
       
       setFunctionData(functionRes.data)
-      setLogs(logsRes.data.logs || [])
+      // Parse each log line as JSON if possible
+      const rawLogs = logsRes.data.logs || []
+      const parsedLogs = rawLogs.map(line => {
+        if (typeof line === 'object' && line !== null) return line
+        try {
+          return JSON.parse(line)
+        } catch {
+          return { message: line, level: 'INFO', timestamp: '', isPlain: true }
+        }
+      })
+      setLogs(parsedLogs)
       setMetrics(metricsRes.data)
       setCronJobs(cronRes.data.jobs || [])
       setFunctionFiles(filesRes.data.files || [])
@@ -1010,43 +1020,32 @@ const FunctionDetail = () => {
               </div>
               {logs.length > 0 ? (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {logs.map((log, index) => (
-                    <div key={index} className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-sm font-mono">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {new Date(log.timestamp || Date.now()).toLocaleString()}
-                        </span>
-                        {log.level && (
-                          <span className={`badge text-xs ${
-                            log.level === 'ERROR' ? 'badge-danger' :
-                            log.level === 'WARN' ? 'badge-warning' : 'badge-info'
-                          }`}>
-                            {log.level}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-gray-900 dark:text-white mt-1">
-                        {log.message || JSON.stringify(log)}
-                      </p>
-                    </div>
-                  ))}
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-left px-2 py-1">Timestamp</th>
+                        <th className="text-left px-2 py-1">Level</th>
+                        <th className="text-left px-2 py-1">Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logs.map((log, index) => (
+                        <tr key={index}>
+                          <td className="font-mono px-2 py-1">{log.timestamp || ''}</td>
+                          <td className="font-mono px-2 py-1">{log.level || ''}</td>
+                          <td className="font-mono px-2 py-1">{log.message || (typeof log === 'string' ? log : '')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="mx-auto w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                    <FileText className="h-10 w-10 text-gray-400" />
-                  </div>
-                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No logs available</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    Logs will appear here when the function is executed. Try testing the function to generate some logs.
+                  <File className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No logs found</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No logs available for this function
                   </p>
-                  <button
-                    onClick={() => setActiveTab('test')}
-                    className="btn-secondary text-sm inline-flex items-center"
-                  >
-                    <TestTube className="h-4 w-4 mr-2" />
-                    Test Function
-                  </button>
                 </div>
               )}
             </div>

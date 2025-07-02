@@ -47,7 +47,17 @@ const Logs = () => {
   const fetchLogs = async () => {
     try {
       const response = await systemApi.getLogs(limit)
-      setLogs(response.data.logs || [])
+      // Parse each log line as JSON if possible
+      const rawLogs = response.data.logs || []
+      const parsedLogs = rawLogs.map(line => {
+        if (typeof line === 'object' && line !== null) return line
+        try {
+          return JSON.parse(line)
+        } catch {
+          return { message: line, level: 'INFO', timestamp: '', function: '', isPlain: true }
+        }
+      })
+      setLogs(parsedLogs)
     } catch (error) {
       console.error('Failed to fetch logs:', error)
       toast.error('Failed to load logs')
@@ -100,7 +110,7 @@ const Logs = () => {
       }
       
       // Filter by search term
-      if (searchTerm && !log.message.toLowerCase().includes(searchTerm.toLowerCase())) {
+      if (searchTerm && !(log.message || '').toLowerCase().includes(searchTerm.toLowerCase())) {
         return false
       }
       
@@ -383,6 +393,32 @@ const Logs = () => {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Log Table */}
+      <div className="card">
+        <div className="p-4 overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr>
+                <th className="text-left px-2 py-1">Timestamp</th>
+                <th className="text-left px-2 py-1">Level</th>
+                <th className="text-left px-2 py-1">Function</th>
+                <th className="text-left px-2 py-1">Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLogs.map((log, idx) => (
+                <tr key={idx} className={getLogLevelColor(log.level)}>
+                  <td className="font-mono px-2 py-1">{log.timestamp || ''}</td>
+                  <td className="font-mono px-2 py-1">{log.level || ''}</td>
+                  <td className="font-mono px-2 py-1">{log.function || ''}</td>
+                  <td className="font-mono px-2 py-1">{log.message || ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -52,25 +52,17 @@ class Logger {
   formatMessage(level, message, meta = {}) {
     const timestamp = new Date().toISOString();
     const processId = process.pid;
-
-    let formattedMessage = `[${timestamp}] [${processId}] [${level.toUpperCase()}]`;
-
-    if (meta.function) {
-      formattedMessage += ` [${meta.function}]`;
+    const logEntry = {
+      timestamp,
+      pid: processId,
+      level: level.toUpperCase(),
+      message,
+      ...meta
+    };
+    if (this.functionName && !logEntry.function) {
+      logEntry.function = this.functionName;
     }
-
-    formattedMessage += ` ${message}`;
-
-    if (meta && Object.keys(meta).length > 0) {
-      const metaCopy = { ...meta };
-      delete metaCopy.function; // Already included above
-
-      if (Object.keys(metaCopy).length > 0) {
-        formattedMessage += ` ${JSON.stringify(metaCopy)}`;
-      }
-    }
-
-    return formattedMessage;
+    return JSON.stringify(logEntry);
   }
 
   async writeToFile(level, formattedMessage) {
@@ -144,16 +136,26 @@ class Logger {
 
   writeToConsole(level, formattedMessage) {
     if (!this.logToConsole) return;
-
-    const colorCode = this.colors[level] || this.colors.reset;
-    const coloredMessage = `${colorCode}${formattedMessage}${this.colors.reset}`;
-
-    if (level === 'error' || level === 'alert') {
-      console.error(coloredMessage);
-    } else if (level === 'warn') {
-      console.warn(coloredMessage);
-    } else {
-      console.log(coloredMessage);
+    try {
+      const logObj = JSON.parse(formattedMessage);
+      const colorCode = this.colors[level] || this.colors.reset;
+      const coloredMessage = `${colorCode}${logObj.timestamp} [${logObj.level}]${logObj.function ? ` [${logObj.function}]` : ''} ${logObj.message}${this.colors.reset}`;
+      if (level === 'error' || level === 'alert') {
+        console.error(coloredMessage);
+      } else if (level === 'warn') {
+        console.warn(coloredMessage);
+      } else {
+        console.log(coloredMessage);
+      }
+    } catch {
+      // fallback to raw
+      if (level === 'error' || level === 'alert') {
+        console.error(formattedMessage);
+      } else if (level === 'warn') {
+        console.warn(formattedMessage);
+      } else {
+        console.log(formattedMessage);
+      }
     }
   }
 
