@@ -151,4 +151,4 @@ curl -X POST http://localhost:3000/api/reload \
 | `make build` | Build Docker image |
 | `make production` | Start production environment |
 
-*For detailed deployment strategies and workflows, see the [Deployment Guide](DEPLOYMENT_GUIDE.md)* 
+*For detailed deployment strategies and workflows, see the [Deployment Guide](DEPLOYMENT_README.md)* 

@@ -2,16 +2,16 @@
 
 ## 📚 Documentation Index
 
-- [SETUP](SETUP_README.md)
-- [USAGE](USAGE_README.md)
-- [DEPLOYMENT](DEPLOYMENT_README.md)
-- [CLI](CLI_README.md)
-- [CRON JOBS](CRONJOBS_README.md)
-- [DASHBOARDS](DASHBOARDS_README.md)
-- [TESTING](TESTING_README.md)
-- [TROUBLESHOOTING](TROUBLESHOOTING_README.md)
-- [CONTRIBUTING](CONTRIBUTING_README.md)
-- [SECURITY](SECURITY_README.md)
+- [SETUP](docs/SETUP_README.md)
+- [USAGE](docs/USAGE_README.md)
+- [DEPLOYMENT](docs/DEPLOYMENT_README.md)
+- [CLI](docs/CLI_README.md)
+- [CRON JOBS](docs/CRONJOBS_README.md)
+- [DASHBOARDS](docs/DASHBOARDS_README.md)
+- [TESTING](docs/TESTING_README.md)
+- [TROUBLESHOOTING](docs/TROUBLESHOOTING_README.md)
+- [CONTRIBUTING](docs/CONTRIBUTING_README.md)
+- [SECURITY](docs/SECURITY_README.md)
 
 ---
 
@@ -282,7 +282,7 @@ Thousands of developers have discovered the joy of instant deployments, real-tim
 
 **Experience the future of serverless development:**
 
-### **👉 [GET STARTED NOW](SETUP_README.md) 👈**
+### **👉 [GET STARTED NOW](docs/SETUP_README.md) 👈**
 
 ---
 
@@ -290,13 +290,13 @@ Thousands of developers have discovered the joy of instant deployments, real-tim
 
 **Comprehensive guides for every aspect:**
 
-[**SETUP**](SETUP_README.md) — Get running in minutes | [**USAGE**](USAGE_README.md) — Master function development | [**DEPLOYMENT**](DEPLOYMENT_README.md) — Host, Git, and local deployments
+[**SETUP**](docs/SETUP_README.md) — Get running in minutes | [**USAGE**](docs/USAGE_README.md) — Master function development | [**DEPLOYMENT**](docs/DEPLOYMENT_README.md) — Host, Git, and local deployments
 
-[**CLI**](CLI_README.md) — Command-line mastery | [**CRON JOBS**](CRONJOBS_README.md) — Scheduled task perfection | [**DASHBOARDS**](DASHBOARDS_README.md) — Real-time monitoring
+[**CLI**](docs/CLI_README.md) — Command-line mastery | [**CRON JOBS**](docs/CRONJOBS_README.md) — Scheduled task perfection | [**DASHBOARDS**](docs/DASHBOARDS_README.md) — Real-time monitoring
 
-[**TESTING**](TESTING_README.md) — Production-grade testing | [**TROUBLESHOOTING**](TROUBLESHOOTING_README.md) — Solve any issue | [**SECURITY**](SECURITY_README.md) — Enterprise security
+[**TESTING**](docs/TESTING_README.md) — Production-grade testing | [**TROUBLESHOOTING**](docs/TROUBLESHOOTING_README.md) — Solve any issue | [**SECURITY**](docs/SECURITY_README.md) — Enterprise security
 
-[**CONTRIBUTING**](CONTRIBUTING_README.md) — Join the community
+[**CONTRIBUTING**](docs/CONTRIBUTING_README.md) — Join the community
 
 ---
 

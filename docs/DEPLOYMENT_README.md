@@ -445,6 +445,6 @@ For detailed security information, see [SECURITY_README.md](SECURITY_README.md).
 1. **Explore the Dashboard**: Visit http://localhost:3000/dashboard/
 2. **Read the CLI Guide**: See [CLI_README.md](CLI_README.md) for advanced usage
 3. **Check Examples**: Look at the `functions/` directory for example functions
-4. **Join the Community**: Check the main [README.md](README.md) for community links
+4. **Join the Community**: Check the main [README.md](../README.md) for community links
 
 Happy deploying! 🚀 
