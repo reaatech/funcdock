@@ -481,18 +481,37 @@ const setupFileWatcher = () => {
       '**/.yarn/**',
       '**/node_modules/.cache/**',
       '**/node_modules/.package-lock.json',
-      '**/node_modules/.staging/**'
+      '**/node_modules/.staging/**',
+      '**/.DS_Store',
+      '**/Thumbs.db',
+      '**/*.tmp',
+      '**/*.temp',
+      '**/.vscode/**',
+      '**/.idea/**'
     ],
     persistent: true,
     ignoreInitial: true,
-    depth: 3
+    depth: 3,
+    awaitWriteFinish: {
+      stabilityThreshold: 2000,
+      pollInterval: 100
+    }
   });
 
   // Debounce function to avoid multiple rapid reloads
   const debounceReload = (() => {
     const timeouts = new Map();
+    const lastReload = new Map();
 
-    return (functionName, delay = 1000) => {
+    return (functionName, delay = 2000) => {
+      const now = Date.now();
+      const lastTime = lastReload.get(functionName) || 0;
+      
+      // Prevent reloading the same function more than once every 5 seconds
+      if (now - lastTime < 5000) {
+        return;
+      }
+
       if (timeouts.has(functionName)) {
         clearTimeout(timeouts.get(functionName));
       }
@@ -501,6 +520,7 @@ const setupFileWatcher = () => {
         try {
           const functionPath = path.join(functionsDir, functionName);
           await loadFunction(functionPath);
+          lastReload.set(functionName, Date.now());
         } catch (error) {
           logger.error(`Failed to reload function ${functionName}: ${error.message}`);
         } finally {
@@ -1116,6 +1136,219 @@ app.get('/api/metrics', authenticateToken, async (req, res) => {
   }
 });
 
+// Get function cron jobs
+app.get('/api/functions/:name/cron', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const func = loadedFunctions.get(name);
+
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    const cronJobsPath = path.join(func.path, 'cron.json');
+    let jobs = [];
+
+    try {
+      const cronContent = await fs.readFile(cronJobsPath, 'utf-8');
+      const cronData = JSON.parse(cronContent);
+      jobs = cronData.jobs || [];
+    } catch (error) {
+      // cron.json doesn't exist or is invalid, return empty array
+      logger.info(`No cron.json found for function ${name}`);
+    }
+
+    res.json({ jobs });
+  } catch (error) {
+    logger.error(`Get function cron jobs error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Update function cron jobs
+app.put('/api/functions/:name/cron', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { jobs } = req.body;
+
+    const func = loadedFunctions.get(name);
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    if (!Array.isArray(jobs)) {
+      return res.status(400).json({ message: 'Jobs must be an array' });
+    }
+
+    // Validate cron jobs
+    for (const job of jobs) {
+      if (!job.name || !job.schedule || !job.handler) {
+        return res.status(400).json({ 
+          message: 'Each job must have name, schedule, and handler fields' 
+        });
+      }
+    }
+
+    const cronJobsPath = path.join(func.path, 'cron.json');
+    const cronData = { jobs };
+
+    await fs.writeFile(cronJobsPath, JSON.stringify(cronData, null, 2));
+
+    // Reload cron jobs for this function
+    await loadCronJobs(func.path);
+
+    logger.info(`Updated cron jobs for function ${name}`);
+    res.json({ message: 'Cron jobs updated successfully', jobs });
+  } catch (error) {
+    logger.error(`Update function cron jobs error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get function files
+app.get('/api/functions/:name/files', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const func = loadedFunctions.get(name);
+
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    const buildFileTree = async (dirPath, relativePath = '') => {
+      const items = [];
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        const itemPath = relativePath ? path.join(relativePath, entry.name) : entry.name;
+
+        if (entry.isDirectory()) {
+          // Skip node_modules and other system directories
+          if (entry.name === 'node_modules' || entry.name === '.git' || entry.name.startsWith('.')) {
+            continue;
+          }
+
+          const children = await buildFileTree(fullPath, itemPath);
+          if (children.length > 0) {
+            items.push({
+              name: entry.name,
+              path: itemPath,
+              type: 'directory',
+              children
+            });
+          }
+        } else {
+          items.push({
+            name: entry.name,
+            path: itemPath,
+            type: 'file',
+            size: (await fs.stat(fullPath)).size
+          });
+        }
+      }
+
+      return items.sort((a, b) => {
+        // Directories first, then files
+        if (a.type !== b.type) {
+          return a.type === 'directory' ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    };
+
+    const files = await buildFileTree(func.path);
+    res.json({ files });
+  } catch (error) {
+    logger.error(`Get function files error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get file content
+app.get('/api/functions/:name/files/content', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { path: filePath } = req.query;
+
+    if (!filePath) {
+      return res.status(400).json({ message: 'File path is required' });
+    }
+
+    const func = loadedFunctions.get(name);
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    const fullPath = path.join(func.path, filePath);
+    
+    // Security check: ensure the file is within the function directory
+    const normalizedFullPath = path.resolve(fullPath);
+    const normalizedFuncPath = path.resolve(func.path);
+    
+    if (!normalizedFullPath.startsWith(normalizedFuncPath)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+      const content = await fs.readFile(fullPath, 'utf-8');
+      res.json({ content });
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return res.status(404).json({ message: 'File not found' });
+      }
+      throw error;
+    }
+  } catch (error) {
+    logger.error(`Get file content error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Download file
+app.get('/api/functions/:name/files/download', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { path: filePath } = req.query;
+
+    if (!filePath) {
+      return res.status(400).json({ message: 'File path is required' });
+    }
+
+    const func = loadedFunctions.get(name);
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    const fullPath = path.join(func.path, filePath);
+    
+    // Security check: ensure the file is within the function directory
+    const normalizedFullPath = path.resolve(fullPath);
+    const normalizedFuncPath = path.resolve(func.path);
+    
+    if (!normalizedFullPath.startsWith(normalizedFuncPath)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+      const stats = await fs.stat(fullPath);
+      if (stats.isDirectory()) {
+        return res.status(400).json({ message: 'Cannot download directory' });
+      }
+
+      res.download(fullPath);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return res.status(404).json({ message: 'File not found' });
+      }
+      throw error;
+    }
+  } catch (error) {
+    logger.error(`Download file error: ${error.message}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -1182,7 +1415,7 @@ const initializeServer = async () => {
   const watcher = setupFileWatcher();
 
   // Start server
-  const PORT = process.env.PORT || 3001;
+  const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {
     logger.info(`🚀 FuncDock platform running on http://localhost:${PORT}`);
     logger.info(`📊 Management API available at http://localhost:${PORT}/api/status`);

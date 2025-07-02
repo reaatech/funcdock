@@ -156,6 +156,10 @@ test-function-docker: ## Run Jest tests for a function in a Dockerized prod-like
 	@echo "🧪 Running function tests in Docker..."
 	@node scripts/test-function-in-docker.js --function=$(FUNCTION)$(if $(ROUTE), --route=$(ROUTE))
 
+check-git: ## Check Git configuration and credentials
+	@echo "🔍 Checking Git configuration..."
+	@npm run check-git
+
 # Maintenance
 clean: ## Clean up logs and temporary files
 	@echo "🧹 Cleaning up..."

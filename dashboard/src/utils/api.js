@@ -99,7 +99,24 @@ export const functionsApi = {
       config.data = data
     }
     return api(config)
-  }
+  },
+  
+  // Get cron jobs
+  getCronJobs: (name) => api.get(`/api/functions/${name}/cron`),
+  
+  // Update cron jobs
+  updateCronJobs: (name, cronJobs) => api.put(`/api/functions/${name}/cron`, { jobs: cronJobs }),
+  
+  // Get function files
+  getFunctionFiles: (name) => api.get(`/api/functions/${name}/files`),
+  
+  // Get file content
+  getFileContent: (name, filePath) => api.get(`/api/functions/${name}/files/content?path=${encodeURIComponent(filePath)}`),
+  
+  // Download file
+  downloadFile: (name, filePath) => api.get(`/api/functions/${name}/files/download?path=${encodeURIComponent(filePath)}`, {
+    responseType: 'blob'
+  })
 }
 
 export const authApi = {

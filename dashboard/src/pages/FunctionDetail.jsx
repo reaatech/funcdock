@@ -21,7 +21,18 @@ import {
   Upload,
   RefreshCw,
   ExternalLink,
-  Copy
+  Copy,
+  Plus,
+  Edit,
+  X,
+  Folder,
+  File,
+  ChevronRight,
+  ChevronDown,
+  Eye as EyeIcon,
+  Download as DownloadIcon,
+  Edit as EditIcon,
+  Trash2 as DeleteIcon
 } from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
@@ -44,6 +55,25 @@ const FunctionDetail = () => {
   const [updateFiles, setUpdateFiles] = useState([])
   const { on } = useSocket()
   const [copied, setCopied] = useState(false)
+  
+  // New state for cron jobs management
+  const [cronJobs, setCronJobs] = useState([])
+  const [editingCron, setEditingCron] = useState(false)
+  const [newCronJob, setNewCronJob] = useState({
+    name: '',
+    schedule: '',
+    handler: 'cron-handler.js',
+    timezone: 'UTC',
+    description: ''
+  })
+  const [editingCronIndex, setEditingCronIndex] = useState(-1)
+  
+  // New state for file explorer
+  const [functionFiles, setFunctionFiles] = useState([])
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [fileContent, setFileContent] = useState('')
+  const [fileLoading, setFileLoading] = useState(false)
+  const [expandedFolders, setExpandedFolders] = useState(new Set())
 
   useEffect(() => {
     fetchFunctionData()
@@ -62,15 +92,19 @@ const FunctionDetail = () => {
 
   const fetchFunctionData = async () => {
     try {
-      const [functionRes, logsRes, metricsRes] = await Promise.all([
+      const [functionRes, logsRes, metricsRes, cronRes, filesRes] = await Promise.all([
         functionsApi.getFunction(name),
         functionsApi.getLogs(name, 50),
-        functionsApi.getMetrics(name)
+        functionsApi.getMetrics(name),
+        functionsApi.getCronJobs(name),
+        functionsApi.getFunctionFiles(name)
       ])
       
       setFunctionData(functionRes.data)
       setLogs(logsRes.data.logs || [])
       setMetrics(metricsRes.data)
+      setCronJobs(cronRes.data.jobs || [])
+      setFunctionFiles(filesRes.data.files || [])
     } catch (error) {
       console.error('Failed to fetch function data:', error)
       toast.error('Failed to load function data')
@@ -166,6 +200,178 @@ const FunctionDetail = () => {
     }
   }
 
+  // Cron job management functions
+  const handleAddCronJob = () => {
+    setEditingCron(true)
+    setEditingCronIndex(-1)
+    setNewCronJob({
+      name: '',
+      schedule: '',
+      handler: 'cron-handler.js',
+      timezone: 'UTC',
+      description: ''
+    })
+  }
+
+  const handleEditCronJob = (index) => {
+    setEditingCron(true)
+    setEditingCronIndex(index)
+    setNewCronJob({ ...cronJobs[index] })
+  }
+
+  const handleDeleteCronJob = (index) => {
+    const updatedJobs = cronJobs.filter((_, i) => i !== index)
+    setCronJobs(updatedJobs)
+  }
+
+  const handleSaveCronJob = async () => {
+    if (!newCronJob.name || !newCronJob.schedule || !newCronJob.handler) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    try {
+      let updatedJobs
+      if (editingCronIndex >= 0) {
+        // Editing existing job
+        updatedJobs = [...cronJobs]
+        updatedJobs[editingCronIndex] = newCronJob
+      } else {
+        // Adding new job
+        updatedJobs = [...cronJobs, newCronJob]
+      }
+
+      await functionsApi.updateCronJobs(name, updatedJobs)
+      setCronJobs(updatedJobs)
+      setEditingCron(false)
+      setEditingCronIndex(-1)
+      toast.success('Cron jobs updated successfully')
+    } catch (error) {
+      console.error('Failed to update cron jobs:', error)
+      toast.error('Failed to update cron jobs')
+    }
+  }
+
+  const handleCancelCronEdit = () => {
+    setEditingCron(false)
+    setEditingCronIndex(-1)
+    setNewCronJob({
+      name: '',
+      schedule: '',
+      handler: 'cron-handler.js',
+      timezone: 'UTC',
+      description: ''
+    })
+  }
+
+  // File explorer functions
+  const handleFileClick = async (file) => {
+    if (file.type === 'directory') {
+      const newExpanded = new Set(expandedFolders)
+      if (newExpanded.has(file.path)) {
+        newExpanded.delete(file.path)
+      } else {
+        newExpanded.add(file.path)
+      }
+      setExpandedFolders(newExpanded)
+    } else {
+      setSelectedFile(file)
+      setFileLoading(true)
+      try {
+        const response = await functionsApi.getFileContent(name, file.path)
+        setFileContent(response.data.content)
+      } catch (error) {
+        console.error('Failed to load file content:', error)
+        toast.error('Failed to load file content')
+        setFileContent('Error loading file content')
+      } finally {
+        setFileLoading(false)
+      }
+    }
+  }
+
+  const handleDownloadFile = async (file) => {
+    try {
+      const response = await functionsApi.downloadFile(name, file.path)
+      const url = window.URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      toast.success('File downloaded successfully')
+    } catch (error) {
+      console.error('Failed to download file:', error)
+      toast.error('Failed to download file')
+    }
+  }
+
+  const renderFileTree = (files, level = 0) => {
+    return files.map((file) => {
+      const isExpanded = expandedFolders.has(file.path)
+      const hasChildren = file.children && file.children.length > 0
+      
+      return (
+        <div key={file.path}>
+          <div 
+            className={`flex items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
+              selectedFile?.path === file.path ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+            }`}
+            style={{ paddingLeft: `${level * 20 + 12}px` }}
+            onClick={() => handleFileClick(file)}
+          >
+            {file.type === 'directory' ? (
+              <>
+                {hasChildren ? (
+                  isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-gray-400 mr-2" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-gray-400 mr-2" />
+                  )
+                ) : (
+                  <div className="w-4 mr-2" />
+                )}
+                <Folder className="h-4 w-4 text-blue-500 mr-2" />
+              </>
+            ) : (
+              <File className="h-4 w-4 text-gray-500 mr-2" />
+            )}
+            <span className="text-sm text-gray-900 dark:text-white">{file.name}</span>
+            {file.type === 'file' && (
+              <div className="ml-auto flex items-center space-x-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleFileClick(file)
+                  }}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                  title="View file"
+                >
+                  <EyeIcon className="h-3 w-3 text-gray-500" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDownloadFile(file)
+                  }}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                  title="Download file"
+                >
+                  <DownloadIcon className="h-3 w-3 text-gray-500" />
+                </button>
+              </div>
+            )}
+          </div>
+          {file.type === 'directory' && isExpanded && hasChildren && (
+            <div>{renderFileTree(file.children, level + 1)}</div>
+          )}
+        </div>
+      )
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -236,7 +442,7 @@ const FunctionDetail = () => {
             onClick={handleDeleteFunction}
             className="btn-danger"
           >
-            <Trash2 className="h-4 w-4 mr-1" />
+            <DeleteIcon className="h-4 w-4 mr-1" />
             Delete
           </button>
         </div>
@@ -246,9 +452,10 @@ const FunctionDetail = () => {
       <div className="border-b border-gray-200 dark:border-gray-700">
         <nav className="-mb-px flex space-x-8">
           {[
-            { id: 'overview', label: 'Overview', icon: Eye },
+            { id: 'overview', label: 'Overview', icon: EyeIcon },
             { id: 'routes', label: 'Routes', icon: Code },
             { id: 'cron', label: 'Cron Jobs', icon: Calendar },
+            { id: 'files', label: 'Files', icon: Folder },
             { id: 'logs', label: 'Logs', icon: FileText },
             { id: 'metrics', label: 'Metrics', icon: Activity },
             { id: 'test', label: 'Test', icon: TestTube },
@@ -409,7 +616,8 @@ const FunctionDetail = () => {
                             </h4>
                             <button
                               onClick={() => {
-                                const fullUrl = window.location.origin + (functionData.baseUrl || '') + (route.path || '/');
+                                // The route.path already includes the full path with function name
+                                const fullUrl = window.location.origin + route.path;
                                 navigator.clipboard.writeText(fullUrl);
                                 toast.success('URL copied to clipboard');
                               }}
@@ -421,7 +629,7 @@ const FunctionDetail = () => {
                             </button>
                           </div>
                           <p className="text-sm text-gray-500 dark:text-gray-400 font-mono bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded mt-1">
-                            {window.location.origin}{functionData.baseUrl || ''}{route.path || '/'}
+                            {window.location.origin}{route.path}
                           </p>
                         </div>
 
@@ -482,20 +690,186 @@ const FunctionDetail = () => {
           {/* Cron Jobs Tab */}
           {activeTab === 'cron' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Cron Jobs</h3>
-              {Array.isArray(functionData.cronJobs) && functionData.cronJobs.length > 0 ? (
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Cron Jobs</h3>
+                <button
+                  onClick={handleAddCronJob}
+                  className="btn-primary btn-sm flex items-center"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Cron Job
+                </button>
+              </div>
+
+              {/* Cron Job Editor */}
+              {editingCron && (
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                    {editingCronIndex >= 0 ? 'Edit Cron Job' : 'Add New Cron Job'}
+                  </h4>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Job Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newCronJob.name}
+                        onChange={(e) => setNewCronJob({ ...newCronJob, name: e.target.value })}
+                        className="input mt-1"
+                        placeholder="daily-backup"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Schedule (Cron Expression) *
+                      </label>
+                      <input
+                        type="text"
+                        value={newCronJob.schedule}
+                        onChange={(e) => setNewCronJob({ ...newCronJob, schedule: e.target.value })}
+                        className="input mt-1"
+                        placeholder="0 9 * * *"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Format: minute hour day month day-of-week
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Handler File *
+                      </label>
+                      <input
+                        type="text"
+                        value={newCronJob.handler}
+                        onChange={(e) => setNewCronJob({ ...newCronJob, handler: e.target.value })}
+                        className="input mt-1"
+                        placeholder="cron-handler.js"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Timezone
+                      </label>
+                      <input
+                        type="text"
+                        value={newCronJob.timezone}
+                        onChange={(e) => setNewCronJob({ ...newCronJob, timezone: e.target.value })}
+                        className="input mt-1"
+                        placeholder="UTC"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Description
+                      </label>
+                      <textarea
+                        value={newCronJob.description}
+                        onChange={(e) => setNewCronJob({ ...newCronJob, description: e.target.value })}
+                        className="input mt-1"
+                        rows={2}
+                        placeholder="What does this cron job do?"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Cron Examples */}
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <h5 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Common Cron Examples:</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setNewCronJob({ ...newCronJob, schedule: '0 9 * * *' })}
+                          className="font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                        >
+                          0 9 * * *
+                        </button>
+                        <span className="text-blue-700 dark:text-blue-300">Daily at 9 AM</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setNewCronJob({ ...newCronJob, schedule: '0 */6 * * *' })}
+                          className="font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                        >
+                          0 */6 * * *
+                        </button>
+                        <span className="text-blue-700 dark:text-blue-300">Every 6 hours</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setNewCronJob({ ...newCronJob, schedule: '0 0 * * 0' })}
+                          className="font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                        >
+                          0 0 * * 0
+                        </button>
+                        <span className="text-blue-700 dark:text-blue-300">Weekly on Sunday</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setNewCronJob({ ...newCronJob, schedule: '*/15 * * * *' })}
+                          className="font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                        >
+                          */15 * * * *
+                        </button>
+                        <span className="text-blue-700 dark:text-blue-300">Every 15 minutes</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end space-x-2 mt-4">
+                    <button
+                      onClick={handleCancelCronEdit}
+                      className="btn-secondary btn-sm"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveCronJob}
+                      className="btn-primary btn-sm"
+                    >
+                      <Save className="h-4 w-4 mr-1" />
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Cron Jobs List */}
+              {cronJobs.length > 0 ? (
                 <div className="space-y-3">
-                  {functionData.cronJobs.map((job, idx) => (
+                  {cronJobs.map((job, idx) => (
                     <div key={idx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            <span className="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded mr-2">{job.schedule}</span>
-                            <span className="text-xs text-gray-500 ml-2">{job.handler}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2">
+                            <span className="font-medium text-gray-900 dark:text-white mr-3">{job.name}</span>
+                            <span className="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm">{job.schedule}</span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Handler: <span className="font-mono">{job.handler}</span>
+                            {job.timezone && (
+                              <span className="ml-2">• Timezone: {job.timezone}</span>
+                            )}
                           </p>
                           {job.description && (
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{job.description}</p>
                           )}
+                        </div>
+                        <div className="flex items-center space-x-2 mt-3 sm:mt-0">
+                          <button
+                            onClick={() => handleEditCronJob(idx)}
+                            className="btn-secondary btn-xs"
+                            title="Edit cron job"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCronJob(idx)}
+                            className="btn-danger btn-xs"
+                            title="Delete cron job"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -508,13 +882,90 @@ const FunctionDetail = () => {
                   </div>
                   <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No cron jobs configured</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    This function doesn't have any scheduled cron jobs. Add a cron.json file to schedule automated tasks.
+                    This function doesn't have any scheduled cron jobs. Add cron jobs to schedule automated tasks.
                   </p>
-                  <div className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 p-3 rounded font-mono">
-                    Example: {"{"}"jobs": [{"{"}"schedule": "0 */6 * * *", "handler": "cron-handler.js"{"}"}]{"}"}
-                  </div>
+                  <button
+                    onClick={handleAddCronJob}
+                    className="btn-primary btn-sm inline-flex items-center"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Cron Job
+                  </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Files Tab */}
+          {activeTab === 'files' && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Function Files</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* File Tree */}
+                <div className="lg:col-span-1">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">File Explorer</h4>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {functionFiles.length > 0 ? (
+                        renderFileTree(functionFiles)
+                      ) : (
+                        <div className="p-4 text-center">
+                          <Folder className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">No files found</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* File Content Viewer */}
+                <div className="lg:col-span-2">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                        {selectedFile ? selectedFile.name : 'File Content'}
+                      </h4>
+                      {selectedFile && (
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleDownloadFile(selectedFile)}
+                            className="btn-secondary btn-xs flex items-center"
+                            title="Download file"
+                          >
+                            <DownloadIcon className="h-3 w-3 mr-1" />
+                            Download
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      {selectedFile ? (
+                        fileLoading ? (
+                          <div className="flex items-center justify-center h-32">
+                            <LoadingSpinner size="sm" text="Loading file..." />
+                          </div>
+                        ) : (
+                          <div className="bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                            <pre className="text-sm text-gray-900 dark:text-white p-4 overflow-x-auto max-h-96 overflow-y-auto">
+                              {fileContent}
+                            </pre>
+                          </div>
+                        )
+                      ) : (
+                        <div className="text-center py-12">
+                          <File className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                          <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No file selected</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Select a file from the explorer to view its content
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

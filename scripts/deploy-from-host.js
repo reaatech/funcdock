@@ -147,6 +147,34 @@ async function validateFunction(functionPath) {
   return missing;
 }
 
+async function checkHostGitCredentials(gitUrl) {
+  try {
+    log(`🔍 Checking host Git credentials for: ${gitUrl}`, 'blue');
+    
+    // Test if we can access the repository with host credentials
+    await execAsync(`git ls-remote --exit-code ${gitUrl}`, { timeout: 10000 });
+    log(`✅ Host Git credentials verified - repository is accessible`, 'green');
+    return true;
+  } catch (error) {
+    if (error.code === 128) {
+      log(`❌ Host Git credentials required for: ${gitUrl}`, 'red');
+      log(`💡 Configure your Git credentials:`, 'yellow');
+      log(`   1. Set up Git user: git config --global user.name "Your Name"`, 'blue');
+      log(`   2. Set up Git email: git config --global user.email "your.email@example.com"`, 'blue');
+      log(`   3. Store credentials: git config --global credential.helper store`, 'blue');
+      log(`   4. Or use SSH keys: ssh-keygen -t ed25519 -C "your.email@example.com"`, 'blue');
+      log(`   5. Test access: git ls-remote ${gitUrl}`, 'blue');
+      return false;
+    } else if (error.code === 'ETIMEDOUT') {
+      log(`⏰ Timeout checking repository - network issue or repository doesn't exist`, 'yellow');
+      return false;
+    } else {
+      log(`⚠️  Could not verify host Git credentials: ${error.message}`, 'yellow');
+      return false;
+    }
+  }
+}
+
 async function ensureTempDir() {
   try {
     await fs.mkdir(tempDir, { recursive: true });
@@ -171,6 +199,12 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
     log(`📌 Deploying from commit: ${commit}`, 'yellow');
   } else {
     log(`🌿 Using branch: ${branch}`, 'yellow');
+  }
+
+  // Check host Git credentials before attempting to clone
+  const hasCredentials = await checkHostGitCredentials(gitUrl);
+  if (!hasCredentials) {
+    throw new Error('Host Git credentials required for this repository');
   }
 
   const functionPath = path.join(functionsDir, functionName);
@@ -267,6 +301,12 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
 async function deployFromPullRequest(gitUrl, functionName, prNumber) {
   log(`🔄 Deploying function "${functionName}" from Pull Request #${prNumber}`, 'blue');
   log(`📋 Using host Git credentials for authentication`, 'yellow');
+
+  // Check host Git credentials before attempting to clone
+  const hasCredentials = await checkHostGitCredentials(gitUrl);
+  if (!hasCredentials) {
+    throw new Error('Host Git credentials required for this repository');
+  }
 
   const functionPath = path.join(functionsDir, functionName);
   const tempFunctionPath = path.join(tempDir, functionName);
