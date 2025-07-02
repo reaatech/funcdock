@@ -68,12 +68,10 @@ const Deploy = () => {
         await functionsApi.deployFromGit(functionName, gitRepo, gitBranch, gitCommit)
         toast.success('Function deployed from Git successfully!')
       } else if (deployMethod === 'github') {
-        // selectedGithubRepo is the repo full_name (e.g. user/repo)
         const repoUrl = `https://github.com/${selectedGithubRepo}.git`
         await functionsApi.deployFromGit(functionName, repoUrl, 'main', '')
         toast.success('Function deployed from GitHub successfully!')
       } else if (deployMethod === 'bitbucket') {
-        // selectedBitbucketRepo is the repo full_name (e.g. user/repo)
         const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`
         await functionsApi.deployFromGit(functionName, repoUrl, 'main', '')
         toast.success('Function deployed from Bitbucket successfully!')
@@ -89,7 +87,6 @@ const Deploy = () => {
   }
 
   useEffect(() => {
-    // Check for OAuth redirect success
     if (window.location.search.includes('github=success')) {
       setGithubConnected(true)
       githubApi.getGithubRepos().then(({ data }) => {
@@ -303,7 +300,6 @@ const Deploy = () => {
                 type="button"
                 className="btn-primary"
                 onClick={async () => {
-                  // Start GitHub OAuth
                   try {
                     const { data } = await githubApi.getGithubOAuthUrl();
                     window.location.href = data.url;
@@ -342,7 +338,6 @@ const Deploy = () => {
                 type="button"
                 className="btn-primary"
                 onClick={async () => {
-                  // Start Bitbucket OAuth
                   try {
                     const { data } = await bitbucketApi.getBitbucketOAuthUrl();
                     window.location.href = data.url;
