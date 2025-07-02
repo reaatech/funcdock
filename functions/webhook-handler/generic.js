@@ -6,7 +6,7 @@
  * specific handlers implemented.
  */
 
-export default async function handler(req, res) {
+export default async function handler(req, res, next) {
   const { method, headers, body, query, logger } = req;
 
   // Add CORS headers
@@ -30,9 +30,9 @@ export default async function handler(req, res) {
 
   try {
     if (method === 'GET') {
-      return handleStatus(req, res);
+      return handleStatus(req, res, next);
     } else {
-      return handleGenericWebhook(req, res, logger);
+      return handleGenericWebhook(req, res, logger, next);
     }
   } catch (error) {
     if (logger) logger.log('CRON_ERROR', 'Generic webhook processing error', { error: error.message });
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function handleStatus(req, res) {
+async function handleStatus(req, res, next) {
   return res.status(200).json({
     status: 'active',
     handler: 'generic.js',
@@ -61,7 +61,7 @@ async function handleStatus(req, res) {
   });
 }
 
-async function handleGenericWebhook(req, res, logger) {
+async function handleGenericWebhook(req, res, logger, next) {
   const { headers, body, query } = req;
 
   const responseData = {

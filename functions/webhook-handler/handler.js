@@ -5,7 +5,7 @@
 
 import crypto from 'crypto';
 
-export default async function handler(req, res) {
+export default async function handler(req, res, next) {
   const { method, headers, body, query, logger } = req;
 
   // Add CORS headers
@@ -19,10 +19,10 @@ export default async function handler(req, res) {
 
   switch (method) {
     case 'GET':
-      return handleStatus(req, res);
+      return handleStatus(req, res, next);
 
     case 'POST':
-      return handleWebhook(req, res, logger);
+      return handleWebhook(req, res, logger, next);
 
     default:
       return res.status(405).json({
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function handleStatus(req, res) {
+async function handleStatus(req, res, next) {
   return res.status(200).json({
     status: 'active',
     function: 'webhook-handler',
@@ -48,23 +48,23 @@ async function handleStatus(req, res) {
   });
 }
 
-async function handleWebhook(req, res, logger) {
+async function handleWebhook(req, res, logger, next) {
   const { headers, body } = req;
   const webhookType = determineWebhookType(headers, body);
 
   try {
     switch (webhookType) {
       case 'github':
-        return await handleGitHubWebhook(req, res, logger);
+        return await handleGitHubWebhook(req, res, logger, next);
 
       case 'stripe':
-        return await handleStripeWebhook(req, res, logger);
+        return await handleStripeWebhook(req, res, logger, next);
 
       case 'slack':
-        return await handleSlackWebhook(req, res, logger);
+        return await handleSlackWebhook(req, res, logger, next);
 
       default:
-        return await handleGenericWebhook(req, res, logger);
+        return await handleGenericWebhook(req, res, logger, next);
     }
   } catch (error) {
     if (logger) logger.log('CRON_ERROR', 'Webhook processing error', { error: error.message });
@@ -96,7 +96,7 @@ function determineWebhookType(headers, body) {
   return 'generic';
 }
 
-async function handleGitHubWebhook(req, res, logger) {
+async function handleGitHubWebhook(req, res, logger, next) {
   const { headers, body } = req;
   const event = headers['x-github-event'];
   const signature = headers['x-hub-signature-256'];
@@ -160,7 +160,7 @@ async function handleGitHubWebhook(req, res, logger) {
   return res.status(200).json(responseData);
 }
 
-async function handleStripeWebhook(req, res, logger) {
+async function handleStripeWebhook(req, res, logger, next) {
   const { headers, body } = req;
   const signature = headers['stripe-signature'];
 
@@ -258,7 +258,7 @@ async function handleStripeWebhook(req, res, logger) {
   return res.status(200).json(responseData);
 }
 
-async function handleSlackWebhook(req, res, logger) {
+async function handleSlackWebhook(req, res, logger, next) {
   const { body } = req;
 
   // Handle Slack URL verification challenge
@@ -295,7 +295,7 @@ async function handleSlackWebhook(req, res, logger) {
   return res.status(200).json(responseData);
 }
 
-async function handleGenericWebhook(req, res, logger) {
+async function handleGenericWebhook(req, res, logger, next) {
   const { headers, body, query } = req;
 
   const responseData = {

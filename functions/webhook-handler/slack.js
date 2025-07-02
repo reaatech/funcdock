@@ -10,7 +10,7 @@
 
 import crypto from 'crypto';
 
-export default async function handler(req, res) {
+export default async function handler(req, res, next) {
   const { method, headers, body } = req;
 
   // Add CORS headers
@@ -56,19 +56,19 @@ export default async function handler(req, res) {
   try {
     switch (webhookType) {
       case 'url_verification':
-        return handleUrlVerification(req, res);
+        return handleUrlVerification(req, res, next);
         
       case 'event_subscription':
-        return handleEventSubscription(req, res);
+        return handleEventSubscription(req, res, next);
         
       case 'interactive_component':
-        return handleInteractiveComponent(req, res);
+        return handleInteractiveComponent(req, res, next);
         
       case 'slash_command':
-        return handleSlashCommand(req, res);
+        return handleSlashCommand(req, res, next);
         
       default:
-        return handleGenericSlackWebhook(req, res);
+        return handleGenericSlackWebhook(req, res, next);
     }
   } catch (error) {
     console.error('Slack webhook processing error:', error);
@@ -115,7 +115,7 @@ function determineSlackWebhookType(body) {
   return 'generic';
 }
 
-async function handleUrlVerification(req, res) {
+async function handleUrlVerification(req, res, next) {
   const { body } = req;
   
   console.log('Slack URL verification challenge received');
@@ -128,7 +128,7 @@ async function handleUrlVerification(req, res) {
   });
 }
 
-async function handleEventSubscription(req, res) {
+async function handleEventSubscription(req, res, next) {
   const { body } = req;
   
   const responseData = {
@@ -176,7 +176,7 @@ async function handleEventSubscription(req, res) {
   return res.status(200).json(responseData);
 }
 
-async function handleInteractiveComponent(req, res) {
+async function handleInteractiveComponent(req, res, next) {
   const { body } = req;
   
   let payload;
@@ -219,7 +219,7 @@ async function handleInteractiveComponent(req, res) {
   return res.status(200).json(responseData);
 }
 
-async function handleSlashCommand(req, res) {
+async function handleSlashCommand(req, res, next) {
   const { body } = req;
   
   const responseData = {
@@ -269,7 +269,7 @@ async function handleSlashCommand(req, res) {
   return res.status(200).json(responseData);
 }
 
-async function handleGenericSlackWebhook(req, res) {
+async function handleGenericSlackWebhook(req, res, next) {
   const { body } = req;
   
   const responseData = {

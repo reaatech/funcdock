@@ -436,7 +436,7 @@ const loadFunction = async (functionDir) => {
         // Register the route
         const methodLower = method.toLowerCase();
 
-        app[methodLower](fullPath, async (req, res) => {
+        app[methodLower](fullPath, async (req, res, next) => {
           // Create function-specific logger
           const functionLogger = new Logger({
             logLevel: process.env.LOG_LEVEL || 'info',
@@ -469,7 +469,7 @@ const loadFunction = async (functionDir) => {
           };
 
           try {
-            await routeHandlerFunction(req, res);
+            await routeHandlerFunction(req, res, next); // Pass next to handler
           } catch (err) {
             functionLogger.error(`Error in ${fullPath} (${functionName}/${routeHandler}): ${err.message}`);
             // Only send response if not already sent

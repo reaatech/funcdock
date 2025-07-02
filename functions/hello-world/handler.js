@@ -3,7 +3,7 @@
  * Demonstrates basic HTTP methods and response patterns
  */
 
-export default async function handler(req, res) {
+export default async function handler(req, res, next) {
   const { method, query, body, headers } = req;
   const { logger, env } = req; // Get the injected logger and environment variables
 
@@ -36,16 +36,16 @@ export default async function handler(req, res) {
 
   switch (method) {
     case 'GET':
-      return await handleGet(req, res);
+      return await handleGet(req, res, next);
 
     case 'POST':
-      return await handlePost(req, res);
+      return await handlePost(req, res, next);
 
     case 'PUT':
-      return await handlePut(req, res);
+      return await handlePut(req, res, next);
 
     case 'DELETE':
-      return await handleDelete(req, res);
+      return await handleDelete(req, res, next);
 
     default:
       logger.warn(`Unsupported method: ${method}`, { supportedMethods: ['GET', 'POST', 'PUT', 'DELETE'] });
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function handleGet(req, res) {
+async function handleGet(req, res, next) {
   const { name = 'World', format = 'json' } = req.query;
   const { logger } = req;
 
@@ -106,7 +106,7 @@ async function handleGet(req, res) {
   return res.status(200).json(responseData);
 }
 
-async function handlePost(req, res) {
+async function handlePost(req, res, next) {
   const { name, message } = req.body || {};
   const { logger } = req;
 
@@ -134,7 +134,7 @@ async function handlePost(req, res) {
   return res.status(201).json(responseData);
 }
 
-async function handlePut(req, res) {
+async function handlePut(req, res, next) {
   const { id } = req.query;
   const updateData = req.body;
 
@@ -158,7 +158,7 @@ async function handlePut(req, res) {
   return res.status(200).json(responseData);
 }
 
-async function handleDelete(req, res) {
+async function handleDelete(req, res, next) {
   const { id } = req.query;
 
   if (!id) {

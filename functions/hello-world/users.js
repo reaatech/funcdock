@@ -5,7 +5,7 @@
  * Routes: /hello-world/users/:id, /hello-world/users/:id/posts/:postId
  */
 
-export default async function handler(req, res) {
+export default async function handler(req, res, next) {
   const { logger } = req;
   const { method, params, query, body } = req;
 
@@ -29,13 +29,13 @@ export default async function handler(req, res) {
   try {
     switch (method) {
       case 'GET':
-        return await handleGet(req, res);
+        return await handleGet(req, res, next);
       case 'POST':
-        return await handlePost(req, res);
+        return await handlePost(req, res, next);
       case 'PUT':
-        return await handlePut(req, res);
+        return await handlePut(req, res, next);
       case 'DELETE':
-        return await handleDelete(req, res);
+        return await handleDelete(req, res, next);
       default:
         return res.status(405).json({
           error: 'Method Not Allowed',
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function handleGet(req, res) {
+async function handleGet(req, res, next) {
   const { logger } = req;
   const { params } = req;
   const { id, postId } = params;
@@ -110,7 +110,7 @@ async function handleGet(req, res) {
   }
 }
 
-async function handlePost(req, res) {
+async function handlePost(req, res, next) {
   const { logger } = req;
   const { params, body } = req;
   const { id } = params;
@@ -141,7 +141,7 @@ async function handlePost(req, res) {
   return res.status(201).json(response);
 }
 
-async function handlePut(req, res) {
+async function handlePut(req, res, next) {
   const { logger } = req;
   const { params, body } = req;
   const { id } = params;
@@ -179,7 +179,7 @@ async function handlePut(req, res) {
   });
 }
 
-async function handleDelete(req, res) {
+async function handleDelete(req, res, next) {
   const { logger } = req;
   const { params } = req;
   const { id } = params;

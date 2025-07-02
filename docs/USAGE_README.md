@@ -98,8 +98,9 @@ Functions receive a context object with request data and return responses:
 
 ```javascript
 // handler.js
-module.exports = async (req, res) => {
+module.exports = async (req, res, next) => {
   const { method, url, headers, body } = req;
+  // You can call next() to pass control to additional middleware
   
   if (method === 'GET') {
     return {
@@ -135,6 +136,41 @@ curl http://localhost:3000/my-function
 ```
 
 **📖 Learn More**: See [SETUP_README.md](SETUP_README.md) for detailed development setup.
+
+### Middleware Support
+
+FuncDock handlers support Express-style middleware. If your handler accepts a third argument (`next`), you can call `next()` to pass control to the next middleware in the chain. This enables advanced patterns such as authentication, logging, or custom error handling.
+
+#### Example: Authentication Middleware
+
+```js
+// auth-middleware.js
+export default async function authMiddleware(req, res, next) {
+  if (!req.headers['authorization']) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  // You can add user info to req here
+  req.user = { id: 'user-123', name: 'Alice' };
+  next(); // Pass control to the next handler
+}
+```
+
+```js
+// handler.js
+import authMiddleware from './auth-middleware.js';
+
+export default async function handler(req, res, next) {
+  // Run authentication middleware first
+  await authMiddleware(req, res, next);
+  if (res.headersSent) return; // Stop if middleware already sent a response
+
+  // Main handler logic
+  res.json({
+    message: `Hello, ${req.user?.name || 'World'}!`,
+    time: new Date().toISOString()
+  });
+}
+```
 
 ---
 

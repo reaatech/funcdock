@@ -53,6 +53,8 @@ Why manage 50 containers when one lightning-fast container can run everything? *
 ### 🧪 **Production-Grade Testing** — With Docker Parity
 Jest + Nock testing that runs in identical Docker environments. Test locally, deploy with confidence. No more "works on my machine" disasters.
 
+### 🎛️ **Middleware Support** — Handlers can use Express-style middleware by calling next().
+
 ---
 
 ## 🚀 Why Developers Are Obsessed
@@ -77,7 +79,7 @@ Jest + Nock testing that runs in identical Docker environments. Test locally, de
 
 ```js
 // functions/hello-world/handler.js
-export default async function handler(req, res) {
+export default async function handler(req, res, next) {
   const { logger, env, method, query } = req;
   logger.info('Hello handler called', { method, env: !!env });
   res.json({
@@ -85,6 +87,7 @@ export default async function handler(req, res) {
     env: env.MY_SECRET,
     time: new Date().toISOString()
   });
+  // Call next() if you want to pass control to additional middleware
 }
 ```
 

@@ -2,7 +2,7 @@
  * Test Handler - Specific handler for /hello-world/test route
  */
 
-export default async function handler(req, res) {
+export default async function handler(req, res, next) {
   const { method, query } = req;
 
   // Add CORS headers

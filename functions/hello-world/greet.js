@@ -2,7 +2,7 @@
  * Greet Handler - Specific handler for /hello-world/greet route
  */
 
-export default async function handler(req, res) {
+export default async function handler(req, res, next) {
   const { method, query, body } = req;
   const { logger } = req; // Get the injected logger
 
