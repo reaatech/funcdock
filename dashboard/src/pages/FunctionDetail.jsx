@@ -1008,7 +1008,8 @@ const FunctionDetail = () => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Function Logs</h3>
                 <div className="flex items-center space-x-2">
-                  <label className="text-xs text-gray-500 dark:text-gray-400 mr-1">Limit:</label>
+                  <span className="text-red-600 font-bold">[DEBUG: LOG FILTERS RENDERED]</span>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 mr-1">Limit-Debug:</label>
                   <select
                     value={logs.length}
                     onChange={(e) => fetchFunctionData()}
@@ -1018,7 +1019,7 @@ const FunctionDetail = () => {
                     <option value={100}>Last 100</option>
                     <option value={200}>Last 200</option>
                   </select>
-                  <label className="text-xs text-gray-500 dark:text-gray-400 ml-2 mr-1">Level:</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 ml-2 mr-1">Level-Debug:</label>
                   <select
                     value={logLevel}
                     onChange={e => setLogLevel(e.target.value)}
