@@ -1737,7 +1737,8 @@ const loadCronJobs = async (functionDir) => {
           });
         }
       } catch (err) {
-        functionLogger.log('CRON_ERROR', `Error in ${functionName}/${job.handler}: ${err.message}`, {
+        // Always log as CRON_ERROR for any error thrown by a cron handler
+        functionLogger.log('CRON_ERROR', `Error in ${functionName}/${job.handler}: ${err && err.message ? err.message : err}`, {
           function: functionName,
           job: job.name,
           schedule: job.schedule,
