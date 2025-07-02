@@ -378,7 +378,15 @@ const loadFunction = async (functionDir) => {
     }
 
     // Load cron jobs for this function
-    await loadCronJobs(functionDir);
+    try {
+      await loadCronJobs(functionDir);
+    } catch (error) {
+      // Cron job loading errors are handled within loadCronJobs function
+      // Only log if it's not a missing cron.json file
+      if (error.code !== 'ENOENT') {
+        logger.error(`Failed to load cron jobs for ${functionName}: ${error.message}`);
+      }
+    }
 
     // Load environment variables for this function
     const envVars = await loadFunctionEnv(functionDir);
