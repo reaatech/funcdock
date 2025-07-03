@@ -1069,9 +1069,9 @@ const FunctionDetail = () => {
           {/* Logs Tab */}
           {activeTab === 'logs' && (
             <div>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white min-w-fit">Function Logs</h3>
-                <div className="flex-1 flex flex-wrap items-center gap-2 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 min-w-0 sm:justify-end w-full sm:w-auto">
                   <label className="text-xs text-gray-500 dark:text-gray-400 mr-1 whitespace-nowrap">Limit-Debug:</label>
                   <select
                     value={logs.length}
