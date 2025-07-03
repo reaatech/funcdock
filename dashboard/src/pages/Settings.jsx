@@ -151,7 +151,7 @@ const Settings = () => {
         <div className="flex space-x-2">
           <button
             onClick={fetchSystemMetrics}
-            className="btn-secondary"
+            className="btn-secondary inline-flex items-center justify-center"
           >
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
@@ -159,7 +159,7 @@ const Settings = () => {
           <button
             onClick={saveSettings}
             disabled={saving}
-            className="btn-primary"
+            className="btn-primary inline-flex items-center justify-center"
           >
             {saving ? (
               <>

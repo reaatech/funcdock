@@ -517,7 +517,7 @@ const FunctionDetail = () => {
               </span>
               <button
                 onClick={handleCopyUrl}
-                className="btn-secondary btn-xs flex items-center"
+                className="btn-secondary btn-xs inline-flex items-center justify-center"
                 title="Copy URL"
               >
                 <Copy className="h-4 w-4" />
@@ -529,14 +529,14 @@ const FunctionDetail = () => {
         <div className="flex space-x-2">
           <button
             onClick={fetchFunctionData}
-            className="btn-secondary"
+            className="btn-secondary inline-flex items-center justify-center"
           >
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
           </button>
           <button
             onClick={handleDeleteFunction}
-            className="btn-danger"
+            className="btn-danger inline-flex items-center justify-center"
           >
             <DeleteIcon className="h-4 w-4 mr-1" />
             Delete
@@ -791,9 +791,9 @@ const FunctionDetail = () => {
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Cron Jobs</h3>
                 <button
                   onClick={handleAddCronJob}
-                  className="btn-primary btn-sm flex items-center"
+                  className="btn-primary btn-sm inline-flex items-center justify-center"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Cron Job
                 </button>
               </div>
@@ -983,7 +983,7 @@ const FunctionDetail = () => {
                   </p>
                   <button
                     onClick={handleAddCronJob}
-                    className="btn-primary btn-sm inline-flex items-center"
+                    className="btn-primary btn-sm inline-flex items-center justify-center"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Your First Cron Job
@@ -1028,7 +1028,7 @@ const FunctionDetail = () => {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleDownloadFile(selectedFile)}
-                            className="btn-secondary btn-xs flex items-center"
+                            className="btn-secondary btn-xs inline-flex items-center justify-center"
                             title="Download file"
                           >
                             <DownloadIcon className="h-3 w-3 mr-1" />

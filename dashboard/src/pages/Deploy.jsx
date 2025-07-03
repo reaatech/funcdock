@@ -116,46 +116,46 @@ const Deploy = () => {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setDeployMethod('local')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`inline-flex items-center justify-center py-2 px-1 border-b-2 font-medium text-sm ${
               deployMethod === 'local'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <Upload className="h-4 w-4 inline mr-2" />
+            <Upload className="h-4 w-4 mr-2" />
             Upload Files
           </button>
           <button
             onClick={() => setDeployMethod('git')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`inline-flex items-center justify-center py-2 px-1 border-b-2 font-medium text-sm ${
               deployMethod === 'git'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <GitBranch className="h-4 w-4 inline mr-2" />
+            <GitBranch className="h-4 w-4 mr-2" />
             Git Repository
           </button>
           <button
             onClick={() => setDeployMethod('github')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`inline-flex items-center justify-center py-2 px-1 border-b-2 font-medium text-sm ${
               deployMethod === 'github'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <GitBranch className="h-4 w-4 inline mr-2" />
+            <GitBranch className="h-4 w-4 mr-2" />
             GitHub
           </button>
           <button
             onClick={() => setDeployMethod('bitbucket')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`inline-flex items-center justify-center py-2 px-1 border-b-2 font-medium text-sm ${
               deployMethod === 'bitbucket'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
-            <GitBranch className="h-4 w-4 inline mr-2" />
+            <GitBranch className="h-4 w-4 mr-2" />
             Bitbucket
           </button>
         </nav>
@@ -380,7 +380,7 @@ const Deploy = () => {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary"
+            className="btn-primary inline-flex items-center justify-center"
           >
             {loading ? (
               <>

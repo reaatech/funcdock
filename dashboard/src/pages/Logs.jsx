@@ -221,14 +221,14 @@ const Logs = () => {
         <div className="flex space-x-2">
           <button
             onClick={fetchLogs}
-            className="btn-secondary"
+            className="btn-secondary inline-flex items-center justify-center"
           >
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
           </button>
           <button
             onClick={handleExportLogs}
-            className="btn-secondary"
+            className="btn-secondary inline-flex items-center justify-center"
           >
             <Download className="h-4 w-4 mr-1" />
             Export
