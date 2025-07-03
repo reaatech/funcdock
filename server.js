@@ -314,13 +314,13 @@ const installDependencies = async (functionPath) => {
     });
 
     if (stderr && !stderr.includes('npm WARN')) {
-      logger.error(`Dependency installation warnings for ${path.basename(functionPath)}: ${stderr}`);
+      logger.error(`Dependency installation warnings for ${path.basename(functionPath)}: ${stderr}`, { stack: stderr });
     }
 
     logger.info(`Dependencies installed for ${path.basename(functionPath)}`);
     return true;
   } catch (error) {
-    logger.error(`Failed to install dependencies for ${path.basename(functionPath)}: ${error.message}`);
+    logger.error(`Failed to install dependencies for ${path.basename(functionPath)}: ${error.message}`, { stack: error.stack });
     return false;
   }
 };
@@ -411,7 +411,7 @@ const loadFunction = async (functionDir) => {
         // Check for route conflicts
         if (registeredRoutes.has(routeKey) && registeredRoutes.get(routeKey) !== functionName) {
           logger.alert(`Route conflict detected: ${routeKey} already registered by ${registeredRoutes.get(routeKey)}`);
-          logger.error(`Failed to register ${functionName} due to route conflict`);
+          logger.error(`Failed to register ${functionName} due to route conflict`, { stack: null });
           return false;
         }
 
@@ -429,7 +429,7 @@ const loadFunction = async (functionDir) => {
             throw new Error(`Handler in ${routeHandler} must export a default function`);
           }
         } catch (error) {
-          logger.error(`Failed to load handler ${routeHandler} for route ${fullPath}: ${error.message}`);
+          logger.error(`Failed to load handler ${routeHandler} for route ${fullPath}: ${error.message}`, { stack: error.stack });
           return false;
         }
 
@@ -471,7 +471,7 @@ const loadFunction = async (functionDir) => {
           try {
             await routeHandlerFunction(req, res, next); // Pass next to handler
           } catch (err) {
-            functionLogger.error(`Error in ${fullPath} (${functionName}/${routeHandler}): ${err.message}`);
+            functionLogger.error(`Error in ${fullPath} (${functionName}/${routeHandler}): ${err.message}`, { stack: err.stack });
             // Only send response if not already sent
             if (!res.headersSent) {
               res.status(500).json({
@@ -543,7 +543,7 @@ const loadFunction = async (functionDir) => {
     return true;
 
   } catch (error) {
-    logger.error(`Failed to load function ${functionName}: ${error.message}`);
+    logger.error(`Failed to load function ${functionName}: ${error.message}`, { stack: error.stack });
     return false;
   }
 };
@@ -586,7 +586,7 @@ const loadAllFunctions = async () => {
     logger.info(`Loaded ${loadedCount}/${functionDirs.length} functions successfully`);
 
   } catch (error) {
-    logger.error(`Error loading functions: ${error.message}`);
+    logger.error(`Error loading functions: ${error.message}`, { stack: error.stack });
   }
 };
 
@@ -657,7 +657,7 @@ const setupFileWatcher = () => {
           await loadFunction(functionPath);
           lastReload.set(functionName, Date.now());
         } catch (error) {
-          logger.error(`Failed to reload function ${functionName}: ${error.message}`);
+          logger.error(`Failed to reload function ${functionName}: ${error.message}`, { stack: error.stack });
         } finally {
           timeouts.delete(functionName);
         }
@@ -831,7 +831,7 @@ app.post('/api/auth/login', [
       res.status(401).json({ message: 'Invalid credentials' });
     }
   } catch (error) {
-    logger.error(`Login error: ${error.message}`);
+    logger.error(`Login error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -977,7 +977,7 @@ app.post('/api/functions/deploy/local', authenticateToken, upload.array('files')
       res.status(500).json({ message: 'Failed to deploy function' });
     }
   } catch (error) {
-    logger.error(`Deployment error: ${error.message}`);
+    logger.error(`Deployment error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -998,7 +998,7 @@ app.delete('/api/functions/:name', authenticateToken, async (req, res) => {
     
     res.json({ message: 'Function deleted successfully' });
   } catch (error) {
-    logger.error(`Delete function error: ${error.message}`);
+    logger.error(`Delete function error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1041,7 +1041,7 @@ app.put('/api/functions/:name', authenticateToken, upload.array('files'), async 
       res.status(500).json({ message: 'Failed to update function' });
     }
   } catch (error) {
-    logger.error(`Update function error: ${error.message}`);
+    logger.error(`Update function error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1079,7 +1079,7 @@ app.post('/api/functions/deploy/git', authenticateToken, async (req, res) => {
       res.status(500).json({ message: 'Failed to deploy function from Git' });
     }
   } catch (error) {
-    logger.error(`Git deployment error: ${error.message}`);
+    logger.error(`Git deployment error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Failed to deploy from Git repository' });
   }
 });
@@ -1135,7 +1135,7 @@ app.get('/api/functions/:name/logs', authenticateToken, async (req, res) => {
 
     res.json({ logs });
   } catch (error) {
-    logger.error(`Get function logs error: ${error.message}`);
+    logger.error(`Get function logs error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1193,7 +1193,7 @@ app.get('/api/functions/:name/metrics', authenticateToken, async (req, res) => {
 
     res.json(metrics);
   } catch (error) {
-    logger.error(`Get function metrics error: ${error.message}`);
+    logger.error(`Get function metrics error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1266,7 +1266,7 @@ app.post('/api/functions/:name/test', authenticateToken, async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error(`Test function error: ${error.message}`);
+    logger.error(`Test function error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1301,7 +1301,7 @@ app.get('/api/logs', authenticateToken, async (req, res) => {
     
     res.json({ logs });
   } catch (error) {
-    logger.error(`Get system logs error: ${error.message}`);
+    logger.error(`Get system logs error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1312,7 +1312,7 @@ app.get('/api/logs/functions', authenticateToken, async (req, res) => {
     const functionLogs = await logger.getFunctionLogFiles();
     res.json(functionLogs);
   } catch (error) {
-    logger.error(`Get function logs error: ${error.message}`);
+    logger.error(`Get function logs error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1331,7 +1331,7 @@ app.get('/api/metrics', authenticateToken, async (req, res) => {
 
     res.json(metrics);
   } catch (error) {
-    logger.error(`Get system metrics error: ${error.message}`);
+    logger.error(`Get system metrics error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1360,7 +1360,7 @@ app.get('/api/functions/:name/cron', authenticateToken, async (req, res) => {
 
     res.json({ jobs });
   } catch (error) {
-    logger.error(`Get function cron jobs error: ${error.message}`);
+    logger.error(`Get function cron jobs error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1400,7 +1400,7 @@ app.put('/api/functions/:name/cron', authenticateToken, async (req, res) => {
     logger.info(`Updated cron jobs for function ${name}`);
     res.json({ message: 'Cron jobs updated successfully', jobs });
   } catch (error) {
-    logger.error(`Update function cron jobs error: ${error.message}`);
+    logger.error(`Update function cron jobs error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1460,7 +1460,7 @@ app.get('/api/functions/:name/files', authenticateToken, async (req, res) => {
     const files = await buildFileTree(func.path);
     res.json({ files });
   } catch (error) {
-    logger.error(`Get function files error: ${error.message}`);
+    logger.error(`Get function files error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1500,7 +1500,7 @@ app.get('/api/functions/:name/files/content', authenticateToken, async (req, res
       throw error;
     }
   } catch (error) {
-    logger.error(`Get file content error: ${error.message}`);
+    logger.error(`Get file content error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1544,7 +1544,7 @@ app.get('/api/functions/:name/files/download', authenticateToken, async (req, re
       throw error;
     }
   } catch (error) {
-    logger.error(`Download file error: ${error.message}`);
+    logger.error(`Download file error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1565,7 +1565,7 @@ app.get('/', (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  logger.error(`Unhandled error: ${err.message}`);
+  logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
   res.status(500).json({
     error: 'Internal Server Error',
     message: err.message,
@@ -1656,7 +1656,7 @@ const initializeServer = async () => {
 
 // Start the server
 initializeServer().catch(error => {
-  logger.error(`Failed to initialize server: ${error.message}`);
+  logger.error(`Failed to initialize server: ${error.message}`, { stack: error.stack });
   process.exit(1);
 });
 
@@ -1813,7 +1813,7 @@ app.get('/api/functions/:name/env', authenticateToken, async (req, res) => {
     const envVars = await loadFunctionEnv(func.path);
     res.json({ env: envVars });
   } catch (error) {
-    logger.error(`Failed to load env for function ${name}: ${error.message}`);
+    logger.error(`Failed to load env for function ${name}: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Failed to load environment variables' });
   }
 });
