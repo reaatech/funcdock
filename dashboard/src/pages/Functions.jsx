@@ -13,7 +13,9 @@ import {
   XCircle,
   AlertTriangle,
   Upload,
-  ExternalLink
+  ExternalLink,
+  List as ListIcon,
+  LayoutGrid
 } from 'lucide-react'
 import LoadingSpinner, { SkeletonLoader } from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
@@ -26,6 +28,7 @@ const Functions = () => {
   const { on } = useSocket()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [viewMode, setViewMode] = useState('card') // 'card' or 'list'
 
   useEffect(() => {
     fetchFunctions()
@@ -162,7 +165,7 @@ const Functions = () => {
         </Link>
       </div>
 
-      {/* Search Filter */}
+      {/* Search Filter & View Toggle */}
       <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
         <input
           type="text"
@@ -171,12 +174,32 @@ const Functions = () => {
           placeholder="Search functions..."
           className="input w-64"
         />
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {filteredFunctions.length} function{filteredFunctions.length !== 1 ? 's' : ''} found
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mr-2">
+            {filteredFunctions.length} function{filteredFunctions.length !== 1 ? 's' : ''} found
+          </div>
+          <div className="inline-flex rounded-md shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <button
+              className={`px-3 py-1 flex items-center ${viewMode === 'card' ? 'bg-primary-600 text-white' : 'text-gray-700 dark:text-gray-200'}`}
+              onClick={() => setViewMode('card')}
+              aria-label="Card view"
+              type="button"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              className={`px-3 py-1 flex items-center border-l border-gray-200 dark:border-gray-700 ${viewMode === 'list' ? 'bg-primary-600 text-white' : 'text-gray-700 dark:text-gray-200'}`}
+              onClick={() => setViewMode('list')}
+              aria-label="List view"
+              type="button"
+            >
+              <ListIcon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Functions Grid */}
+      {/* Functions Grid or List */}
       {filteredFunctions.length === 0 ? (
         <div className="text-center py-16">
           <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
@@ -207,89 +230,142 @@ const Functions = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {paginatedFunctions.map((func) => (
-              <div key={func.name} className="card">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      {getStatusIcon(func.status)}
-                      <h3 className="ml-2 text-lg font-medium text-gray-900 dark:text-white">
-                        {func.name}
-                      </h3>
+          {viewMode === 'card' ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {paginatedFunctions.map((func) => (
+                <div key={func.name} className="card">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center">
+                        {getStatusIcon(func.status)}
+                        <h3 className="ml-2 text-lg font-medium text-gray-900 dark:text-white">
+                          {func.name}
+                        </h3>
+                      </div>
+                      <span className={`badge ${getStatusColor(func.status)}`}>
+                        {func.status}
+                      </span>
                     </div>
-                    <span className={`badge ${getStatusColor(func.status)}`}>
-                      {func.status}
-                    </span>
-                  </div>
 
-                  <div className="space-y-3 mb-6">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Routes:</span>
-                      <div className="flex items-center space-x-2">
+                    <div className="space-y-3 mb-6">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Routes:</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {func.routes?.length || 0}
+                          </span>
+                          {func.routes && func.routes.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(new Set(func.routes.map(route => route.method))).slice(0, 3).map((method) => (
+                                <span 
+                                  key={method} 
+                                  className={`badge text-xs ${
+                                    method === 'GET' ? 'badge-success' :
+                                    method === 'POST' ? 'badge-primary' :
+                                    method === 'PUT' ? 'badge-warning' :
+                                    method === 'DELETE' ? 'badge-danger' :
+                                    method === 'PATCH' ? 'badge-info' :
+                                    method === 'OPTIONS' ? 'badge-secondary' :
+                                    'badge-info'
+                                  }`}
+                                >
+                                  {method}
+                                </span>
+                              ))}
+                              {Array.from(new Set(func.routes.map(route => route.method))).length > 3 && (
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                  +{Array.from(new Set(func.routes.map(route => route.method))).length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Cron Jobs:</span>
                         <span className="text-gray-900 dark:text-white font-medium">
-                          {func.routes?.length || 0}
+                          {func.cronJobs || 0}
                         </span>
-                        {func.routes && func.routes.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {Array.from(new Set(func.routes.map(route => route.method))).slice(0, 3).map((method) => (
-                              <span 
-                                key={method} 
-                                className={`badge text-xs ${
-                                  method === 'GET' ? 'badge-success' :
-                                  method === 'POST' ? 'badge-primary' :
-                                  method === 'PUT' ? 'badge-warning' :
-                                  method === 'DELETE' ? 'badge-danger' :
-                                  method === 'PATCH' ? 'badge-info' :
-                                  method === 'OPTIONS' ? 'badge-secondary' :
-                                  'badge-info'
-                                }`}
-                              >
-                                {method}
-                              </span>
-                            ))}
-                            {Array.from(new Set(func.routes.map(route => route.method))).length > 3 && (
-                              <span className="text-xs text-gray-400 dark:text-gray-500">
-                                +{Array.from(new Set(func.routes.map(route => route.method))).length - 3}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Last Deployed:</span>
+                        <span className="text-gray-900 dark:text-white font-medium">
+                          {func.lastDeployed ? new Date(func.lastDeployed).toLocaleDateString() : 'N/A'}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Cron Jobs:</span>
-                      <span className="text-gray-900 dark:text-white font-medium">
-                        {func.cronJobs || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Last Deployed:</span>
-                      <span className="text-gray-900 dark:text-white font-medium">
-                        {func.lastDeployed ? new Date(func.lastDeployed).toLocaleDateString() : 'N/A'}
-                      </span>
-                    </div>
-                  </div>
 
-                  <div className="flex space-x-2">
-                    <Link
-                      to={`/functions/${func.name}`}
-                      className="flex-1 btn-secondary inline-flex items-center justify-center"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View
-                    </Link>
-                    <button
-                      onClick={() => handleDeleteFunction(func.name)}
-                      className="btn-danger inline-flex items-center justify-center"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex space-x-2">
+                      <Link
+                        to={`/functions/${func.name}`}
+                        className="flex-1 btn-secondary inline-flex items-center justify-center"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteFunction(func.name)}
+                        className="btn-danger inline-flex items-center justify-center"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Routes</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cron Jobs</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Deployed</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {paginatedFunctions.map((func) => (
+                    <tr key={func.name}>
+                      <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">
+                        {func.name}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className={`badge ${getStatusColor(func.status)}`}>{func.status}</span>
+                      </td>
+                      <td className="px-4 py-2">
+                        {func.routes?.length || 0}
+                      </td>
+                      <td className="px-4 py-2">
+                        {func.cronJobs || 0}
+                      </td>
+                      <td className="px-4 py-2">
+                        {func.lastDeployed ? new Date(func.lastDeployed).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <Link
+                          to={`/functions/${func.name}`}
+                          className="btn-secondary inline-flex items-center justify-center mr-2"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteFunction(func.name)}
+                          className="btn-danger inline-flex items-center justify-center"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (
