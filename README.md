@@ -336,3 +336,7 @@ Thousands of developers have discovered the joy of instant deployments, real-tim
 ⭐ **Star this repo if FuncDock revolutionized your serverless experience!** ⭐
 
 *Built with ❤️ by developers who believe serverless should be joyful, not painful.*
+
+## Commercial Support
+
+FuncDock is developed and maintained by [REAA Technologies](https://reaatech.com). Commercial and enterprise support, consulting, and custom development are available. If your organization needs advanced features, SLAs, or expert help, please contact REAA Technologies via their website.
