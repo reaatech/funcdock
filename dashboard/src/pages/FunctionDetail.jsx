@@ -80,6 +80,7 @@ const FunctionDetail = () => {
   const [envLoading, setEnvLoading] = useState(false)
 
   const [logLevel, setLogLevel] = useState('all')
+  const [expandedLogs, setExpandedLogs] = useState(new Set())
 
   useEffect(() => {
     fetchFunctionData()
@@ -416,6 +417,40 @@ const FunctionDetail = () => {
         return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
       default:
         return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20'
+    }
+  }
+
+  const toggleLogExpansion = (index) => {
+    const newExpanded = new Set(expandedLogs)
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index)
+    } else {
+      newExpanded.add(index)
+    }
+    setExpandedLogs(newExpanded)
+  }
+
+  const formatLogData = (log) => {
+    // If it's a plain string or simple message, return as is
+    if (log.isPlain || typeof log === 'string') {
+      return log.message || log
+    }
+    
+    // If it has a message but also other properties, show message + expandable data
+    if (log.message) {
+      const { message, timestamp, level, ...otherData } = log
+      if (Object.keys(otherData).length > 0) {
+        return {
+          message,
+          data: otherData
+        }
+      }
+    }
+    
+    // If it's a complex object without a message, show the whole object
+    return {
+      message: 'Log data',
+      data: log
     }
   }
 
@@ -1057,24 +1092,74 @@ const FunctionDetail = () => {
               </div>
               {filteredLogs.length > 0 ? (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr>
-                        <th className="text-left px-2 py-1">Timestamp</th>
-                        <th className="text-left px-2 py-1">Level</th>
-                        <th className="text-left px-2 py-1">Message</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredLogs.map((log, index) => (
-                        <tr key={index}>
-                          <td className="font-mono px-2 py-1">{log.timestamp || ''}</td>
-                          <td className={`font-mono px-2 py-1 ${getLogLevelColor(log.level)}`}>{log.level || ''}</td>
-                          <td className="font-mono px-2 py-1">{log.message || (typeof log === 'string' ? log : '')}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {filteredLogs.map((log, index) => {
+                    const formattedLog = formatLogData(log)
+                    const isExpanded = expandedLogs.has(index)
+                    const hasExpandableData = typeof formattedLog === 'object' && formattedLog.data
+                    
+                    return (
+                      <div
+                        key={index}
+                        className={`border rounded-lg overflow-hidden ${
+                          log.level === 'ERROR' || log.level === 'CRON_ERROR'
+                            ? 'border-red-200 bg-red-50 dark:bg-red-900/10'
+                            : log.level === 'WARN'
+                            ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10'
+                            : 'border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700'
+                        }`}
+                      >
+                        <div
+                          className={`p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                            hasExpandableData ? 'cursor-pointer' : 'cursor-default'
+                          }`}
+                          onClick={() => hasExpandableData && toggleLogExpansion(index)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <div className={`mt-1 ${getLogLevelColor(log.level)} px-2 py-1 rounded text-xs font-medium`}>
+                                {log.level || 'INFO'}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                  <span className="font-mono">
+                                    {log.timestamp ? new Date(log.timestamp).toLocaleString() : ''}
+                                  </span>
+                                </div>
+                                <div className="text-sm font-mono break-words">
+                                  {typeof formattedLog === 'string' 
+                                    ? formattedLog 
+                                    : formattedLog.message || 'No message'
+                                  }
+                                </div>
+                              </div>
+                            </div>
+                            {hasExpandableData && (
+                              <div className="ml-2">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {isExpanded && hasExpandableData && (
+                          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                            <div className="p-3">
+                              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                                Additional Data:
+                              </div>
+                              <pre className="text-xs text-gray-900 dark:text-white overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(formattedLog.data, null, 2)}
+                              </pre>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">

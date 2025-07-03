@@ -12,7 +12,9 @@ import {
   Clock,
   AlertTriangle,
   Info,
-  XCircle
+  XCircle,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
@@ -26,6 +28,7 @@ const Logs = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isLive, setIsLive] = useState(false)
   const [limit, setLimit] = useState(100)
+  const [expandedLogs, setExpandedLogs] = useState(new Set())
   const { on } = useSocket()
 
   useEffect(() => {
@@ -144,6 +147,40 @@ const Logs = () => {
         return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
       default:
         return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20'
+    }
+  }
+
+  const toggleLogExpansion = (index) => {
+    const newExpanded = new Set(expandedLogs)
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index)
+    } else {
+      newExpanded.add(index)
+    }
+    setExpandedLogs(newExpanded)
+  }
+
+  const formatLogData = (log) => {
+    // If it's a plain string or simple message, return as is
+    if (log.isPlain || typeof log === 'string') {
+      return log.message || log
+    }
+    
+    // If it has a message but also other properties, show message + expandable data
+    if (log.message) {
+      const { message, timestamp, level, function: funcName, ...otherData } = log
+      if (Object.keys(otherData).length > 0) {
+        return {
+          message,
+          data: otherData
+        }
+      }
+    }
+    
+    // If it's a complex object without a message, show the whole object
+    return {
+      message: 'Log data',
+      data: log
     }
   }
 
@@ -315,40 +352,84 @@ const Logs = () => {
             </div>
           ) : (
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {filteredLogs.map((log, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded-lg border ${getLogLevelColor(log.level)}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3 flex-1">
-                      {getLogLevelIcon(log.level)}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 text-sm">
-                          <span className="font-mono text-xs">
-                            {new Date(log.timestamp || Date.now()).toLocaleString()}
-                          </span>
-                          {log.function && (
-                            <>
-                              <span className="text-gray-400">•</span>
-                              <span className="font-medium">{log.function}</span>
-                            </>
-                          )}
-                          {log.level && (
-                            <>
-                              <span className="text-gray-400">•</span>
-                              <span className="font-medium">{log.level}</span>
-                            </>
-                          )}
+              {filteredLogs.map((log, index) => {
+                const formattedLog = formatLogData(log)
+                const isExpanded = expandedLogs.has(index)
+                const hasExpandableData = typeof formattedLog === 'object' && formattedLog.data
+                
+                return (
+                  <div
+                    key={index}
+                    className={`border rounded-lg overflow-hidden ${
+                      log.level === 'ERROR' || log.level === 'CRON_ERROR'
+                        ? 'border-red-200 bg-red-50 dark:bg-red-900/10'
+                        : log.level === 'WARN'
+                        ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10'
+                        : 'border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700'
+                    }`}
+                  >
+                    <div
+                      className={`p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                        hasExpandableData ? 'cursor-pointer' : 'cursor-default'
+                      }`}
+                      onClick={() => hasExpandableData && toggleLogExpansion(index)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3 flex-1">
+                          {getLogLevelIcon(log.level)}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 text-sm">
+                              <span className="font-mono text-xs">
+                                {new Date(log.timestamp || Date.now()).toLocaleString()}
+                              </span>
+                              {log.function && (
+                                <>
+                                  <span className="text-gray-400">•</span>
+                                  <span className="font-medium">{log.function}</span>
+                                </>
+                              )}
+                              {log.level && (
+                                <>
+                                  <span className="text-gray-400">•</span>
+                                  <span className="font-medium">{log.level}</span>
+                                </>
+                              )}
+                            </div>
+                            <div className="mt-1 text-sm font-mono break-words">
+                              {typeof formattedLog === 'string' 
+                                ? formattedLog 
+                                : formattedLog.message || 'No message'
+                              }
+                            </div>
+                          </div>
                         </div>
-                        <p className="mt-1 text-sm font-mono break-words">
-                          {log.message || JSON.stringify(log)}
-                        </p>
+                        {hasExpandableData && (
+                          <div className="ml-2">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
+                    
+                    {isExpanded && hasExpandableData && (
+                      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                        <div className="p-3">
+                          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                            Additional Data:
+                          </div>
+                          <pre className="text-xs text-gray-900 dark:text-white overflow-x-auto whitespace-pre-wrap">
+                            {JSON.stringify(formattedLog.data, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -413,14 +494,33 @@ const Logs = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.map((log, idx) => (
-                <tr key={idx} className={getLogLevelColor(log.level)}>
-                  <td className="font-mono px-2 py-1">{log.timestamp || ''}</td>
-                  <td className="font-mono px-2 py-1">{log.level || ''}</td>
-                  <td className="font-mono px-2 py-1">{log.function || ''}</td>
-                  <td className="font-mono px-2 py-1">{log.message || ''}</td>
-                </tr>
-              ))}
+              {filteredLogs.map((log, idx) => {
+                const formattedLog = formatLogData(log)
+                const hasExpandableData = typeof formattedLog === 'object' && formattedLog.data
+                const displayMessage = typeof formattedLog === 'string' 
+                  ? formattedLog 
+                  : formattedLog.message || 'No message'
+                
+                return (
+                  <tr key={idx} className={getLogLevelColor(log.level)}>
+                    <td className="font-mono px-2 py-1">{log.timestamp || ''}</td>
+                    <td className="font-mono px-2 py-1">{log.level || ''}</td>
+                    <td className="font-mono px-2 py-1">{log.function || ''}</td>
+                    <td className="font-mono px-2 py-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="truncate max-w-xs">
+                          {displayMessage}
+                        </span>
+                        {hasExpandableData && (
+                          <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20 px-1 py-0.5 rounded">
+                            +data
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
