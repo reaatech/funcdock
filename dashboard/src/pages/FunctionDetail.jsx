@@ -436,9 +436,23 @@ const FunctionDetail = () => {
       return log.message || log
     }
     
-    // If it has a message but also other properties, show message + expandable data
-    if (log.message) {
+    // Check if this is a string that was converted to an object with numeric keys
+    // This happens when a string is passed as the second parameter to logger
+    if (log.message && typeof log.message === 'string') {
       const { message, timestamp, level, ...otherData } = log
+      
+      // Check if otherData looks like a string split into numeric keys
+      const numericKeys = Object.keys(otherData).filter(key => !isNaN(parseInt(key)))
+      if (numericKeys.length > 0 && numericKeys.length === Object.keys(otherData).length) {
+        // This is likely a string that was converted to an object
+        const reconstructedString = Object.values(otherData).join('')
+        return {
+          message: `${message} ${reconstructedString}`,
+          data: null // No additional data to expand
+        }
+      }
+      
+      // Normal case: has other properties
       if (Object.keys(otherData).length > 0) {
         return {
           message,
@@ -1095,7 +1109,7 @@ const FunctionDetail = () => {
                   {filteredLogs.map((log, index) => {
                     const formattedLog = formatLogData(log)
                     const isExpanded = expandedLogs.has(index)
-                    const hasExpandableData = typeof formattedLog === 'object' && formattedLog.data
+                    const hasExpandableData = typeof formattedLog === 'object' && formattedLog.data && formattedLog.data !== null
                     
                     return (
                       <div
