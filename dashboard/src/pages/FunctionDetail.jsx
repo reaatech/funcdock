@@ -1105,7 +1105,7 @@ const FunctionDetail = () => {
                 </div>
               </div>
               {filteredLogs.length > 0 ? (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-2">
                   {filteredLogs.map((log, index) => {
                     const formattedLog = formatLogData(log)
                     const isExpanded = expandedLogs.has(index)
