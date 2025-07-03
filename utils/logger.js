@@ -146,6 +146,9 @@ class Logger {
       const coloredMessage = `${colorCode}${logObj.timestamp} [${logObj.level}]${logObj.function ? ` [${logObj.function}]` : ''} ${logObj.message}${this.colors.reset}`;
       if (level === 'error' || level === 'alert') {
         console.error(coloredMessage);
+        if (logObj.stack) {
+          console.error(logObj.stack);
+        }
       } else if (level === 'warn') {
         console.warn(coloredMessage);
       } else {
