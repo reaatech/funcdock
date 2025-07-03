@@ -22,6 +22,7 @@
 ## 🔥 The FaaS Problem Everyone Faces
 
 **Sound familiar?**
+
 - 😩 Change one line → wait 5 minutes for cold deployment
 - 🐌 Different dev/prod environments = endless debugging nightmares
 - 💸 Pay per function, per container, per lambda invocation
@@ -39,18 +40,23 @@
 We didn't just build another FaaS platform — we **reimagined serverless development** from the ground up:
 
 ### ⚡️ **INSTANT Hot Reload** — Industry's First
+
 Deploy your code and see it live in **milliseconds**. No container restarts, no downtime, no waiting. Git push → CI/CD deploys → functions hot reload instantly in production. Or deploy manually via CLI/dashboard and watch changes go live immediately. This changes everything about serverless deployment.
 
 ### 🎯 **Per-Route Handlers** — Revolutionary Architecture
+
 Unlike every other platform, each route can have its own handler file. `/api` uses `api.js`, `/webhook` uses `webhook.js`, `/users/:id` uses `users.js`. Maximum code organization, zero complexity.
 
 ### 🎛️ **Live Real-Time Dashboard** — Complete Visibility
+
 Watch your functions breathe with streaming logs, live metrics, route health monitoring, and cron job execution. Finally see what's happening in your serverless world in real-time.
 
 ### 🏠 **All Functions, One Container** — Cost Revolution
+
 Why manage 50 containers when one lightning-fast container can run everything? **80% cost reduction** with zero architectural complexity.
 
 ### 🧪 **Production-Grade Testing** — With Docker Parity
+
 Jest + Nock testing that runs in identical Docker environments. Test locally, deploy with confidence. No more "works on my machine" disasters.
 
 ### 🎛️ **Middleware Support** — Handlers can use Express-style middleware by calling next().
@@ -161,7 +167,7 @@ describe('Hello World Handler', () => {
       method: 'GET',
       query: { name: 'FuncDock' }
     });
-    
+  
     expectStatus(res, 200);
     expect(res.body.message).toBe('Hello, FuncDock!');
   });
@@ -214,6 +220,7 @@ npm run logs
 ### 7. Monitor Everything Live
 
 Your **real-time dashboard** at `http://localhost:3000/dashboard/` shows:
+
 - 📊 Live function performance metrics
 - 📝 Streaming logs from all functions and routes
 - 🔄 Route health and response times
@@ -221,7 +228,15 @@ Your **real-time dashboard** at `http://localhost:3000/dashboard/` shows:
 - 🚨 Real-time alerts and error tracking
 - 🎛️ Function management and controls
 
-![Dashboard Screenshot](public/dashboard/assets/index.html)
+![Dashboard Screenshot](screenshots/dashboard.jpg)
+
+![Dashboard Screenshot](screenshots/functions.jpg)
+
+![Dashboard Screenshot](screenshots/function-overview.jpg)
+
+![Dashboard Screenshot](screenshots/function-logs.jpg)
+
+More screenshots available in the [screenshots](screenshots/) directory.
 
 ---
 
@@ -265,12 +280,14 @@ make create-function NAME=my-awesome-api
 **This isn't evolution — it's revolution:**
 
 ### 🏆 **Industry Firsts**
+
 - **Hot reload for serverless** (seriously, no one else has this)
 - **Per-route handlers** in a unified function
 - **Real-time serverless dashboard** with live streaming
 - **Production-identical Docker testing** for FaaS
 
 ### 🧠 **Intelligent Features**
+
 - **Zero-downtime deployments** with instant hot reload in production
 - **CI/CD integration** — use Makefile targets in any pipeline (GitHub Actions, GitLab, Jenkins)
 - **Pre-deployment testing** with production-identical Docker environments
@@ -280,11 +297,13 @@ make create-function NAME=my-awesome-api
 - **Advanced cron scheduling** with timezone support and error handling
 
 ### ⚡ **Performance Revolution**
+
 - **Single container architecture** = lightning-fast performance
 - **Memory-efficient function loading** with intelligent caching
 - **Zero cold starts** — functions are always warm and ready
 
 ### 🎨 **Developer Experience**
+
 - **Built by developers** who were tired of serverless complexity
 - **Zero configuration** — works perfectly out of the box
 - **Comprehensive tooling** — CLI, Make commands, npm scripts
@@ -321,6 +340,7 @@ Thousands of developers have discovered the joy of instant deployments, real-tim
 ## 🚀 Built Different
 
 **Key Differentiators:**
+
 - ⚡ **Instant hot reload** (deploy → live in milliseconds, industry first)
 - 🚀 **CI/CD native** (GitHub Actions, GitLab, Jenkins ready)
 - 🎯 **Per-route handlers** (revolutionary organization)
