@@ -192,7 +192,7 @@ const Deploy = () => {
               <div className="text-center">
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="mt-4">
-                  <label htmlFor="file-upload" className="btn-primary cursor-pointer">
+                  <label htmlFor="file-upload" className="btn-primary cursor-pointer inline-flex items-center justify-center whitespace-nowrap">
                     <File className="h-4 w-4 mr-2" />
                     Select Files
                   </label>
