@@ -1275,8 +1275,31 @@ app.post('/api/functions/:name/test', authenticateToken, async (req, res) => {
 app.get('/api/logs', authenticateToken, async (req, res) => {
   try {
     const { limit = 100 } = req.query;
-    const logs = await logger.getRecentLogs(parseInt(limit));
-    res.json(logs);
+    const logResult = await logger.getRecentLogs(parseInt(limit));
+    
+    // Transform the log lines into the expected format
+    const logs = logResult.lines ? logResult.lines.map(line => {
+      try {
+        // Parse the JSON log entry
+        const logEntry = JSON.parse(line);
+        return {
+          timestamp: logEntry.timestamp,
+          message: logEntry.message,
+          level: logEntry.level,
+          function: logEntry.function || null
+        };
+      } catch (error) {
+        // If parsing fails, return a simple object with the raw line
+        return {
+          timestamp: new Date().toISOString(),
+          message: line,
+          level: 'info',
+          function: null
+        };
+      }
+    }) : [];
+    
+    res.json({ logs });
   } catch (error) {
     logger.error(`Get system logs error: ${error.message}`);
     res.status(500).json({ message: 'Internal server error' });

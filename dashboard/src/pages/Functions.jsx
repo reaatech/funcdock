@@ -241,14 +241,14 @@ const Functions = () => {
                 <div className="flex space-x-2">
                   <Link
                     to={`/functions/${func.name}`}
-                    className="flex-1 btn-secondary text-center"
+                    className="flex-1 btn-secondary inline-flex items-center justify-center"
                   >
-                    <Eye className="h-4 w-4 mr-1" />
+                    <Eye className="h-4 w-4 mr-2" />
                     View
                   </Link>
                   <button
                     onClick={() => handleDeleteFunction(func.name)}
-                    className="btn-danger"
+                    className="btn-danger inline-flex items-center justify-center"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
