@@ -1069,24 +1069,24 @@ const FunctionDetail = () => {
           {/* Logs Tab */}
           {activeTab === 'logs' && (
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Function Logs</h3>
-                <div className="flex items-center space-x-2">
-                  <label className="text-xs text-gray-500 dark:text-gray-400 mr-1">Limit-Debug:</label>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white min-w-fit">Function Logs</h3>
+                <div className="flex-1 flex flex-wrap items-center gap-2 min-w-0">
+                  <label className="text-xs text-gray-500 dark:text-gray-400 mr-1 whitespace-nowrap">Limit-Debug:</label>
                   <select
                     value={logs.length}
                     onChange={(e) => fetchFunctionData()}
-                    className="input text-sm"
+                    className="input text-sm w-auto min-w-[90px]"
                   >
                     <option value={50}>Last 50</option>
                     <option value={100}>Last 100</option>
                     <option value={200}>Last 200</option>
                   </select>
-                  <label className="text-xs text-gray-500 dark:text-gray-400 ml-2 mr-1">Level-Debug:</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 ml-2 mr-1 whitespace-nowrap">Level-Debug:</label>
                   <select
                     value={logLevel}
                     onChange={e => setLogLevel(e.target.value)}
-                    className="input text-sm"
+                    className="input text-sm w-auto min-w-[90px]"
                   >
                     <option value="all">All Levels</option>
                     <option value="ERROR">ERROR</option>
@@ -1097,7 +1097,7 @@ const FunctionDetail = () => {
                   </select>
                   <button
                     onClick={() => fetchFunctionData()}
-                    className="btn-secondary text-sm ml-2"
+                    className="btn-secondary text-sm ml-2 inline-flex items-center justify-center whitespace-nowrap"
                   >
                     <RefreshCw className="h-4 w-4 mr-1" />
                     Refresh
@@ -1356,7 +1356,7 @@ const FunctionDetail = () => {
                     <div className="text-center">
                       <Upload className="mx-auto h-12 w-12 text-gray-400" />
                       <div className="mt-4">
-                        <label htmlFor="update-file-upload" className="btn-primary cursor-pointer">
+                        <label htmlFor="update-file-upload" className="btn-primary cursor-pointer inline-flex items-center justify-center whitespace-nowrap">
                           <FileText className="h-4 w-4 mr-2" />
                           Select Files
                         </label>
@@ -1400,7 +1400,7 @@ const FunctionDetail = () => {
                 <button
                   onClick={handleUpdateFunction}
                   disabled={updateFiles.length === 0}
-                  className="btn-primary"
+                  className="btn-primary inline-flex items-center justify-center whitespace-nowrap"
                 >
                   <Upload className="h-4 w-4 mr-1" />
                   Update Function
