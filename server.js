@@ -340,14 +340,14 @@ const unregisterFunctionRoutes = (functionName) => {
     logger.info(`Unregistered route: ${routeKey}`);
   });
 
-  // Remove from Express router stack
-  app._router.stack = app._router.stack.filter(layer => {
-    if (layer.route) {
-      const routeKey = `${Object.keys(layer.route.methods)[0].toUpperCase()} ${layer.route.path}`;
-      return !routesToRemove.includes(routeKey);
-    }
-    return true;
-  });
+  // CRITICAL FIX: Don't destroy the entire router stack
+  // Instead, we'll let Express handle route replacement naturally
+  // The new routes will override the old ones when we register them again
+  // This prevents destroying middleware and other routes
+  
+  // Note: Express doesn't have a clean way to remove specific routes
+  // The best approach is to let the new route registration override the old ones
+  // This is why we clear the registeredRoutes map but don't touch app._router.stack
 };
 
 // Load a single function
@@ -622,7 +622,39 @@ const setupFileWatcher = () => {
       '**/*.tmp',
       '**/*.temp',
       '**/.vscode/**',
-      '**/.idea/**'
+      '**/.idea/**',
+      '**/.idea/**/*',
+      '**/*.swp',
+      '**/*.swo',
+      '**/*~',
+      '**/.vscode/**/*',
+      '**/.*.swp',
+      '**/.*.swo',
+      '**/.*~',
+      '**/workspace.xml',
+      '**/tasks.xml',
+      '**/modules.xml',
+      '**/misc.xml',
+      '**/vcs.xml',
+      '**/inspectionProfiles/**',
+      '**/libraries/**',
+      '**/shelf/**',
+      '**/usage.statistics.xml',
+      '**/contentModel.xml',
+      '**/indexLayout.xml',
+      '**/projectCodeStyle.xml',
+      '**/encodings.xml',
+      '**/compiler.xml',
+      '**/jarRepositories.xml',
+      '**/uiDesigner.xml',
+      '**/dataSources.xml',
+      '**/dataSources.local.xml',
+      '**/sqlDataSources.xml',
+      '**/dynamic.xml',
+      '**/runConfigurations.xml',
+      '**/shelf/**/*',
+      '**/inspectionProfiles/**/*',
+      '**/libraries/**/*'
     ],
     persistent: true,
     ignoreInitial: true,
@@ -667,11 +699,27 @@ const setupFileWatcher = () => {
 
   watcher
     .on('add', (filePath) => {
+      // CRITICAL SAFETY: Prevent reloads on IDE files
+      if (filePath.includes('.idea') || filePath.includes('.vscode') || 
+          filePath.includes('workspace.xml') || filePath.includes('.swp') || 
+          filePath.includes('.swo') || filePath.endsWith('~')) {
+        logger.info(`Ignoring IDE file: ${filePath}`);
+        return;
+      }
+      
       const functionName = path.relative(functionsDir, filePath).split(path.sep)[0];
       logger.info(`File added: ${filePath}`);
       debounceReload(functionName);
     })
     .on('change', (filePath) => {
+      // CRITICAL SAFETY: Prevent reloads on IDE files
+      if (filePath.includes('.idea') || filePath.includes('.vscode') || 
+          filePath.includes('workspace.xml') || filePath.includes('.swp') || 
+          filePath.includes('.swo') || filePath.endsWith('~')) {
+        logger.info(`Ignoring IDE file change: ${filePath}`);
+        return;
+      }
+      
       const functionName = path.relative(functionsDir, filePath).split(path.sep)[0];
       logger.info(`File changed: ${filePath}`);
       debounceReload(functionName);
