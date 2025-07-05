@@ -1581,7 +1581,7 @@ const initializeServer = async () => {
   await loadAllFunctions();
 
   // Register catch-all route after functions are loaded
-  app.get('*', (req, res) => {
+  app.use('*', (req, res) => {
     // Don't serve React app for API routes
     if (req.path.startsWith('/api/')) {
       return res.status(404).json({
