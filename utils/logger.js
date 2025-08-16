@@ -94,11 +94,32 @@ class Logger extends EventEmitter {
   formatMessage(level, message, meta = {}) {
     const timestamp = new Date().toISOString();
     const processId = process.pid;
+
+    // Handle undefined/null/empty messages better
+    let formattedMessage;
+    if (message === undefined) {
+      formattedMessage = '[undefined]';
+    } else if (message === null) {
+      formattedMessage = '[null]';
+    } else if (message === '') {
+      formattedMessage = '[empty string]';
+    } else if (typeof message === 'string') {
+      formattedMessage = message;
+    } else if (typeof message === 'object') {
+      try {
+        formattedMessage = JSON.stringify(message, null, 2);
+      } catch (e) {
+        formattedMessage = '[object - could not stringify]';
+      }
+    } else {
+      formattedMessage = String(message);
+    }
+
     const logEntry = {
       timestamp,
       pid: processId,
       level: level.toUpperCase(),
-      message: typeof message === 'string' ? message : JSON.stringify(message),
+      message: formattedMessage,
       ...meta
     };
 
@@ -266,15 +287,18 @@ class Logger extends EventEmitter {
           message: meta.error.message,
           stack: meta.error.stack
         };
+        meta.stack = meta.error.stack; // Also add to root for console display
       }
 
       if (message instanceof Error) {
-        meta.error = {
+        const errorObj = {
           name: message.name,
           message: message.message,
           stack: message.stack
         };
-        message = message.message;
+        meta.error = errorObj;
+        meta.stack = message.stack; // Add to root for console display
+        message = `${message.name}: ${message.message}`; // Better error message formatting
       }
 
       const formattedMessage = this.formatMessage(level, message, meta);
