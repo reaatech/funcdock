@@ -254,7 +254,9 @@ class Logger extends EventEmitter {
     try {
       // Wait for initialization
       if (!this.initialized) {
+        console.log(`[DEBUG] Logger waiting for initialization...`);
         await this.initPromise;
+        console.log(`[DEBUG] Logger initialized, logToFile: ${this.logToFile}, functionName: ${this.functionName}`);
       }
 
       // Handle error objects properly
@@ -279,10 +281,14 @@ class Logger extends EventEmitter {
 
       // Write to console immediately
       this.writeToConsole(level, formattedMessage);
+      console.log(`[DEBUG] Wrote to console: ${level}`);
 
       // Buffer file writes for better performance
       if (this.logToFile) {
+        console.log(`[DEBUG] Buffering write for file: ${level}, functionName: ${this.functionName}`);
         this.bufferWrite(level, formattedMessage);
+      } else {
+        console.log(`[DEBUG] File logging disabled`);
       }
 
       // Send alerts if configured
