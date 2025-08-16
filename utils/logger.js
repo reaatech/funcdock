@@ -88,7 +88,9 @@ class Logger extends EventEmitter {
   }
 
   shouldLog(level) {
-    return this.levels[level] <= this.levels[this.logLevel];
+    const should = this.levels[level] <= this.levels[this.logLevel];
+    console.log(`[DEBUG] shouldLog(${level}): ${should} (level=${this.levels[level]}, logLevel=${this.logLevel}:${this.levels[this.logLevel]})`);
+    return should;
   }
 
   formatMessage(level, message, meta = {}) {
@@ -337,14 +339,18 @@ class Logger extends EventEmitter {
 
   bufferWrite(level, formattedMessage) {
     this.writeBuffer.push({ level, message: formattedMessage });
+    console.log(`[DEBUG] Buffer size: ${this.writeBuffer.length}/${this.bufferSize}`);
 
     // Flush if buffer is full
     if (this.writeBuffer.length >= this.bufferSize) {
+      console.log(`[DEBUG] Flushing buffer - full`);
       this.flushBuffer();
     } else {
       // Set timer for periodic flush
       if (!this.bufferTimer) {
+        console.log(`[DEBUG] Setting buffer timer for ${this.bufferTimeout}ms`);
         this.bufferTimer = setTimeout(() => {
+          console.log(`[DEBUG] Flushing buffer - timeout`);
           this.flushBuffer();
         }, this.bufferTimeout);
       }
