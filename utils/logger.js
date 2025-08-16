@@ -10,14 +10,7 @@ class Logger extends EventEmitter {
   constructor(options = {}) {
     super();
 
-    this.logLevel = this.validateLogLevel(options.logLevel || process.env.LOG_LEVEL || 'info');
-    this.logToFile = options.logToFile !== false;
-    this.logToConsole = options.logToConsole !== false;
-    this.logDir = options.logDir || path.join(__dirname, '..', 'logs');
-    this.maxLogSize = options.maxLogSize || 10 * 1024 * 1024; // 10MB
-    this.maxLogFiles = options.maxLogFiles || 5;
-    this.functionName = this.sanitizeFunctionName(options.functionName || null);
-
+    // Define levels FIRST before validation
     this.levels = {
       error: 0,
       alert: 1,
@@ -27,6 +20,14 @@ class Logger extends EventEmitter {
       CRON: 5,
       CRON_ERROR: 6
     };
+
+    this.logLevel = this.validateLogLevel(options.logLevel || process.env.LOG_LEVEL || 'info');
+    this.logToFile = options.logToFile !== false;
+    this.logToConsole = options.logToConsole !== false;
+    this.logDir = options.logDir || path.join(__dirname, '..', 'logs');
+    this.maxLogSize = options.maxLogSize || 10 * 1024 * 1024; // 10MB
+    this.maxLogFiles = options.maxLogFiles || 5;
+    this.functionName = this.sanitizeFunctionName(options.functionName || null);
 
     this.colors = {
       error: '\x1b[31m',
