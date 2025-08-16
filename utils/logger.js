@@ -280,8 +280,19 @@ class Logger extends EventEmitter {
         console.log(`[DEBUG] Logger initialized, logToFile: ${this.logToFile}, functionName: ${this.functionName}`);
       }
 
+      // Handle the common pattern: logger.error("message", errorObject)
+      // If meta is an Error object and message is a string, combine them
+      if (typeof message === 'string' && meta instanceof Error && Object.keys(meta).length === 0) {
+        const errorInfo = {
+          name: meta.name,
+          message: meta.message,
+          stack: meta.stack
+        };
+        message = `${message} ${meta.name}: ${meta.message}`;
+        meta = { error: errorInfo, stack: meta.stack };
+      }
       // Handle error objects properly
-      if (meta.error instanceof Error) {
+      else if (meta.error instanceof Error) {
         meta.error = {
           name: meta.error.name,
           message: meta.error.message,
@@ -289,8 +300,7 @@ class Logger extends EventEmitter {
         };
         meta.stack = meta.error.stack; // Also add to root for console display
       }
-
-      if (message instanceof Error) {
+      else if (message instanceof Error) {
         const errorObj = {
           name: message.name,
           message: message.message,
