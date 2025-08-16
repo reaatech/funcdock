@@ -1,18 +1,22 @@
 import fs from 'fs/promises';
+import { createWriteStream } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { EventEmitter } from 'events';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-class Logger {
+class Logger extends EventEmitter {
   constructor(options = {}) {
-    this.logLevel = options.logLevel || process.env.LOG_LEVEL || 'info';
+    super();
+
+    this.logLevel = this.validateLogLevel(options.logLevel || process.env.LOG_LEVEL || 'info');
     this.logToFile = options.logToFile !== false;
     this.logToConsole = options.logToConsole !== false;
     this.logDir = options.logDir || path.join(__dirname, '..', 'logs');
     this.maxLogSize = options.maxLogSize || 10 * 1024 * 1024; // 10MB
     this.maxLogFiles = options.maxLogFiles || 5;
-    this.functionName = options.functionName || null;
+    this.functionName = this.sanitizeFunctionName(options.functionName || null);
 
     this.levels = {
       error: 0,
@@ -25,27 +29,60 @@ class Logger {
     };
 
     this.colors = {
-      error: '\x1b[31m',   // Red
-      alert: '\x1b[35m',   // Magenta
-      warn: '\x1b[33m',    // Yellow
-      info: '\x1b[36m',    // Cyan
-      debug: '\x1b[37m',   // White
-      CRON: '\x1b[32m',    // Green
-      CRON_ERROR: '\x1b[41m', // Red background
-      reset: '\x1b[0m'     // Reset
+      error: '\x1b[31m',
+      alert: '\x1b[35m',
+      warn: '\x1b[33m',
+      info: '\x1b[36m',
+      debug: '\x1b[37m',
+      CRON: '\x1b[32m',
+      CRON_ERROR: '\x1b[41m',
+      reset: '\x1b[0m'
     };
 
-    // Initialize log directory
-    this.initLogDirectory();
+    // Track streams for cleanup
+    this.streams = new Map();
+    this.rotationLocks = new Set();
+
+    // Buffer for batching writes
+    this.writeBuffer = [];
+    this.bufferTimer = null;
+    this.bufferSize = 100; // Max entries before forced flush
+    this.bufferTimeout = 1000; // Max ms to wait before flush
+
+    this.initialized = false;
+    this.initPromise = this.initialize();
   }
 
-  async initLogDirectory() {
-    if (this.logToFile) {
-      try {
+  validateLogLevel(level) {
+    if (typeof level !== 'string' || !this.levels.hasOwnProperty(level)) {
+      console.warn(`Invalid log level: ${level}, defaulting to 'info'`);
+      return 'info';
+    }
+    return level;
+  }
+
+  sanitizeFunctionName(name) {
+    if (!name) return null;
+    // Remove any path separators and limit length
+    return name.replace(/[/\\]/g, '').substring(0, 50);
+  }
+
+  async initialize() {
+    if (this.initialized) return;
+
+    try {
+      if (this.logToFile) {
         await fs.mkdir(this.logDir, { recursive: true });
-      } catch (error) {
-        console.error('Failed to create log directory:', error.message);
+        if (this.functionName) {
+          const functionLogDir = path.join(this.logDir, 'functions');
+          await fs.mkdir(functionLogDir, { recursive: true });
+        }
       }
+      this.initialized = true;
+      this.emit('ready');
+    } catch (error) {
+      console.error('Failed to initialize logger:', error.message);
+      this.emit('error', error);
     }
   }
 
@@ -60,141 +97,235 @@ class Logger {
       timestamp,
       pid: processId,
       level: level.toUpperCase(),
-      message,
+      message: typeof message === 'string' ? message : JSON.stringify(message),
       ...meta
     };
+
     if (this.functionName && !logEntry.function) {
       logEntry.function = this.functionName;
     }
+
     return JSON.stringify(logEntry);
   }
 
-  async writeToFile(level, formattedMessage) {
-    if (!this.logToFile) return;
+  getLogFilePath(suffix = '') {
+    if (this.functionName) {
+      const functionLogDir = path.join(this.logDir, 'functions');
+      return path.join(functionLogDir, `${this.functionName}${suffix}.log`);
+    }
+    return path.join(this.logDir, `app${suffix}.log`);
+  }
+
+  async getOrCreateStream(filePath) {
+    if (this.streams.has(filePath)) {
+      return this.streams.get(filePath);
+    }
 
     try {
-      // Create function-specific log files if functionName is provided
-      let logFile, errorLogFile;
-      
-      if (this.functionName) {
-        // Function-specific logs
-        const functionLogDir = path.join(this.logDir, 'functions');
-        await fs.mkdir(functionLogDir, { recursive: true });
-        
-        logFile = path.join(functionLogDir, `${this.functionName}.log`);
-        errorLogFile = path.join(functionLogDir, `${this.functionName}-error.log`);
-      } else {
-        // System-wide logs
-        logFile = path.join(this.logDir, `app.log`);
-        errorLogFile = path.join(this.logDir, `error.log`);
-      }
+      const stream = createWriteStream(filePath, { flags: 'a' });
 
-      // Write to main log file
-      await fs.appendFile(logFile, formattedMessage + '\n');
+      stream.on('error', (error) => {
+        console.error(`Log stream error for ${filePath}:`, error.message);
+        this.streams.delete(filePath);
+      });
+
+      this.streams.set(filePath, stream);
+      return stream;
+    } catch (error) {
+      console.error(`Failed to create log stream for ${filePath}:`, error.message);
+      return null;
+    }
+  }
+
+  async writeToFile(level, formattedMessage) {
+    if (!this.logToFile || !this.initialized) return;
+
+    try {
+      const mainLogPath = this.getLogFilePath();
+      const errorLogPath = this.getLogFilePath('-error');
+
+      // Write to main log
+      const mainStream = await this.getOrCreateStream(mainLogPath);
+      if (mainStream) {
+        mainStream.write(formattedMessage + '\n');
+        await this.checkAndRotate(mainLogPath);
+      }
 
       // Write errors and alerts to separate error log
       if (level === 'error' || level === 'alert') {
-        await fs.appendFile(errorLogFile, formattedMessage + '\n');
+        const errorStream = await this.getOrCreateStream(errorLogPath);
+        if (errorStream) {
+          errorStream.write(formattedMessage + '\n');
+          await this.checkAndRotate(errorLogPath);
+        }
       }
-
-      // Check and rotate logs if needed
-      await this.rotateLogs(logFile);
-      if (level === 'error' || level === 'alert') {
-        await this.rotateLogs(errorLogFile);
-      }
-
     } catch (error) {
       console.error('Failed to write to log file:', error.message);
     }
   }
 
-  async rotateLogs(logFile) {
+  async checkAndRotate(logFile) {
+    // Prevent multiple simultaneous rotations of the same file
+    if (this.rotationLocks.has(logFile)) return;
+
     try {
       const stats = await fs.stat(logFile);
-
       if (stats.size > this.maxLogSize) {
-        // Move current log to numbered backup
-        for (let i = this.maxLogFiles - 1; i > 0; i--) {
-          const oldFile = `${logFile}.${i}`;
-          const newFile = `${logFile}.${i + 1}`;
-
-          try {
-            await fs.access(oldFile);
-            if (i === this.maxLogFiles - 1) {
-              await fs.unlink(oldFile); // Delete oldest log
-            } else {
-              await fs.rename(oldFile, newFile);
-            }
-          } catch (error) {
-            // File doesn't exist, continue
-          }
-        }
-
-        // Move current log to .1
-        await fs.rename(logFile, `${logFile}.1`);
+        this.rotationLocks.add(logFile);
+        await this.rotateLogs(logFile);
       }
     } catch (error) {
-      // Log file might not exist yet, that's okay
+      // Log file might not exist yet
+    } finally {
+      this.rotationLocks.delete(logFile);
     }
+  }
+
+  async rotateLogs(logFile) {
+    try {
+      // Close existing stream
+      const stream = this.streams.get(logFile);
+      if (stream) {
+        stream.end();
+        this.streams.delete(logFile);
+      }
+
+      // Rotate files
+      for (let i = this.maxLogFiles - 1; i > 0; i--) {
+        const oldFile = `${logFile}.${i}`;
+        const newFile = `${logFile}.${i + 1}`;
+
+        try {
+          await fs.access(oldFile);
+          if (i === this.maxLogFiles - 1) {
+            await fs.unlink(oldFile);
+          } else {
+            await fs.rename(oldFile, newFile);
+          }
+        } catch (error) {
+          // File doesn't exist, continue
+        }
+      }
+
+      // Move current log to .1
+      await fs.rename(logFile, `${logFile}.1`);
+    } catch (error) {
+      console.error('Failed to rotate logs:', error.message);
+    }
+  }
+
+  formatConsoleMessage(level, logObj) {
+    const colorCode = this.colors[level] || this.colors.reset;
+    return `${colorCode}${logObj.timestamp} [${logObj.level}]${logObj.function ? ` [${logObj.function}]` : ''} ${logObj.message}${this.colors.reset}`;
   }
 
   writeToConsole(level, formattedMessage) {
     if (!this.logToConsole) return;
+
     try {
       const logObj = JSON.parse(formattedMessage);
-      const colorCode = this.colors[level] || this.colors.reset;
-      const coloredMessage = `${colorCode}${logObj.timestamp} [${logObj.level}]${logObj.function ? ` [${logObj.function}]` : ''} ${logObj.message}${this.colors.reset}`;
+      const coloredMessage = this.formatConsoleMessage(level, logObj);
+
       if (level === 'error' || level === 'alert') {
         console.error(coloredMessage);
         if (logObj.stack) {
           console.error(logObj.stack);
+        }
+        if (logObj.error && logObj.error.stack) {
+          console.error(logObj.error.stack);
         }
       } else if (level === 'warn') {
         console.warn(coloredMessage);
       } else {
         console.log(coloredMessage);
       }
-    } catch {
-      // fallback to raw
-      if (level === 'error' || level === 'alert') {
-        console.error(formattedMessage);
-      } else if (level === 'warn') {
-        console.warn(formattedMessage);
-      } else {
-        console.log(formattedMessage);
-      }
+    } catch (parseError) {
+      // Fallback to raw message
+      const outputFn = level === 'error' || level === 'alert' ? console.error :
+        level === 'warn' ? console.warn : console.log;
+      outputFn(formattedMessage);
     }
   }
 
   async log(level, message, meta = {}) {
     if (!this.shouldLog(level)) return;
 
-    const formattedMessage = this.formatMessage(level, message, meta);
+    try {
+      // Wait for initialization
+      if (!this.initialized) {
+        await this.initPromise;
+      }
 
-    // Write to console
-    this.writeToConsole(level, formattedMessage);
+      // Handle error objects properly
+      if (meta.error instanceof Error) {
+        meta.error = {
+          name: meta.error.name,
+          message: meta.error.message,
+          stack: meta.error.stack
+        };
+      }
 
-    // Write to file
-    await this.writeToFile(level, formattedMessage);
+      if (message instanceof Error) {
+        meta.error = {
+          name: message.name,
+          message: message.message,
+          stack: message.stack
+        };
+        message = message.message;
+      }
 
-    // Send alerts if configured (webhook, email, etc.)
-    if (level === 'alert') {
-      await this.sendAlert(message, meta);
+      const formattedMessage = this.formatMessage(level, message, meta);
+
+      // Write to console immediately
+      this.writeToConsole(level, formattedMessage);
+
+      // Buffer file writes for better performance
+      if (this.logToFile) {
+        this.bufferWrite(level, formattedMessage);
+      }
+
+      // Send alerts if configured
+      if (level === 'alert') {
+        await this.sendAlert(message, meta);
+      }
+
+    } catch (error) {
+      console.error('Logger error:', error.message);
+    }
+  }
+
+  bufferWrite(level, formattedMessage) {
+    this.writeBuffer.push({ level, message: formattedMessage });
+
+    // Flush if buffer is full
+    if (this.writeBuffer.length >= this.bufferSize) {
+      this.flushBuffer();
+    } else {
+      // Set timer for periodic flush
+      if (!this.bufferTimer) {
+        this.bufferTimer = setTimeout(() => {
+          this.flushBuffer();
+        }, this.bufferTimeout);
+      }
+    }
+  }
+
+  async flushBuffer() {
+    if (this.bufferTimer) {
+      clearTimeout(this.bufferTimer);
+      this.bufferTimer = null;
+    }
+
+    const buffer = this.writeBuffer.splice(0);
+
+    for (const { level, message } of buffer) {
+      await this.writeToFile(level, message);
     }
   }
 
   async sendAlert(message, meta = {}) {
-    // This is where you'd integrate with external alerting systems
-    // For now, just log to console with special formatting
     const alertMessage = `🚨 ALERT: ${message}`;
     console.error(`\x1b[41m\x1b[37m${alertMessage}\x1b[0m`);
-
-    // You could add integrations here for:
-    // - Slack webhooks
-    // - Email notifications
-    // - PagerDuty
-    // - Discord webhooks
-    // - etc.
 
     if (process.env.SLACK_WEBHOOK_URL) {
       await this.sendSlackAlert(message, meta);
@@ -238,13 +369,19 @@ class Logger {
         });
       }
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         console.error('Failed to send Slack alert:', response.statusText);
@@ -252,6 +389,17 @@ class Logger {
     } catch (error) {
       console.error('Error sending Slack alert:', error.message);
     }
+  }
+
+  // Cleanup method
+  async cleanup() {
+    await this.flushBuffer();
+
+    for (const [filePath, stream] of this.streams) {
+      stream.end();
+    }
+
+    this.streams.clear();
   }
 
   // Convenience methods
@@ -275,9 +423,8 @@ class Logger {
     return this.log('debug', message, meta);
   }
 
-  // Function-specific logging
   logFunction(functionName, level, message, meta = {}) {
-    return this.log(level, message, { ...meta, function: functionName });
+    return this.log(level, message, { ...meta, function: this.sanitizeFunctionName(functionName) });
   }
 
   // Request logging middleware
@@ -285,14 +432,12 @@ class Logger {
     return (req, res, next) => {
       const start = Date.now();
 
-      // Log request
       this.info(`${req.method} ${req.originalUrl}`, {
         ip: req.ip,
         userAgent: req.get('User-Agent'),
         function: req.functionName
       });
 
-      // Log response when finished
       res.on('finish', () => {
         const duration = Date.now() - start;
         const level = res.statusCode >= 400 ? 'warn' : 'info';
@@ -309,114 +454,109 @@ class Logger {
     };
   }
 
-  // Get recent logs
+  // Get recent logs with better error handling
   async getRecentLogs(lines = 100, functionName = null) {
     if (!this.logToFile) {
       return { error: 'File logging is disabled' };
     }
 
     try {
+      await this.initPromise; // Ensure initialization
+
+      const sanitizedFunctionName = functionName ? this.sanitizeFunctionName(functionName) : null;
       let logFile;
-      
-      if (functionName) {
-        // Function-specific logs
+
+      if (sanitizedFunctionName) {
         const functionLogDir = path.join(this.logDir, 'functions');
-        logFile = path.join(functionLogDir, `${functionName}.log`);
+        logFile = path.join(functionLogDir, `${sanitizedFunctionName}.log`);
       } else {
-        // System-wide logs
         logFile = path.join(this.logDir, 'app.log');
       }
-      
-      // Validate path to prevent directory traversal
+
       const resolvedPath = path.resolve(logFile);
       if (!resolvedPath.startsWith(path.resolve(this.logDir))) {
         return { error: 'Invalid log file path' };
       }
-      
+
       const logContent = await fs.readFile(logFile, 'utf-8');
       const logLines = logContent.split('\n').filter(line => line.trim());
 
       return {
         total: logLines.length,
-        lines: logLines.slice(-lines)
+        lines: logLines.slice(-Math.max(1, Math.min(1000, lines))) // Limit between 1-1000
       };
     } catch (error) {
       return { error: error.message };
     }
   }
 
-  // Get error logs
+  // Other methods remain similar but with better error handling...
   async getErrorLogs(lines = 50, functionName = null) {
     if (!this.logToFile) {
       return { error: 'File logging is disabled' };
     }
 
     try {
+      await this.initPromise;
+
+      const sanitizedFunctionName = functionName ? this.sanitizeFunctionName(functionName) : null;
       let errorLogFile;
-      
-      if (functionName) {
-        // Function-specific error logs
+
+      if (sanitizedFunctionName) {
         const functionLogDir = path.join(this.logDir, 'functions');
-        errorLogFile = path.join(functionLogDir, `${functionName}-error.log`);
+        errorLogFile = path.join(functionLogDir, `${sanitizedFunctionName}-error.log`);
       } else {
-        // System-wide error logs
         errorLogFile = path.join(this.logDir, 'error.log');
       }
-      
-      // Validate path to prevent directory traversal
+
       const resolvedPath = path.resolve(errorLogFile);
       if (!resolvedPath.startsWith(path.resolve(this.logDir))) {
         return { error: 'Invalid log file path' };
       }
-      
+
       const logContent = await fs.readFile(errorLogFile, 'utf-8');
       const logLines = logContent.split('\n').filter(line => line.trim());
 
       return {
         total: logLines.length,
-        lines: logLines.slice(-lines)
+        lines: logLines.slice(-Math.max(1, Math.min(500, lines)))
       };
     } catch (error) {
       return { error: error.message };
     }
   }
 
-  // Get function-specific logs
   async getFunctionLogs(functionName, lines = 100) {
     return this.getRecentLogs(lines, functionName);
   }
 
-  // Get function-specific error logs
   async getFunctionErrorLogs(functionName, lines = 50) {
     return this.getErrorLogs(lines, functionName);
   }
 
-  // Get all function log files
   async getFunctionLogFiles() {
     if (!this.logToFile) {
       return { error: 'File logging is disabled' };
     }
 
     try {
+      await this.initPromise;
+
       const functionLogDir = path.join(this.logDir, 'functions');
-      
-      // Check if function log directory exists
+
       try {
         await fs.access(functionLogDir);
       } catch {
         return { functions: [] };
       }
-      
+
       const files = await fs.readdir(functionLogDir);
-      const functionLogs = [];
-      
-      // Group by function name (remove -error suffix)
       const functionMap = new Map();
-      
+
       for (const file of files) {
         if (file.endsWith('.log')) {
           const functionName = file.replace('-error.log', '').replace('.log', '');
-          
+
           if (!functionMap.has(functionName)) {
             functionMap.set(functionName, {
               name: functionName,
@@ -426,13 +566,13 @@ class Logger {
               errorLogSize: 0
             });
           }
-          
+
           const func = functionMap.get(functionName);
           const filePath = path.join(functionLogDir, file);
-          
+
           try {
             const stats = await fs.stat(filePath);
-            
+
             if (file.endsWith('-error.log')) {
               func.hasErrorLog = true;
               func.errorLogSize = stats.size;
@@ -445,7 +585,7 @@ class Logger {
           }
         }
       }
-      
+
       return {
         functions: Array.from(functionMap.values())
       };
