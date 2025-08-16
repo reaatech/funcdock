@@ -500,6 +500,8 @@ const loadFunction = async (functionDir) => {
               ip,
               userAgent
             });
+
+            await functionLogger.flushBuffer();
           }
         });
 
