@@ -25,6 +25,7 @@ dotenv.config();
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.set('trust proxy', 1);
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
@@ -113,7 +114,7 @@ io.use((socket, next) => {
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
-  
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
@@ -274,20 +275,20 @@ const installDependencies = async (functionPath) => {
 
   try {
     await fs.access(packageJsonPath);
-    
+
     // Check if dependencies are already installed and up to date
     let needsInstall = false;
-    
+
     try {
       // Check if node_modules exists
       await fs.access(nodeModulesPath);
-      
+
       // Check if package-lock.json exists and is newer than package.json
       try {
         await fs.access(packageLockPath);
         const packageJsonStats = await fs.stat(packageJsonPath);
         const packageLockStats = await fs.stat(packageLockPath);
-        
+
         // If package.json is newer than package-lock.json, we need to install
         if (packageJsonStats.mtime > packageLockStats.mtime) {
           needsInstall = true;
@@ -300,7 +301,7 @@ const installDependencies = async (functionPath) => {
       // No node_modules, need to install
       needsInstall = true;
     }
-    
+
     if (!needsInstall) {
       logger.info(`Dependencies already up to date for ${path.basename(functionPath)}`);
       return true;
@@ -344,7 +345,7 @@ const unregisterFunctionRoutes = (functionName) => {
   // Instead, we'll let Express handle route replacement naturally
   // The new routes will override the old ones when we register them again
   // This prevents destroying middleware and other routes
-  
+
   // Note: Express doesn't have a clean way to remove specific routes
   // The best approach is to let the new route registration override the old ones
   // This is why we clear the registeredRoutes map but don't touch app._router.stack
@@ -370,7 +371,7 @@ const loadFunction = async (functionDir) => {
 
     // Determine handler path (default to handler.js, but allow custom path)
     const handlerPath = path.join(functionDir, config.handler || 'handler.js');
-    
+
     // Check if handler file exists
     await fs.access(handlerPath);
 
@@ -401,7 +402,7 @@ const loadFunction = async (functionDir) => {
       for (const method of route.methods) {
         // Create full path with function name prefix to avoid conflicts
         const basePath = config.base || `/${functionName}`;
-        
+
         // Handle dynamic routing - don't use path.join for Express routes
         // Express routes can contain path parameters like :id, :userId, etc.
         const routePath = route.path.startsWith('/') ? route.path : `/${route.path}`;
@@ -418,13 +419,13 @@ const loadFunction = async (functionDir) => {
         // Determine handler for this specific route
         const routeHandler = route.handler || config.handler || 'handler.js';
         const routeHandlerPath = path.join(functionDir, routeHandler);
-        
+
         // Load the specific handler for this route
         let routeHandlerFunction;
         try {
           const routeHandlerModule = await import(`${routeHandlerPath}?update=${Date.now()}`);
           routeHandlerFunction = routeHandlerModule.default;
-          
+
           if (typeof routeHandlerFunction !== 'function') {
             throw new Error(`Handler in ${routeHandler} must export a default function`);
           }
@@ -451,7 +452,7 @@ const loadFunction = async (functionDir) => {
           req.routePath = route.path;
           req.routeHandler = routeHandler;
           req.logger = functionLogger; // Inject logger into request
-          
+
           // Add function-specific environment variables
           const functionInfo = loadedFunctions.get(functionName);
           if (functionInfo && functionInfo.envVars) {
@@ -503,10 +504,10 @@ const loadFunction = async (functionDir) => {
         });
 
         registeredRoutes.set(routeKey, functionName);
-        functionRoutes.push({ 
-          method: method.toUpperCase(), 
-          path: fullPath, 
-          handler: routeHandler 
+        functionRoutes.push({
+          method: method.toUpperCase(),
+          path: fullPath,
+          handler: routeHandler
         });
         logger.info(`Registered ${method.toUpperCase()} ${fullPath} -> ${functionName}/${routeHandler}`);
       }
@@ -532,8 +533,8 @@ const loadFunction = async (functionDir) => {
     });
 
     // Emit socket event for function loaded
-    io.emit('function:loaded', { 
-      name: functionName, 
+    io.emit('function:loaded', {
+      name: functionName,
       status: 'running',
       routes: functionRoutes.length,
       cronJobs: activeCronJobs.has(functionName) ? activeCronJobs.get(functionName).length : 0
@@ -554,10 +555,10 @@ const unloadFunction = (functionName) => {
     unregisterFunctionRoutes(functionName);
     stopCronJobs(functionName);
     loadedFunctions.delete(functionName);
-    
+
     // Emit socket event for function unloaded
     io.emit('function:unloaded', { name: functionName });
-    
+
     logger.info(`Unloaded function: ${functionName}`);
   }
 };
@@ -673,7 +674,7 @@ const setupFileWatcher = () => {
     return (functionName, delay = 2000) => {
       const now = Date.now();
       const lastTime = lastReload.get(functionName) || 0;
-      
+
       // Prevent reloading the same function more than once every 5 seconds
       if (now - lastTime < 5000) {
         return;
@@ -700,26 +701,26 @@ const setupFileWatcher = () => {
   watcher
     .on('add', (filePath) => {
       // CRITICAL SAFETY: Prevent reloads on IDE files
-      if (filePath.includes('.idea') || filePath.includes('.vscode') || 
-          filePath.includes('workspace.xml') || filePath.includes('.swp') || 
+      if (filePath.includes('.idea') || filePath.includes('.vscode') ||
+          filePath.includes('workspace.xml') || filePath.includes('.swp') ||
           filePath.includes('.swo') || filePath.endsWith('~')) {
         logger.info(`Ignoring IDE file: ${filePath}`);
         return;
       }
-      
+
       const functionName = path.relative(functionsDir, filePath).split(path.sep)[0];
       logger.info(`File added: ${filePath}`);
       debounceReload(functionName);
     })
     .on('change', (filePath) => {
       // CRITICAL SAFETY: Prevent reloads on IDE files
-      if (filePath.includes('.idea') || filePath.includes('.vscode') || 
-          filePath.includes('workspace.xml') || filePath.includes('.swp') || 
+      if (filePath.includes('.idea') || filePath.includes('.vscode') ||
+          filePath.includes('workspace.xml') || filePath.includes('.swp') ||
           filePath.includes('.swo') || filePath.endsWith('~')) {
         logger.info(`Ignoring IDE file change: ${filePath}`);
         return;
       }
-      
+
       const functionName = path.relative(functionsDir, filePath).split(path.sep)[0];
       logger.info(`File changed: ${filePath}`);
       debounceReload(functionName);
@@ -742,16 +743,16 @@ const setupFileWatcher = () => {
           const configPath = path.join(functionPath, 'route.config.json');
           const configRaw = await fs.readFile(configPath, 'utf-8');
           const config = JSON.parse(configRaw);
-          
+
           // Check if this file is used as a handler in any route
           let isHandlerFile = false;
-          
+
           // Check default handler
           const defaultHandlerPath = path.join(functionPath, config.handler || 'handler.js');
           if (filePath === defaultHandlerPath) {
             isHandlerFile = true;
           }
-          
+
           // Check route-specific handlers
           if (config.routes) {
             for (const route of config.routes) {
@@ -763,7 +764,7 @@ const setupFileWatcher = () => {
               }
             }
           }
-          
+
           if (isHandlerFile) {
             unloadFunction(functionName);
           }
@@ -1012,12 +1013,12 @@ app.post('/api/functions/deploy/local', authenticateToken, upload.array('files')
 
     // Load the function
     const success = await loadFunction(functionDir);
-    
+
     if (success) {
       // Emit socket event
       io.emit('function:deployed', { name, status: 'running' });
-      
-      res.json({ 
+
+      res.json({
         message: 'Function deployed successfully',
         function: { name, status: 'running' }
       });
@@ -1033,17 +1034,17 @@ app.post('/api/functions/deploy/local', authenticateToken, upload.array('files')
 app.delete('/api/functions/:name', authenticateToken, async (req, res) => {
   try {
     const { name } = req.params;
-    
+
     // Unload function
     unloadFunction(name);
-    
+
     // Remove function directory
     const functionDir = path.join(__dirname, 'functions', name);
     await fs.rm(functionDir, { recursive: true, force: true });
-    
+
     // Emit socket event
     io.emit('function:deleted', { name });
-    
+
     res.json({ message: 'Function deleted successfully' });
   } catch (error) {
     logger.error(`Delete function error: ${error.message}`, { stack: error.stack });
@@ -1062,7 +1063,7 @@ app.put('/api/functions/:name', authenticateToken, upload.array('files'), async 
     }
 
     const functionDir = path.join(__dirname, 'functions', name);
-    
+
     // Check if function exists
     if (!loadedFunctions.has(name)) {
       return res.status(404).json({ message: 'Function not found' });
@@ -1076,12 +1077,12 @@ app.put('/api/functions/:name', authenticateToken, upload.array('files'), async 
 
     // Reload the function
     const success = await loadFunction(functionDir);
-    
+
     if (success) {
       // Emit socket event
       io.emit('function:updated', { name, status: 'running' });
-      
-      res.json({ 
+
+      res.json({
         message: 'Function updated successfully',
         function: { name, status: 'running' }
       });
@@ -1104,9 +1105,9 @@ app.post('/api/functions/deploy/git', authenticateToken, async (req, res) => {
     }
 
     const functionDir = path.join(__dirname, 'functions', name);
-    
+
     // Clone or pull the repository
-    const gitCommand = commit 
+    const gitCommand = commit
       ? `git clone -b ${branch} ${repo} ${functionDir} && cd ${functionDir} && git checkout ${commit}`
       : `git clone -b ${branch} ${repo} ${functionDir}`;
 
@@ -1114,12 +1115,12 @@ app.post('/api/functions/deploy/git', authenticateToken, async (req, res) => {
 
     // Load the function
     const success = await loadFunction(functionDir);
-    
+
     if (success) {
       // Emit socket event
       io.emit('function:deployed', { name, status: 'running' });
-      
-      res.json({ 
+
+      res.json({
         message: 'Function deployed from Git successfully',
         function: { name, status: 'running' }
       });
@@ -1140,9 +1141,9 @@ app.get('/api/functions/:name/logs', authenticateToken, async (req, res) => {
 
     // Use the logger to get function-specific logs
     const functionLogger = new Logger({ functionName: name });
-    
+
     let logs = [];
-    
+
     if (type === 'error' || type === 'all') {
       const errorLogs = await functionLogger.getFunctionErrorLogs(name, parseInt(limit));
       if (!errorLogs.error) {
@@ -1159,7 +1160,7 @@ app.get('/api/functions/:name/logs', authenticateToken, async (req, res) => {
         }).filter(Boolean));
       }
     }
-    
+
     if (type === 'all' || type === 'ACCESS' || type === 'INFO' || type === 'WARN' || type === 'ERROR') {
       const mainLogs = await functionLogger.getFunctionLogs(name, parseInt(limit));
       if (!mainLogs.error) {
@@ -1293,7 +1294,7 @@ app.post('/api/functions/:name/test', authenticateToken, async (req, res) => {
     try {
       const handlerPath = path.join(func.path, func.handler || 'handler.js');
       const handler = await import(`${handlerPath}?update=${Date.now()}`);
-      
+
       if (handler.default) {
         await handler.default(mockReq, mockRes);
       } else {
@@ -1324,7 +1325,7 @@ app.get('/api/logs', authenticateToken, async (req, res) => {
   try {
     const { limit = 100 } = req.query;
     const logResult = await logger.getRecentLogs(parseInt(limit));
-    
+
     // Transform the log lines into the expected format
     const logs = logResult.lines ? logResult.lines.map(line => {
       try {
@@ -1346,7 +1347,7 @@ app.get('/api/logs', authenticateToken, async (req, res) => {
         };
       }
     }) : [];
-    
+
     res.json({ logs });
   } catch (error) {
     logger.error(`Get system logs error: ${error.message}`, { stack: error.stack });
@@ -1431,8 +1432,8 @@ app.put('/api/functions/:name/cron', authenticateToken, async (req, res) => {
     // Validate cron jobs
     for (const job of jobs) {
       if (!job.name || !job.schedule || !job.handler) {
-        return res.status(400).json({ 
-          message: 'Each job must have name, schedule, and handler fields' 
+        return res.status(400).json({
+          message: 'Each job must have name, schedule, and handler fields'
         });
       }
     }
@@ -1529,11 +1530,11 @@ app.get('/api/functions/:name/files/content', authenticateToken, async (req, res
     }
 
     const fullPath = path.join(func.path, filePath);
-    
+
     // Security check: ensure the file is within the function directory
     const normalizedFullPath = path.resolve(fullPath);
     const normalizedFuncPath = path.resolve(func.path);
-    
+
     if (!normalizedFullPath.startsWith(normalizedFuncPath)) {
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -1569,11 +1570,11 @@ app.get('/api/functions/:name/files/download', authenticateToken, async (req, re
     }
 
     const fullPath = path.join(func.path, filePath);
-    
+
     // Security check: ensure the file is within the function directory
     const normalizedFullPath = path.resolve(fullPath);
     const normalizedFuncPath = path.resolve(func.path);
-    
+
     if (!normalizedFullPath.startsWith(normalizedFuncPath)) {
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -1640,10 +1641,10 @@ const initializeServer = async () => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     // Function routes should be handled by their respective handlers
     // If we reach here, it means no function route matched
-    
+
     // Serve React app for all other routes
     res.sendFile(path.join(__dirname, 'public/dashboard/index.html'));
   });
@@ -1674,12 +1675,12 @@ const initializeServer = async () => {
   process.on('SIGTERM', () => {
     logger.info('SIGTERM received, shutting down gracefully...');
     watcher.close();
-    
+
     // Stop all cron jobs
     for (const [functionName] of activeCronJobs.entries()) {
       stopCronJobs(functionName);
     }
-    
+
     server.close(() => {
       logger.info('Server closed');
       process.exit(0);
@@ -1689,12 +1690,12 @@ const initializeServer = async () => {
   process.on('SIGINT', () => {
     logger.info('SIGINT received, shutting down gracefully...');
     watcher.close();
-    
+
     // Stop all cron jobs
     for (const [functionName] of activeCronJobs.entries()) {
       stopCronJobs(functionName);
     }
-    
+
     server.close(() => {
       logger.info('Server closed');
       process.exit(0);
@@ -1711,10 +1712,10 @@ initializeServer().catch(error => {
 // Cron job management
 const loadCronJobs = async (functionDir) => {
   const functionName = path.basename(functionDir);
-  
+
   // Check if cron.json exists BEFORE creating any paths or doing anything else
   const cronConfigPath = path.join(functionDir, 'cron.json');
-  
+
   try {
     await fs.access(cronConfigPath);
     // File exists, proceed to read it
