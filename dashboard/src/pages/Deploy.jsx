@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { functionsApi, githubApi, bitbucketApi } from '../utils/api'
-import { Upload, GitBranch, File, Folder, X } from 'lucide-react'
+import { functionsApi, layersApi, githubApi, bitbucketApi } from '../utils/api'
+import { Upload, GitBranch, File, Folder, X, Package } from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
 
 const Deploy = () => {
+  const [deployType, setDeployType] = useState('function') // 'function' or 'layer'
   const [deployMethod, setDeployMethod] = useState('local')
   const [functionName, setFunctionName] = useState('')
+  const [layerName, setLayerName] = useState('')
   const [files, setFiles] = useState([])
   const [gitRepo, setGitRepo] = useState('')
   const [gitBranch, setGitBranch] = useState('main')
@@ -33,8 +35,10 @@ const Deploy = () => {
   const handleDeploy = async (e) => {
     e.preventDefault()
     
-    if (!functionName.trim()) {
-      toast.error('Function name is required')
+    const name = deployType === 'function' ? functionName : layerName
+    
+    if (!name.trim()) {
+      toast.error(`${deployType === 'function' ? 'Function' : 'Layer'} name is required`)
       return
     }
 
@@ -61,23 +65,43 @@ const Deploy = () => {
     setLoading(true)
 
     try {
-      if (deployMethod === 'local') {
-        await functionsApi.deployFromLocal(functionName, files)
-        toast.success('Function deployed successfully!')
-      } else if (deployMethod === 'git') {
-        await functionsApi.deployFromGit(functionName, gitRepo, gitBranch, gitCommit)
-        toast.success('Function deployed from Git successfully!')
-      } else if (deployMethod === 'github') {
-        const repoUrl = `https://github.com/${selectedGithubRepo}.git`
-        await functionsApi.deployFromGit(functionName, repoUrl, 'main', '')
-        toast.success('Function deployed from GitHub successfully!')
-      } else if (deployMethod === 'bitbucket') {
-        const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`
-        await functionsApi.deployFromGit(functionName, repoUrl, 'main', '')
-        toast.success('Function deployed from Bitbucket successfully!')
+      if (deployType === 'function') {
+        // Deploy function
+        if (deployMethod === 'local') {
+          await functionsApi.deployFromLocal(name, files)
+          toast.success('Function deployed successfully!')
+        } else if (deployMethod === 'git') {
+          await functionsApi.deployFromGit(name, gitRepo, gitBranch, gitCommit)
+          toast.success('Function deployed from Git successfully!')
+        } else if (deployMethod === 'github') {
+          const repoUrl = `https://github.com/${selectedGithubRepo}.git`
+          await functionsApi.deployFromGit(name, repoUrl, 'main', '')
+          toast.success('Function deployed from GitHub successfully!')
+        } else if (deployMethod === 'bitbucket') {
+          const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`
+          await functionsApi.deployFromGit(name, repoUrl, 'main', '')
+          toast.success('Function deployed from Bitbucket successfully!')
+        }
+        navigate('/functions')
+      } else {
+        // Deploy layer
+        if (deployMethod === 'local') {
+          await layersApi.deployFromLocal(name, files)
+          toast.success('Layer deployed successfully!')
+        } else if (deployMethod === 'git') {
+          await layersApi.deployFromGit(name, gitRepo, gitBranch, gitCommit)
+          toast.success('Layer deployed from Git successfully!')
+        } else if (deployMethod === 'github') {
+          const repoUrl = `https://github.com/${selectedGithubRepo}.git`
+          await layersApi.deployFromGit(name, repoUrl, 'main', '')
+          toast.success('Layer deployed from GitHub successfully!')
+        } else if (deployMethod === 'bitbucket') {
+          const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`
+          await layersApi.deployFromGit(name, repoUrl, 'main', '')
+          toast.success('Layer deployed from Bitbucket successfully!')
+        }
+        navigate('/layers')
       }
-      
-      navigate('/functions')
     } catch (error) {
       console.error('Deployment failed:', error)
       toast.error(error.response?.data?.message || 'Deployment failed')
@@ -105,10 +129,48 @@ const Deploy = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Deploy Function</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Deploy</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Deploy a new function to FuncDock
+          Deploy a new function or layer to FuncDock
         </p>
+      </div>
+
+      {/* Type Selector */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => {
+              setDeployType('function')
+              setFunctionName('')
+              setLayerName('')
+              setFiles([])
+            }}
+            className={`inline-flex items-center justify-center py-2 px-1 border-b-2 font-medium text-sm ${
+              deployType === 'function'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <File className="h-4 w-4 mr-2" />
+            Function
+          </button>
+          <button
+            onClick={() => {
+              setDeployType('layer')
+              setFunctionName('')
+              setLayerName('')
+              setFiles([])
+            }}
+            className={`inline-flex items-center justify-center py-2 px-1 border-b-2 font-medium text-sm ${
+              deployType === 'layer'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <Package className="h-4 w-4 mr-2" />
+            Layer
+          </button>
+        </nav>
       </div>
 
       {/* Deployment Method Tabs */}
@@ -163,22 +225,36 @@ const Deploy = () => {
 
       {/* Deployment Form */}
       <form onSubmit={handleDeploy} className="space-y-6">
-        {/* Function Name */}
+        {/* Name Input */}
         <div>
-          <label htmlFor="functionName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Function Name
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {deployType === 'function' ? 'Function' : 'Layer'} Name
           </label>
-          <input
-            type="text"
-            id="functionName"
-            value={functionName}
-            onChange={(e) => setFunctionName(e.target.value)}
-            className="input mt-1"
-            placeholder="my-function"
-            required
-          />
+          {deployType === 'function' ? (
+            <input
+              type="text"
+              id="name"
+              value={functionName}
+              onChange={(e) => setFunctionName(e.target.value)}
+              className="input mt-1"
+              placeholder="my-function"
+              required
+            />
+          ) : (
+            <input
+              type="text"
+              id="name"
+              value={layerName}
+              onChange={(e) => setLayerName(e.target.value)}
+              className="input mt-1"
+              placeholder="my-layer"
+              required
+            />
+          )}
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            This will be the URL path for your function (e.g., /my-function)
+            {deployType === 'function' 
+              ? 'This will be the URL path for your function (e.g., /my-function)'
+              : 'The name of your layer (e.g., my-layer)'}
           </p>
         </div>
 
@@ -186,7 +262,7 @@ const Deploy = () => {
         {deployMethod === 'local' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Function Files
+              {deployType === 'function' ? 'Function' : 'Layer'} Files
             </label>
             <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
               <div className="text-center">
@@ -206,7 +282,9 @@ const Deploy = () => {
                   />
                 </div>
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Upload handler.js, route.config.json, package.json, and other function files
+                  {deployType === 'function' 
+                    ? 'Upload handler.js, route.config.json, package.json, and other function files'
+                    : 'Upload layer files (will be placed in nodejs/ directory)'}
                 </p>
               </div>
             </div>
@@ -390,7 +468,7 @@ const Deploy = () => {
             ) : (
               <>
                 <Upload className="h-4 w-4 mr-2" />
-                Deploy Function
+                Deploy {deployType === 'function' ? 'Function' : 'Layer'}
               </>
             )}
           </button>

@@ -235,4 +235,5 @@ make example-test
 # Individual function tests
 curl http://localhost:3000/hello-world/
 curl -X POST http://localhost:3000/webhook-handler/github
+# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
 ``` 

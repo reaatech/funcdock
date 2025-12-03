@@ -1,0 +1,2933 @@
+openapi: 3.0.3
+info:
+  title: FuncDock API
+  description: |
+    The Ultimate Node.js FaaS Platform API
+    
+    FuncDock is a revolutionary serverless platform with instant hot reload, CI/CD deployments, 
+    per-route handlers, real-time dashboards, and production-grade testing.
+    
+    ## Features
+    - ⚡ Instant hot reload - Deploy code and see it live in milliseconds
+    - 🎯 Per-route handlers - Each route can have its own handler file
+    - 🎛️ Live real-time dashboard - Streaming logs, live metrics, route health monitoring
+    - 🏠 All functions in one container - Massive cost reduction
+    - 🧪 Production-grade testing - Jest + Nock testing in Docker environments
+    - ⏰ Smart cron jobs - Per-function scheduling with timezone support
+    - 🔒 Enterprise ready - Route conflict prevention, security headers
+  version: 1.0.0
+  contact:
+    name: FuncDock Support
+    url: https://github.com/your-org/funcdock
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3003
+    description: Local development server
+  - url: https://api.funcdock.example.com
+    description: Production server (example)
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: System
+    description: System status, health checks, and management
+  - name: Functions
+    description: Function management, deployment, and monitoring
+  - name: Layers
+    description: Layer management and deployment
+  - name: Files
+    description: File management for functions and layers
+  - name: Cron Jobs
+    description: Scheduled task management
+  - name: OAuth
+    description: OAuth integration with GitHub and Bitbucket
+  - name: Logs & Metrics
+    description: System and function logging and metrics
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/auth/login endpoint
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Function not found"
+        error:
+          type: string
+          description: Detailed error information
+          example: "ENOENT: no such file or directory"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the error occurred
+          example: "2024-01-15T10:30:00.000Z"
+
+    User:
+      type: object
+      properties:
+        username:
+          type: string
+          example: "admin"
+        role:
+          type: string
+          example: "admin"
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: Admin username
+          example: "admin"
+        password:
+          type: string
+          format: password
+          description: Admin password
+          example: "admin"
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT authentication token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjA5ODc2NDAwLCJleHAiOjE2MDk5NjI4MDB9.example"
+        user:
+          $ref: '#/components/schemas/User'
+
+    Route:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE, PATCH, OPTIONS]
+          example: "GET"
+        path:
+          type: string
+          description: Full route path including base
+          example: "/hello-world/greet"
+        handler:
+          type: string
+          description: Handler file name
+          example: "greet.js"
+
+    CronJob:
+      type: object
+      required:
+        - name
+        - schedule
+        - handler
+      properties:
+        name:
+          type: string
+          description: Unique name for the cron job
+          example: "daily-greeting"
+        schedule:
+          type: string
+          description: Cron schedule expression
+          example: "0 9 * * *"
+          pattern: '^[0-9*,\\-/\\s]+$'
+        handler:
+          type: string
+          description: Handler file path relative to function directory
+          example: "cron-handler.js"
+        timezone:
+          type: string
+          description: Timezone for the cron job
+          default: "UTC"
+          example: "UTC"
+        description:
+          type: string
+          description: Human-readable description of the cron job
+          example: "Sends a daily greeting every day at 9:00 AM UTC"
+
+    CronJobsConfig:
+      type: object
+      required:
+        - jobs
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CronJob'
+
+    Function:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Function name
+          example: "hello-world"
+        status:
+          type: string
+          enum: [running, error, stopped]
+          description: Function status
+          example: "running"
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+        cronJobs:
+          type: integer
+          description: Number of active cron jobs
+          example: 2
+        lastDeployed:
+          type: string
+          format: date-time
+          description: Last deployment timestamp
+          example: "2024-01-15T10:30:00.000Z"
+        path:
+          type: string
+          description: File system path to function directory
+          example: "/app/functions/hello-world"
+        baseUrl:
+          type: string
+          description: Base URL prefix for function routes
+          example: "/hello-world"
+        layerName:
+          type: string
+          nullable: true
+          description: Associated layer name
+          example: "common-utils"
+        layerError:
+          type: string
+          nullable: true
+          description: Error message if layer association failed
+          example: null
+
+    FunctionList:
+      type: object
+      properties:
+        functions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Function'
+
+    FunctionDetail:
+      allOf:
+        - $ref: '#/components/schemas/Function'
+        - type: object
+          properties:
+            cronJobs:
+              type: array
+              items:
+                $ref: '#/components/schemas/CronJob'
+              description: Detailed cron job configurations
+
+    Layer:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Layer name
+          example: "common-utils"
+        version:
+          type: string
+          description: Layer version
+          example: "1.0.0"
+        description:
+          type: string
+          description: Layer description
+          example: "Common utility functions and dependencies"
+        status:
+          type: string
+          enum: [loaded, error]
+          description: Layer status
+          example: "loaded"
+        loadedAt:
+          type: string
+          format: date-time
+          description: When the layer was loaded
+          example: "2024-01-15T10:30:00.000Z"
+        functionsUsing:
+          type: array
+          items:
+            type: string
+          description: List of function names using this layer
+          example: ["hello-world", "webhook-handler"]
+
+    LayerDetail:
+      allOf:
+        - $ref: '#/components/schemas/Layer'
+        - type: object
+          properties:
+            path:
+              type: string
+              description: File system path to layer directory
+              example: "/app/layers/common-utils"
+            nodejsPath:
+              type: string
+              description: Path to nodejs directory within layer
+              example: "/app/layers/common-utils/nodejs"
+            config:
+              type: object
+              description: Layer configuration from layer.json
+              additionalProperties: true
+
+    LayerList:
+      type: object
+      properties:
+        layers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Layer'
+
+    FileNode:
+      type: object
+      properties:
+        name:
+          type: string
+          description: File or directory name
+          example: "handler.js"
+        path:
+          type: string
+          description: Relative path from function/layer root
+          example: "handler.js"
+        type:
+          type: string
+          enum: [file, directory]
+          description: Node type
+          example: "file"
+        size:
+          type: integer
+          description: File size in bytes (only for files)
+          example: 1024
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileNode'
+          description: Child nodes (only for directories)
+
+    FileTree:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileNode'
+
+    FileContent:
+      type: object
+      properties:
+        content:
+          type: string
+          description: File content as string
+          example: "export default async function handler(req, res) {\n  res.json({ message: 'Hello World' });\n}"
+
+    LogEntry:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Log entry timestamp
+          example: "2024-01-15T10:30:00.000Z"
+        message:
+          type: string
+          description: Log message
+          example: "Function handler called"
+        level:
+          type: string
+          enum: [INFO, ERROR, WARN, ACCESS, CRON, CRON_ERROR]
+          description: Log level
+          example: "INFO"
+        function:
+          type: string
+          nullable: true
+          description: Function name (if function-specific log)
+          example: "hello-world"
+        method:
+          type: string
+          description: HTTP method (for ACCESS logs)
+          example: "GET"
+        path:
+          type: string
+          description: Request path (for ACCESS logs)
+          example: "/hello-world/greet"
+        statusCode:
+          type: integer
+          description: HTTP status code (for ACCESS logs)
+          example: 200
+        duration:
+          type: integer
+          description: Request duration in milliseconds (for ACCESS logs)
+          example: 45
+        ip:
+          type: string
+          description: Client IP address (for ACCESS logs)
+          example: "192.168.1.1"
+        userAgent:
+          type: string
+          description: User agent string (for ACCESS logs)
+          example: "Mozilla/5.0..."
+
+    LogResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogEntry'
+
+    FunctionMetrics:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "hello-world"
+        invocations:
+          type: integer
+          description: Total number of function invocations
+          example: 1250
+        errors:
+          type: integer
+          description: Total number of errors
+          example: 5
+        avgResponseTime:
+          type: number
+          description: Average response time in milliseconds
+          example: 45.2
+        lastInvocation:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last invocation
+          example: "2024-01-15T10:30:00.000Z"
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+        cronJobs:
+          type: integer
+          description: Number of active cron jobs
+          example: 2
+
+    SystemMetrics:
+      type: object
+      properties:
+        uptime:
+          type: number
+          description: System uptime in seconds
+          example: 86400.5
+        memory:
+          type: object
+          properties:
+            rss:
+              type: integer
+              description: Resident set size in bytes
+              example: 52428800
+            heapTotal:
+              type: integer
+              description: Total heap size in bytes
+              example: 41943040
+            heapUsed:
+              type: integer
+              description: Used heap size in bytes
+              example: 31457280
+            external:
+              type: integer
+              description: External memory in bytes
+              example: 1048576
+        functions:
+          type: integer
+          description: Number of loaded functions
+          example: 5
+        activeRoutes:
+          type: integer
+          description: Number of registered routes
+          example: 12
+        activeCronJobs:
+          type: integer
+          description: Number of active cron jobs
+          example: 8
+        timestamp:
+          type: string
+          format: date-time
+          description: Metrics timestamp
+          example: "2024-01-15T10:30:00.000Z"
+
+    SystemStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [running, stopped]
+          example: "running"
+        uptime:
+          type: number
+          description: System uptime in seconds
+          example: 86400.5
+        functionsLoaded:
+          type: integer
+          description: Number of loaded functions
+          example: 5
+        routesRegistered:
+          type: integer
+          description: Number of registered routes
+          example: 12
+        cronJobsActive:
+          type: integer
+          description: Number of active cron jobs
+          example: 8
+        totalFunctions:
+          type: integer
+          description: Total number of functions
+          example: 5
+        totalRoutes:
+          type: integer
+          description: Total number of routes
+          example: 12
+        totalCronJobs:
+          type: integer
+          description: Total number of cron jobs
+          example: 8
+        functions:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              routes:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Route'
+              loadedAt:
+                type: string
+                format: date-time
+              routeCount:
+                type: integer
+              cronJobs:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    schedule:
+                      type: string
+                    handler:
+                      type: string
+                    timezone:
+                      type: string
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+
+    HealthCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+        functions:
+          type: integer
+          description: Number of loaded functions
+          example: 5
+
+    ReloadRequest:
+      type: object
+      properties:
+        functionName:
+          type: string
+          description: Specific function name to reload (optional, reloads all if omitted)
+          example: "hello-world"
+
+    ReloadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Function hello-world reloaded successfully"
+        functionsLoaded:
+          type: integer
+          description: Number of functions loaded (only for full reload)
+          example: 5
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+
+    DeployLocalRequest:
+      type: object
+      required:
+        - name
+        - files
+      properties:
+        name:
+          type: string
+          description: Function or layer name
+          example: "hello-world"
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+          description: Files to upload (multipart/form-data)
+
+    DeployGitRequest:
+      type: object
+      required:
+        - name
+        - repo
+      properties:
+        name:
+          type: string
+          description: Function or layer name
+          example: "hello-world"
+        repo:
+          type: string
+          format: uri
+          description: Git repository URL
+          example: "https://github.com/user/repo.git"
+        branch:
+          type: string
+          description: Git branch name
+          default: "main"
+          example: "main"
+        commit:
+          type: string
+          description: Specific commit hash (optional)
+          example: "abc123def456"
+
+    DeployResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Function deployed successfully"
+        function:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "hello-world"
+            status:
+              type: string
+              example: "running"
+        layer:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "common-utils"
+            status:
+              type: string
+              example: "loaded"
+
+    TestFunctionRequest:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE, PATCH, OPTIONS]
+          default: "GET"
+          example: "GET"
+        path:
+          type: string
+          default: "/"
+          description: Route path to test
+          example: "/greet"
+        data:
+          type: object
+          description: Request body data
+          additionalProperties: true
+          example:
+            name: "World"
+        headers:
+          type: object
+          description: Additional request headers
+          additionalProperties:
+            type: string
+          example:
+            "Content-Type": "application/json"
+
+    TestFunctionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        response:
+          type: object
+          description: Function response body
+          additionalProperties: true
+          example:
+            message: "Hello, World!"
+        headers:
+          type: object
+          description: Response headers
+          additionalProperties:
+            type: string
+        error:
+          type: string
+          description: Error message if test failed
+          example: null
+
+    EnvResponse:
+      type: object
+      properties:
+        env:
+          type: object
+          description: Environment variables as key-value pairs
+          additionalProperties:
+            type: string
+          example:
+            API_KEY: "secret-key-123"
+            DATABASE_URL: "postgresql://localhost:5432/mydb"
+
+    LayerAssociationRequest:
+      type: object
+      required:
+        - layer
+      properties:
+        layer:
+          type: string
+          description: Layer name to associate
+          example: "common-utils"
+
+    LayerAssociationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Layer 'common-utils' associated with function"
+        layer:
+          type: string
+          nullable: true
+          example: "common-utils"
+
+    OAuthUrlResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: OAuth authorization URL
+          example: "https://github.com/login/oauth/authorize?client_id=xxx&redirect_uri=xxx&scope=repo&state=xxx"
+
+    Repository:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123456
+        name:
+          type: string
+          example: "my-function"
+        full_name:
+          type: string
+          example: "user/my-function"
+        description:
+          type: string
+          nullable: true
+          example: "My awesome function"
+        private:
+          type: boolean
+          example: false
+        html_url:
+          type: string
+          format: uri
+          example: "https://github.com/user/my-function"
+        clone_url:
+          type: string
+          format: uri
+          example: "https://github.com/user/my-function.git"
+        default_branch:
+          type: string
+          example: "main"
+
+    RepositoryList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Repository'
+
+    UpdateLayerFileRequest:
+      type: object
+      required:
+        - path
+        - content
+      properties:
+        path:
+          type: string
+          description: File path relative to layer nodejs directory
+          example: "utils/helper.js"
+        content:
+          type: string
+          description: File content
+          example: "export function helper() { return 'help'; }"
+
+    FunctionLogFiles:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+            example: "hello-world"
+          path:
+            type: string
+            example: "/app/logs/functions/hello-world.log"
+
+paths:
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check endpoint
+      description: Public health check endpoint that returns system health status
+      security: []
+      operationId: healthCheck
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+              example:
+                status: "healthy"
+                timestamp: "2024-01-15T10:30:00.000Z"
+                functions: 5
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive JWT token
+      security: []
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: "admin"
+              password: "admin"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjA5ODc2NDAwLCJleHAiOjE2MDk5NjI4MDB9.example"
+                user:
+                  username: "admin"
+                  role: "admin"
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Username is required"
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid credentials"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/auth/verify:
+    get:
+      tags:
+        - Authentication
+      summary: Verify JWT token
+      description: Verify that the current JWT token is valid
+      operationId: verifyToken
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+              example:
+                user:
+                  username: "admin"
+                  role: "admin"
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access token required"
+        '403':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid or expired token"
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Logout user (token blacklisting not implemented in demo)
+      operationId: logout
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Logged out successfully"
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access token required"
+
+  /api/status:
+    get:
+      tags:
+        - System
+      summary: Get system status
+      description: |
+        Get comprehensive system status including loaded functions, routes, and cron jobs.
+        Available in both public (no auth) and authenticated versions.
+      security: []
+      operationId: getSystemStatus
+      responses:
+        '200':
+          description: System status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+              example:
+                status: "running"
+                uptime: 86400.5
+                functionsLoaded: 5
+                routesRegistered: 12
+                cronJobsActive: 8
+                totalFunctions: 5
+                totalRoutes: 12
+                totalCronJobs: 8
+                functions:
+                  - name: "hello-world"
+                    routes:
+                      - method: "GET"
+                        path: "/hello-world/"
+                        handler: "handler.js"
+                    loadedAt: "2024-01-15T10:00:00.000Z"
+                    routeCount: 7
+                    cronJobs:
+                      - name: "daily-greeting"
+                        schedule: "0 9 * * *"
+                        handler: "cron-handler.js"
+                        timezone: "UTC"
+                timestamp: "2024-01-15T10:30:00.000Z"
+
+  /api/reload:
+    post:
+      tags:
+        - System
+      summary: Reload functions
+      description: Reload a specific function or all functions
+      security: []
+      operationId: reloadFunctions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReloadRequest'
+            example:
+              functionName: "hello-world"
+      responses:
+        '200':
+          description: Reload successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReloadResponse'
+              example:
+                success: true
+                message: "Function hello-world reloaded successfully"
+                timestamp: "2024-01-15T10:30:00.000Z"
+        '500':
+          description: Reload failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Failed to reload function hello-world"
+
+  /api/functions:
+    get:
+      tags:
+        - Functions
+      summary: List all functions
+      description: Get a list of all loaded functions with their status and metadata
+      operationId: listFunctions
+      responses:
+        '200':
+          description: List of functions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionList'
+              example:
+                functions:
+                  - name: "hello-world"
+                    status: "running"
+                    routes:
+                      - method: "GET"
+                        path: "/hello-world/"
+                        handler: "handler.js"
+                      - method: "GET"
+                        path: "/hello-world/greet"
+                        handler: "greet.js"
+                    cronJobs: 2
+                    lastDeployed: "2024-01-15T10:00:00.000Z"
+                    layerName: "common-utils"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access token required"
+
+  /api/functions/{name}:
+    get:
+      tags:
+        - Functions
+      summary: Get function details
+      description: Get detailed information about a specific function
+      operationId: getFunction
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      responses:
+        '200':
+          description: Function details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionDetail'
+              example:
+                name: "hello-world"
+                status: "running"
+                routes:
+                  - method: "GET"
+                    path: "/hello-world/"
+                    handler: "handler.js"
+                  - method: "GET"
+                    path: "/hello-world/greet"
+                    handler: "greet.js"
+                cronJobs:
+                  - name: "daily-greeting"
+                    schedule: "0 9 * * *"
+                    handler: "cron-handler.js"
+                    timezone: "UTC"
+                    description: "Sends a daily greeting every day at 9:00 AM UTC"
+                lastDeployed: "2024-01-15T10:00:00.000Z"
+                path: "/app/functions/hello-world"
+                baseUrl: "/hello-world"
+                layerName: "common-utils"
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+
+    put:
+      tags:
+        - Functions
+      summary: Update function
+      description: Update function files by uploading new files
+      operationId: updateFunction
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+            encoding:
+              files:
+                contentType: application/octet-stream
+      responses:
+        '200':
+          description: Function updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+              example:
+                message: "Function updated successfully"
+                function:
+                  name: "hello-world"
+                  status: "running"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Files are required"
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+    delete:
+      tags:
+        - Functions
+      summary: Delete function
+      description: Delete a function and all its files
+      operationId: deleteFunction
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      responses:
+        '200':
+          description: Function deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Function deleted successfully"
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/deploy/local:
+    post:
+      tags:
+        - Functions
+      summary: Deploy function from local files
+      description: Deploy a new function by uploading files
+      operationId: deployFunctionLocal
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - name
+                - files
+              properties:
+                name:
+                  type: string
+                  description: Function name
+                  example: "my-function"
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Function files to upload
+            encoding:
+              files:
+                contentType: application/octet-stream
+      responses:
+        '200':
+          description: Function deployed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+              example:
+                message: "Function deployed successfully"
+                function:
+                  name: "my-function"
+                  status: "running"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function name and files are required"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/deploy/git:
+    post:
+      tags:
+        - Functions
+      summary: Deploy function from Git repository
+      description: Deploy a function by cloning from a Git repository
+      operationId: deployFunctionGit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeployGitRequest'
+            example:
+              name: "my-function"
+              repo: "https://github.com/user/my-function.git"
+              branch: "main"
+              commit: "abc123def456"
+      responses:
+        '200':
+          description: Function deployed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+              example:
+                message: "Function deployed from Git successfully"
+                function:
+                  name: "my-function"
+                  status: "running"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function name and repository URL are required"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Failed to deploy from Git repository"
+
+  /api/functions/{name}/logs:
+    get:
+      tags:
+        - Logs & Metrics
+      summary: Get function logs
+      description: Get logs for a specific function with optional filtering
+      operationId: getFunctionLogs
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 10000
+          description: Maximum number of log entries to return
+          example: 100
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, INFO, ERROR, WARN, ACCESS]
+            default: "all"
+          description: Filter logs by type
+          example: "all"
+      responses:
+        '200':
+          description: Function logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogResponse'
+              example:
+                logs:
+                  - timestamp: "2024-01-15T10:30:00.000Z"
+                    message: "HTTP access"
+                    level: "ACCESS"
+                    function: "hello-world"
+                    method: "GET"
+                    path: "/hello-world/greet"
+                    statusCode: 200
+                    duration: 45
+                    ip: "192.168.1.1"
+                    userAgent: "Mozilla/5.0..."
+                  - timestamp: "2024-01-15T10:29:00.000Z"
+                    message: "Handler called"
+                    level: "INFO"
+                    function: "hello-world"
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/{name}/metrics:
+    get:
+      tags:
+        - Logs & Metrics
+      summary: Get function metrics
+      description: Get performance metrics for a specific function
+      operationId: getFunctionMetrics
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      responses:
+        '200':
+          description: Function metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionMetrics'
+              example:
+                name: "hello-world"
+                invocations: 1250
+                errors: 5
+                avgResponseTime: 45.2
+                lastInvocation: "2024-01-15T10:30:00.000Z"
+                routes:
+                  - method: "GET"
+                    path: "/hello-world/"
+                    handler: "handler.js"
+                cronJobs: 2
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/{name}/test:
+    post:
+      tags:
+        - Functions
+      summary: Test function execution
+      description: Test a function with a mock request
+      operationId: testFunction
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestFunctionRequest'
+            example:
+              method: "GET"
+              path: "/greet"
+              data:
+                name: "World"
+              headers:
+                "Content-Type": "application/json"
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestFunctionResponse'
+              example:
+                success: true
+                statusCode: 200
+                response:
+                  message: "Hello, World!"
+                headers: {}
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/{name}/env:
+    get:
+      tags:
+        - Functions
+      summary: Get function environment variables
+      description: Get environment variables for a specific function
+      operationId: getFunctionEnv
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      responses:
+        '200':
+          description: Environment variables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvResponse'
+              example:
+                env:
+                  API_KEY: "secret-key-123"
+                  DATABASE_URL: "postgresql://localhost:5432/mydb"
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Failed to load environment variables"
+
+  /api/functions/{name}/layer:
+    put:
+      tags:
+        - Functions
+      summary: Associate layer with function
+      description: Associate a layer with a function or update the association
+      operationId: setFunctionLayer
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LayerAssociationRequest'
+            example:
+              layer: "common-utils"
+      responses:
+        '200':
+          description: Layer associated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayerAssociationResponse'
+              example:
+                message: "Layer 'common-utils' associated with function"
+                layer: "common-utils"
+        '404':
+          description: Function or layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer 'common-utils' not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+    delete:
+      tags:
+        - Functions
+      summary: Remove layer association
+      description: Remove the layer association from a function
+      operationId: removeFunctionLayer
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      responses:
+        '200':
+          description: Layer association removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Layer association removed"
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/{name}/cron:
+    get:
+      tags:
+        - Cron Jobs
+      summary: Get function cron jobs
+      description: Get all cron jobs configured for a function
+      operationId: getFunctionCronJobs
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      responses:
+        '200':
+          description: Cron jobs configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CronJob'
+              example:
+                jobs:
+                  - name: "daily-greeting"
+                    schedule: "0 9 * * *"
+                    handler: "cron-handler.js"
+                    timezone: "UTC"
+                    description: "Sends a daily greeting every day at 9:00 AM UTC"
+                  - name: "hourly-check"
+                    schedule: "0 * * * *"
+                    handler: "cron-handler.js"
+                    timezone: "UTC"
+                    description: "Runs every hour to check system status"
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+    put:
+      tags:
+        - Cron Jobs
+      summary: Update function cron jobs
+      description: Update the cron jobs configuration for a function
+      operationId: updateFunctionCronJobs
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CronJobsConfig'
+            example:
+              jobs:
+                - name: "daily-greeting"
+                  schedule: "0 9 * * *"
+                  handler: "cron-handler.js"
+                  timezone: "UTC"
+                  description: "Sends a daily greeting every day at 9:00 AM UTC"
+                - name: "hourly-check"
+                  schedule: "0 * * * *"
+                  handler: "cron-handler.js"
+                  timezone: "America/New_York"
+                  description: "Runs every hour to check system status"
+      responses:
+        '200':
+          description: Cron jobs updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CronJob'
+              example:
+                message: "Cron jobs updated successfully"
+                jobs:
+                  - name: "daily-greeting"
+                    schedule: "0 9 * * *"
+                    handler: "cron-handler.js"
+                    timezone: "UTC"
+                    description: "Sends a daily greeting every day at 9:00 AM UTC"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Each job must have name, schedule, and handler fields"
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/{name}/files:
+    get:
+      tags:
+        - Files
+      summary: List function files
+      description: Get a tree structure of all files in a function directory
+      operationId: listFunctionFiles
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+      responses:
+        '200':
+          description: File tree structure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileTree'
+              example:
+                files:
+                  - name: "handler.js"
+                    path: "handler.js"
+                    type: "file"
+                    size: 1024
+                  - name: "route.config.json"
+                    path: "route.config.json"
+                    type: "file"
+                    size: 512
+                  - name: "package.json"
+                    path: "package.json"
+                    type: "file"
+                    size: 256
+                  - name: "src"
+                    path: "src"
+                    type: "directory"
+                    children:
+                      - name: "utils.js"
+                        path: "src/utils.js"
+                        type: "file"
+                        size: 768
+        '404':
+          description: Function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Function not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/{name}/files/content:
+    get:
+      tags:
+        - Files
+      summary: Get function file content
+      description: Get the content of a specific file in a function directory
+      operationId: getFunctionFileContent
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File path relative to function directory
+          example: "handler.js"
+      responses:
+        '200':
+          description: File content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileContent'
+              example:
+                content: "export default async function handler(req, res) {\n  res.json({ message: 'Hello World' });\n}"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File path is required"
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access denied"
+        '404':
+          description: File or function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/functions/{name}/files/download:
+    get:
+      tags:
+        - Files
+      summary: Download function file
+      description: Download a file from a function directory
+      operationId: downloadFunctionFile
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function name
+          example: "hello-world"
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File path relative to function directory
+          example: "handler.js"
+      responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File path is required"
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access denied"
+        '404':
+          description: File or function not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/layers:
+    get:
+      tags:
+        - Layers
+      summary: List all layers
+      description: Get a list of all loaded layers with their metadata
+      operationId: listLayers
+      responses:
+        '200':
+          description: List of layers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayerList'
+              example:
+                layers:
+                  - name: "common-utils"
+                    version: "1.0.0"
+                    description: "Common utility functions and dependencies"
+                    status: "loaded"
+                    loadedAt: "2024-01-15T10:00:00.000Z"
+                    functionsUsing: ["hello-world", "webhook-handler"]
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access token required"
+
+  /api/layers/{name}:
+    get:
+      tags:
+        - Layers
+      summary: Get layer details
+      description: Get detailed information about a specific layer
+      operationId: getLayer
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: "common-utils"
+      responses:
+        '200':
+          description: Layer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayerDetail'
+              example:
+                name: "common-utils"
+                version: "1.0.0"
+                description: "Common utility functions and dependencies"
+                status: "loaded"
+                loadedAt: "2024-01-15T10:00:00.000Z"
+                path: "/app/layers/common-utils"
+                nodejsPath: "/app/layers/common-utils/nodejs"
+                functionsUsing: ["hello-world", "webhook-handler"]
+                config:
+                  version: "1.0.0"
+                  description: "Common utility functions"
+        '404':
+          description: Layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer not found"
+
+    put:
+      tags:
+        - Layers
+      summary: Update layer
+      description: Update layer files by uploading new files
+      operationId: updateLayer
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: "common-utils"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+            encoding:
+              files:
+                contentType: application/octet-stream
+      responses:
+        '200':
+          description: Layer updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+              example:
+                message: "Layer updated successfully"
+                layer:
+                  name: "common-utils"
+                  status: "loaded"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Files are required"
+        '404':
+          description: Layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+    delete:
+      tags:
+        - Layers
+      summary: Delete layer
+      description: Delete a layer (only if no functions are using it)
+      operationId: deleteLayer
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: "common-utils"
+      responses:
+        '200':
+          description: Layer deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Layer deleted successfully"
+        '400':
+          description: Bad request - layer is in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Cannot delete layer: 2 function(s) are using it"
+        '404':
+          description: Layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/layers/deploy/local:
+    post:
+      tags:
+        - Layers
+      summary: Deploy layer from local files
+      description: Deploy a new layer by uploading files
+      operationId: deployLayerLocal
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - name
+                - files
+              properties:
+                name:
+                  type: string
+                  description: Layer name
+                  example: "common-utils"
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Layer files to upload
+            encoding:
+              files:
+                contentType: application/octet-stream
+      responses:
+        '200':
+          description: Layer deployed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+              example:
+                message: "Layer deployed successfully"
+                layer:
+                  name: "common-utils"
+                  status: "loaded"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer name and files are required"
+        '409':
+          description: Layer already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer 'common-utils' already exists. Use PUT /api/layers/common-utils to update it."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/layers/deploy/git:
+    post:
+      tags:
+        - Layers
+      summary: Deploy layer from Git repository
+      description: Deploy a layer by cloning from a Git repository
+      operationId: deployLayerGit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeployGitRequest'
+            example:
+              name: "common-utils"
+              repo: "https://github.com/user/common-utils.git"
+              branch: "main"
+              commit: "abc123def456"
+      responses:
+        '200':
+          description: Layer deployed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+              example:
+                message: "Layer deployed from Git successfully"
+                layer:
+                  name: "common-utils"
+                  status: "loaded"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer name and repository URL are required"
+        '409':
+          description: Layer already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer 'common-utils' already exists. Use PUT /api/layers/common-utils to update it."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Failed to deploy from Git repository"
+
+  /api/layers/{name}/reload:
+    post:
+      tags:
+        - Layers
+      summary: Reload specific layer
+      description: Reload a specific layer and all functions using it
+      operationId: reloadLayer
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: "common-utils"
+      responses:
+        '200':
+          description: Layer reloaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  layer:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      status:
+                        type: string
+              example:
+                message: "Layer reloaded successfully"
+                layer:
+                  name: "common-utils"
+                  status: "loaded"
+        '404':
+          description: Layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/layers/reload:
+    post:
+      tags:
+        - Layers
+      summary: Reload all layers
+      description: Reload all layers and functions using them
+      operationId: reloadAllLayers
+      responses:
+        '200':
+          description: All layers reloaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  layersReloaded:
+                    type: integer
+                  functionsReloaded:
+                    type: integer
+              example:
+                message: "All layers reloaded successfully"
+                layersReloaded: 3
+                functionsReloaded: 5
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/layers/{name}/files:
+    get:
+      tags:
+        - Files
+      summary: List layer files
+      description: Get a tree structure of all files in a layer directory
+      operationId: listLayerFiles
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: "common-utils"
+      responses:
+        '200':
+          description: File tree structure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileTree'
+              example:
+                files:
+                  - name: "utils.js"
+                    path: "utils.js"
+                    type: "file"
+                    size: 2048
+                  - name: "helpers"
+                    path: "helpers"
+                    type: "directory"
+                    children:
+                      - name: "validator.js"
+                        path: "helpers/validator.js"
+                        type: "file"
+                        size: 1536
+        '404':
+          description: Layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/layers/{name}/files/content:
+    get:
+      tags:
+        - Files
+      summary: Get layer file content
+      description: Get the content of a specific file in a layer directory
+      operationId: getLayerFileContent
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: "common-utils"
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File path relative to layer nodejs directory
+          example: "utils.js"
+      responses:
+        '200':
+          description: File content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileContent'
+              example:
+                content: "export function helper() {\n  return 'help';\n}"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File path is required"
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access denied"
+        '404':
+          description: File or layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/layers/{name}/files/download:
+    get:
+      tags:
+        - Files
+      summary: Download layer file
+      description: Download a file from a layer directory
+      operationId: downloadLayerFile
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: "common-utils"
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File path relative to layer nodejs directory
+          example: "utils.js"
+      responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File path is required"
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access denied"
+        '404':
+          description: File or layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/layers/{name}/files:
+    put:
+      tags:
+        - Files
+      summary: Update layer file content
+      description: Update the content of a file in a layer directory
+      operationId: updateLayerFile
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: "common-utils"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLayerFileRequest'
+            example:
+              path: "utils.js"
+              content: "export function helper() {\n  return 'help';\n}"
+      responses:
+        '200':
+          description: File updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Layer file updated successfully"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "File path and content are required"
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access denied"
+        '404':
+          description: Layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Layer not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Failed to reload layer after file update"
+
+  /api/logs:
+    get:
+      tags:
+        - Logs & Metrics
+      summary: Get system logs
+      description: Get system-wide logs with optional filtering
+      operationId: getSystemLogs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 10000
+          description: Maximum number of log entries to return
+          example: 100
+      responses:
+        '200':
+          description: System logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogResponse'
+              example:
+                logs:
+                  - timestamp: "2024-01-15T10:30:00.000Z"
+                    message: "Function loaded successfully"
+                    level: "INFO"
+                    function: "hello-world"
+                  - timestamp: "2024-01-15T10:29:00.000Z"
+                    message: "Route registered"
+                    level: "INFO"
+                    function: null
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/logs/functions:
+    get:
+      tags:
+        - Logs & Metrics
+      summary: Get function log files list
+      description: Get a list of all function log files
+      operationId: getFunctionLogFiles
+      responses:
+        '200':
+          description: List of function log files
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionLogFiles'
+              example:
+                - name: "hello-world"
+                  path: "/app/logs/functions/hello-world.log"
+                - name: "webhook-handler"
+                  path: "/app/logs/functions/webhook-handler.log"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/metrics:
+    get:
+      tags:
+        - Logs & Metrics
+      summary: Get system metrics
+      description: Get system-wide performance metrics
+      operationId: getSystemMetrics
+      responses:
+        '200':
+          description: System metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemMetrics'
+              example:
+                uptime: 86400.5
+                memory:
+                  rss: 52428800
+                  heapTotal: 41943040
+                  heapUsed: 31457280
+                  external: 1048576
+                functions: 5
+                activeRoutes: 12
+                activeCronJobs: 8
+                timestamp: "2024-01-15T10:30:00.000Z"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/oauth/github:
+    get:
+      tags:
+        - OAuth
+      summary: Get GitHub OAuth URL
+      description: Get the GitHub OAuth authorization URL
+      operationId: getGithubOAuthUrl
+      responses:
+        '200':
+          description: OAuth URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthUrlResponse'
+              example:
+                url: "https://github.com/login/oauth/authorize?client_id=xxx&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Fapi%2Foauth%2Fgithub%2Fcallback&scope=repo&state=abc123"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access token required"
+
+  /api/oauth/github/callback:
+    get:
+      tags:
+        - OAuth
+      summary: GitHub OAuth callback
+      description: Handle GitHub OAuth callback (redirects to dashboard)
+      security: []
+      operationId: githubOAuthCallback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: OAuth authorization code
+          example: "abc123def456"
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: OAuth state parameter
+          example: "xyz789"
+      responses:
+        '302':
+          description: Redirect to dashboard
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Missing code"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/github/repos:
+    get:
+      tags:
+        - OAuth
+      summary: List GitHub repositories
+      description: Get a list of GitHub repositories for the authenticated user
+      operationId: listGithubRepos
+      responses:
+        '200':
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryList'
+              example:
+                - id: 123456
+                  name: "my-function"
+                  full_name: "user/my-function"
+                  description: "My awesome function"
+                  private: false
+                  html_url: "https://github.com/user/my-function"
+                  clone_url: "https://github.com/user/my-function.git"
+                  default_branch: "main"
+        '401':
+          description: Unauthorized or not connected to GitHub
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Not connected to GitHub"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Internal server error"
+
+  /api/oauth/bitbucket:
+    get:
+      tags:
+        - OAuth
+      summary: Get Bitbucket OAuth URL
+      description: Get the Bitbucket OAuth authorization URL
+      operationId: getBitbucketOAuthUrl
+      responses:
+        '200':
+          description: OAuth URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthUrlResponse'
+              example:
+                url: "https://bitbucket.org/site/oauth2/authorize?client_id=xxx&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Fapi%2Foauth%2Fbitbucket%2Fcallback&state=abc123"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Access token required"
+
+  /api/oauth/bitbucket/callback:
+    get:
+      tags:
+        - OAuth
+      summary: Bitbucket OAuth callback
+      description: Handle Bitbucket OAuth callback (redirects to dashboard)
+      security: []
+      operationId: bitbucketOAuthCallback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: OAuth authorization code
+          example: "abc123def456"
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: OAuth state parameter
+          example: "xyz789"
+      responses:
+        '302':
+          description: Redirect to dashboard
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Missing code"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Internal server error"
+
+  /api/bitbucket/repos:
+    get:
+      tags:
+        - OAuth
+      summary: List Bitbucket repositories
+      description: Get a list of Bitbucket repositories for the authenticated user
+      operationId: listBitbucketRepos
+      responses:
+        '200':
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryList'
+              example:
+                - id: 123456
+                  name: "my-function"
+                  full_name: "user/my-function"
+                  description: "My awesome function"
+                  private: false
+                  html_url: "https://bitbucket.org/user/my-function"
+                  clone_url: "https://bitbucket.org/user/my-function.git"
+                  default_branch: "main"
+        '401':
+          description: Unauthorized or not connected to Bitbucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Not connected to Bitbucket"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Internal server error"
+

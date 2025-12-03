@@ -47,6 +47,8 @@ npm start
 
 Open your browser to `http://localhost:3000/dashboard` to access the web interface.
 
+**Note:** If you haven't set the `PORT` environment variable, the server defaults to port 3003. Set `PORT=3000` to use port 3000.
+
 ### 3. Create Your First Function
 
 Use the dashboard or CLI to create a new function:
@@ -98,24 +100,20 @@ Functions receive a context object with request data and return responses:
 
 ```javascript
 // handler.js
-module.exports = async (req, res, next) => {
+export default async function handler(req, res, next) {
   const { method, url, headers, body } = req;
   // You can call next() to pass control to additional middleware
   
   if (method === 'GET') {
-    return {
-      status: 200,
-      body: { message: 'Hello from FuncDock!' }
-    };
+    res.json({ message: 'Hello from FuncDock!' });
+    return;
   }
   
   if (method === 'POST') {
-    return {
-      status: 201,
-      body: { received: body }
-    };
+    res.status(201).json({ received: body });
+    return;
   }
-};
+}
 ```
 
 ### Adding Dependencies
@@ -133,6 +131,7 @@ npm run test-function my-function
 
 # Test specific endpoint
 curl http://localhost:3000/my-function
+# Note: Use the port your server is running on (default 3003, or 3000 if PORT env var is set)
 ```
 
 **📖 Learn More**: See [SETUP_README.md](SETUP_README.md) for detailed development setup.
@@ -260,6 +259,7 @@ curl http://localhost:3000/my-function/health
 
 # Check platform status
 curl http://localhost:3000/api/status
+# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
 ```
 
 **📖 Learn More**: See [DASHBOARDS_README.md](DASHBOARDS_README.md) for dashboard features.
@@ -274,19 +274,25 @@ Configure functions to receive webhooks:
 
 ```javascript
 // webhook-handler.js
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   const { headers, body } = req;
   
   // Handle GitHub webhooks
   if (headers['x-github-event']) {
-    return handleGitHubWebhook(body);
+    const result = await handleGitHubWebhook(body);
+    res.json(result);
+    return;
   }
   
   // Handle Stripe webhooks
   if (headers['stripe-signature']) {
-    return handleStripeWebhook(body);
+    const result = await handleStripeWebhook(body);
+    res.json(result);
+    return;
   }
-};
+  
+  res.status(400).json({ error: 'Unknown webhook type' });
+}
 ```
 
 ### Cron Jobs
@@ -295,27 +301,134 @@ Schedule functions to run automatically:
 
 ```javascript
 // cron-handler.js
-export default async (req, res) => {
+// Cron handlers only receive req (no res parameter)
+export default async function handler(req) {
   const { logger, cronJob, schedule } = req;
   logger.log('CRON', `Cron job started: ${cronJob}`);
   try {
     // ...cron logic...
     logger.log('CRON', `Cron job completed: ${cronJob}`);
-    res.json({ success: true });
+    return { success: true };
   } catch (error) {
     logger.log('CRON_ERROR', `Cron job failed: ${cronJob}`, { error: error.message });
-    res.status(500).json({ success: false, error: error.message });
+    throw error; // Re-throw to let the platform handle it
   }
-};
+}
 ```
 
 ### Environment Variables
 
+Environment variables allow you to configure functions without hardcoding secrets.
+
+#### Function-Level Environment Variables
+
+Create a `.env` file in your function directory:
+
 ```bash
-# Set environment variables
-npm run set-env my-function DATABASE_URL=postgres://...
-npm run set-env my-function API_KEY=your-secret-key
+# functions/my-function/.env
+DATABASE_URL=postgres://user:password@localhost:5432/mydb
+API_KEY=your-secret-api-key
+STRIPE_SECRET_KEY=sk_test_...
+DEBUG=true
+LOG_LEVEL=debug
 ```
+
+#### Accessing Environment Variables
+
+Functions access environment variables via `req.env`:
+
+```javascript
+export default async function handler(req, res) {
+  const { env } = req;
+  
+  // Access environment variables
+  const dbUrl = env.DATABASE_URL;
+  const apiKey = env.API_KEY;
+  
+  // Use in your function logic
+  const response = await fetch('https://api.example.com', {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  });
+  
+  res.json({ data: await response.json() });
+}
+```
+
+#### Environment Variable Best Practices
+
+**✅ DO:**
+- Store secrets in `.env` files
+- Use descriptive variable names
+- Document required variables in function README
+- Use different values for dev/staging/production
+- Keep `.env` files out of Git (add to `.gitignore`)
+
+**❌ DON'T:**
+- Hardcode secrets in function code
+- Commit `.env` files to version control
+- Share `.env` files via insecure channels
+- Use production secrets in development
+
+#### Platform-Level Environment Variables
+
+See [SETUP_README.md](SETUP_README.md#environment-setup) for platform configuration variables like `JWT_SECRET`, `ADMIN_USERNAME`, `PORT`, etc.
+
+#### Environment Variable Examples
+
+**Database Connection:**
+```bash
+# .env
+DATABASE_URL=postgres://user:pass@localhost:5432/mydb
+DB_POOL_SIZE=10
+DB_TIMEOUT=5000
+```
+
+**API Keys:**
+```bash
+# .env
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
+SENDGRID_API_KEY=SG....
+```
+
+**Feature Flags:**
+```bash
+# .env
+ENABLE_CACHE=true
+CACHE_TTL=3600
+DEBUG_MODE=false
+```
+
+**Service URLs:**
+```bash
+# .env
+EXTERNAL_API_URL=https://api.example.com
+WEBHOOK_URL=https://yourdomain.com/webhook
+```
+
+### Lambda Layers
+
+Share common code across functions using Lambda Layers:
+
+```javascript
+// Create a layer in layers/shared-utils/nodejs/index.js
+export function logger(message) {
+  console.log(`[LOG] ${new Date().toISOString()}: ${message}`);
+}
+
+// Use in function: functions/my-function/layers.json
+"shared-utils"
+
+// Import in handler: functions/my-function/handler.js
+import { logger } from 'shared-utils';
+
+export default async function handler(req, res) {
+  logger('Request received');
+  res.json({ message: 'Hello' });
+}
+```
+
+**📖 Learn More**: See [LAYERS_README.md](LAYERS_README.md) for detailed layer usage.
 
 ### Custom Domains
 
@@ -409,6 +522,7 @@ npm run set-domain my-function api.myapp.com
 - **[Deployment Guide](DEPLOYMENT_README.md)** — Advanced deployment options
 - **[CLI Reference](CLI_README.md)** — Command-line interface usage
 - **[Dashboard Guide](DASHBOARDS_README.md)** — Web interface features
+- **[Layers Guide](LAYERS_README.md)** — Using Lambda Layers for shared code
 - **[Security Guide](SECURITY_README.md)** — Security best practices
 - **[Testing Guide](TESTING_README.md)** — Function testing strategies
 - **[Contributing Guide](CONTRIBUTING_README.md)** — How to contribute to FuncDock

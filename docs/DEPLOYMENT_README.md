@@ -29,6 +29,7 @@ make deploy-host-git REPO=https://github.com/your-username/your-function.git NAM
 
 # 3. Test your function
 curl http://localhost:3000/my-function/
+# Note: Use the port your server is running on (default 3003, or 3000 if PORT env var is set)
 ```
 
 ### Prerequisites
@@ -93,7 +94,14 @@ npm run deploy -- --local ./my-local-function --name my-function
 **Best for**: Users who want a no-CLI, browser-based experience
 - Deploy directly from your GitHub or Bitbucket account using OAuth
 - Select a repo and deploy with a few clicks
-- See [Dashboard Deployment Methods](./DASHBOARDS_README.md#deploying-functions-via-github--bitbucket-oauth) for setup and usage
+- No Git credentials needed - authenticate via OAuth
+- See [Dashboard Deployment Methods](./DASHBOARDS_README.md#deploying-functions-via-github--bitbucket-oauth) for detailed setup and usage
+
+**Quick Setup:**
+1. Register OAuth app with GitHub/Bitbucket
+2. Configure environment variables (see [DASHBOARDS_README.md](./DASHBOARDS_README.md#setting-up-github-oauth))
+3. Connect your account in the dashboard
+4. Deploy from repository browser
 
 ---
 
@@ -120,8 +128,8 @@ export default function handler(req, res) {
 {
   "routes": [
     {
-      "method": "GET",
       "path": "/",
+      "methods": ["GET"],
       "handler": "handler.js"
     }
   ]
@@ -163,6 +171,7 @@ make list-functions
 
 # Test your function
 curl http://localhost:3000/my-function/
+# Note: Use the port your server is running on (default 3003, or 3000 if PORT env var is set)
 
 # Check platform status
 make status
@@ -290,6 +299,7 @@ make reload
 curl -X POST http://localhost:3000/api/reload \
   -H "Content-Type: application/json" \
   -d '{"functionName": "my-function"}'
+# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
 ```
 
 ---
@@ -311,18 +321,18 @@ curl -X POST http://localhost:3000/api/reload \
 {
   "routes": [
     {
-      "method": "GET",
       "path": "/",
+      "methods": ["GET"],
       "handler": "handler.js"
     },
     {
-      "method": "POST",
       "path": "/api/data",
+      "methods": ["POST"],
       "handler": "api-handler.js"
     },
     {
-      "method": "GET",
       "path": "/users/:id",
+      "methods": ["GET", "PUT"],
       "handler": "user-handler.js"
     }
   ]
@@ -347,7 +357,7 @@ curl -X POST http://localhost:3000/api/reload \
 - ✅ Implement proper error handling
 
 ### Development
-- ✅ Use the dashboard for monitoring: http://localhost:3000/dashboard/
+- ✅ Use the dashboard for monitoring: http://localhost:3000/dashboard/ (or your configured port)
 - ✅ Check logs regularly during development
 - ✅ Use the test runner for validation
 - ✅ Keep dependencies up to date
@@ -404,7 +414,7 @@ cd functions/my-function && npm install
 - Check [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md) for detailed solutions
 - View application logs: `make logs`
 - Check platform status: `make status`
-- Test function health: `curl http://localhost:3000/my-function/`
+- Test function health: `curl http://localhost:3000/my-function/` (use your actual port)
 
 ---
 
@@ -448,7 +458,7 @@ For detailed security information, see [SECURITY_README.md](SECURITY_README.md).
 
 ## Next Steps
 
-1. **Explore the Dashboard**: Visit http://localhost:3000/dashboard/
+1. **Explore the Dashboard**: Visit http://localhost:3000/dashboard/ (or your configured port)
 2. **Read the CLI Guide**: See [CLI_README.md](CLI_README.md) for advanced usage
 3. **Check Examples**: Look at the `functions/` directory for example functions
 4. **Join the Community**: Check the main [README.md](../README.md) for community links

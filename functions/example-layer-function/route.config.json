@@ -1,0 +1,27 @@
+{
+  "base": "/example-layer-function",
+  "handler": "handler.js",
+  "routes": [
+    {
+      "path": "/",
+      "methods": ["GET"]
+    },
+    {
+      "path": "/validate",
+      "methods": ["POST"]
+    },
+    {
+      "path": "/format",
+      "methods": ["POST"]
+    },
+    {
+      "path": "/users",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "path": "/utilities",
+      "methods": ["POST"]
+    }
+  ]
+}
+

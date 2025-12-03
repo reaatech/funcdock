@@ -34,7 +34,7 @@ FuncDock supports per-function cron jobs with hot reload and timezone support.
 - Status monitoring via API
 
 ## Monitoring
-- Check status: `curl http://localhost:3000/api/status | jq '.cronJobs'`
+- Check status: `curl http://localhost:3000/api/status | jq '.cronJobs'` (use your actual port)
 - View logs: `tail -f logs/app.log | grep "Cron job"`
 
 ## Examples
@@ -75,12 +75,13 @@ FuncDock supports scheduled cron jobs for each function. Add a `cron.json` file 
 
 **cron-handler.js:**
 ```javascript
-export default async (req, res) => {
-  const { logger, cronJob, schedule, timestamp } = req;
+// Cron handlers only receive req (no res parameter)
+// Use logger for output and throw errors with a code property
+export default async function handler(req) {
+  const { logger, cronJob, schedule } = req;
   
   logger.log('CRON', `Cron job started: ${cronJob}`, {
     schedule,
-    timestamp,
     functionName: req.functionName
   });
 
@@ -90,22 +91,24 @@ export default async (req, res) => {
     
     logger.log('CRON', `Cron job completed: ${cronJob}`, result);
     
-    res.json({
+    // Return a result object (optional)
+    return {
       success: true,
       job: cronJob,
       result
-    });
+    };
     
   } catch (error) {
-    logger.log('CRON_ERROR', `Cron job failed: ${cronJob}`, { error: error.message });
-    
-    res.status(500).json({
-      success: false,
-      job: cronJob,
-      error: error.message
+    // Log errors with CRON_ERROR level
+    logger.log('CRON_ERROR', `Cron job failed: ${cronJob}`, { 
+      error: error.message,
+      code: error.code 
     });
+    
+    // Re-throw the error to let the platform handle it
+    throw error;
   }
-};
+}
 ```
 
 ## Cron Schedule Format
@@ -143,6 +146,7 @@ Use standard cron syntax: `* * * * *`
 ```bash
 # Check cron job status
 curl http://localhost:3000/api/status | jq '.cronJobs'
+# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
 
 # View cron job logs (CRON and CRON_ERROR levels)
 tail -f logs/app.log | grep '"level":"CRON"' | jq .
@@ -154,43 +158,49 @@ tail -f logs/app.log | grep '"level":"CRON_ERROR"' | jq .
 **Data Cleanup:**
 ```javascript
 // cleanup.js
-export default async (req, res) => {
+export default async function handler(req) {
   const { logger } = req;
   
   try {
     // Clean up old data
     const deletedCount = await cleanupOldRecords();
     
-    logger.info(`Cleanup completed`, { deletedCount });
-    res.json({ success: true, deletedCount });
+    logger.log('CRON', `Cleanup completed`, { deletedCount });
+    return { success: true, deletedCount };
   } catch (error) {
-    logger.error(`Cleanup failed`, { error: error.message });
-    res.status(500).json({ success: false, error: error.message });
+    logger.log('CRON_ERROR', `Cleanup failed`, { error: error.message });
+    throw error;
   }
-};
+}
 ```
 
 **Health Check:**
 ```javascript
 // health-check.js
-export default async (req, res) => {
+export default async function handler(req) {
   const { logger } = req;
   
   try {
     const health = await checkSystemHealth();
     
     if (health.status === 'healthy') {
-      logger.info(`Health check passed`, health);
-      res.json({ success: true, health });
+      logger.log('CRON', `Health check passed`, health);
+      return { success: true, health };
     } else {
-      logger.warn(`Health check failed`, health);
-      res.status(500).json({ success: false, health });
+      const err = new Error('Health check failed');
+      err.code = 'HEALTH_CHECK_FAILED';
+      logger.log('CRON_ERROR', `Health check failed`, { 
+        error: err.message, 
+        code: err.code,
+        health 
+      });
+      throw err;
     }
   } catch (error) {
-    logger.error(`Health check error`, { error: error.message });
-    res.status(500).json({ success: false, error: error.message });
+    logger.log('CRON_ERROR', `Health check error`, { error: error.message });
+    throw error;
   }
-};
+}
 ```
 
 ## Log Levels for Cron Jobs

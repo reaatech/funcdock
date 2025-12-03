@@ -255,6 +255,7 @@ make quickstart
 # 3. Open the magic
 # Dashboard: http://localhost:3000/dashboard/
 # Status: http://localhost:3000/api/status
+# Note: Server defaults to port 3003 if PORT env var is not set. Set PORT=3000 to use port 3000.
 
 # 4. Start building impossible things
 make create-function NAME=my-awesome-api

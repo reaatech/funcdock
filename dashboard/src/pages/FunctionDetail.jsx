@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useSocket } from '../contexts/SocketContext'
-import { functionsApi } from '../utils/api'
+import { functionsApi, layersApi } from '../utils/api'
 import { 
   Code, 
   Play, 
@@ -32,7 +32,9 @@ import {
   Eye as EyeIcon,
   Download as DownloadIcon,
   Edit as EditIcon,
-  Trash2 as DeleteIcon
+  Trash2 as DeleteIcon,
+  Package,
+  Layers as LayersIcon
 } from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
@@ -72,6 +74,12 @@ const FunctionDetail = () => {
   const [functionFiles, setFunctionFiles] = useState([])
   const [selectedFile, setSelectedFile] = useState(null)
   const [fileContent, setFileContent] = useState('')
+  
+  // Layer management state
+  const [availableLayers, setAvailableLayers] = useState([])
+  const [selectedLayer, setSelectedLayer] = useState('')
+  const [layerLoading, setLayerLoading] = useState(false)
+  const [layersLoading, setLayersLoading] = useState(false)
   const [fileLoading, setFileLoading] = useState(false)
   const [expandedFolders, setExpandedFolders] = useState(new Set())
 
@@ -92,10 +100,35 @@ const FunctionDetail = () => {
       }
     })
 
+    on('function:loaded', (data) => {
+      if (data.name === name) {
+        setFunctionData(prev => ({ ...prev, ...data }))
+      }
+    })
+
+    // Listen for layer updates that might affect this function
+    on('layer:updated', (data) => {
+      if (functionData?.layerName === data.name) {
+        fetchFunctionData() // Refresh to get updated layer info
+      }
+    })
+
+    // Listen for layer deletion - refresh function if it was using the deleted layer
+    on('layer:deleted', (data) => {
+      if (functionData?.layerName === data.name) {
+        fetchFunctionData() // Refresh to show error status for missing layer
+      }
+    })
+
+    // Listen for new layer deployments to refresh available layers list
+    on('layer:deployed', () => {
+      fetchAvailableLayers() // Refresh available layers dropdown
+    })
+
     return () => {
       // Cleanup socket listeners
     }
-  }, [name, on])
+  }, [name, on, functionData?.layerName])
 
   useEffect(() => {
     if (activeTab === 'env') {
@@ -225,6 +258,48 @@ const FunctionDetail = () => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     }
+  }
+
+  // Fetch available layers
+  const fetchAvailableLayers = async () => {
+    setLayersLoading(true)
+    try {
+      const response = await layersApi.getLayers()
+      setAvailableLayers(response.data.layers || [])
+    } catch (error) {
+      console.error('Failed to fetch layers:', error)
+    } finally {
+      setLayersLoading(false)
+    }
+  }
+
+  // Handle layer change
+  const handleLayerChange = async (layerName) => {
+    setLayerLoading(true)
+    try {
+      if (layerName) {
+        await functionsApi.setLayer(name, layerName)
+        toast.success(`Layer '${layerName}' associated with function`)
+      } else {
+        await functionsApi.removeLayer(name)
+        toast.success('Layer association removed')
+      }
+      fetchFunctionData()
+      setSelectedLayer('')
+    } catch (error) {
+      console.error('Failed to update layer:', error)
+      toast.error(error.response?.data?.message || 'Failed to update layer')
+    } finally {
+      setLayerLoading(false)
+    }
+  }
+
+  // Remove layer association
+  const handleRemoveLayer = async () => {
+    if (!confirm('Are you sure you want to remove the layer association?')) {
+      return
+    }
+    await handleLayerChange(null)
   }
 
   // Cron job management functions
@@ -629,6 +704,32 @@ const FunctionDetail = () => {
                   </div>
                 </div>
               </div>
+
+              {functionData.layerName && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Package className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Using Layer</p>
+                        <Link
+                          to={`/layers/${functionData.layerName}`}
+                          className="text-lg font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                        >
+                          {functionData.layerName}
+                        </Link>
+                      </div>
+                    </div>
+                    <Link
+                      to={`/layers/${functionData.layerName}`}
+                      className="btn-secondary btn-sm"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Layer
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Function Information</h3>

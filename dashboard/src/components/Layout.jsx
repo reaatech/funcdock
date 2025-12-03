@@ -15,7 +15,8 @@ import {
   Sun, 
   Moon,
   Wifi,
-  WifiOff
+  WifiOff,
+  Layers
 } from 'lucide-react'
 
 const Layout = ({ children }) => {
@@ -28,6 +29,7 @@ const Layout = ({ children }) => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Functions', href: '/functions', icon: Code },
+    { name: 'Layers', href: '/layers', icon: Layers },
     { name: 'Deploy', href: '/deploy', icon: Upload },
     { name: 'Logs', href: '/logs', icon: FileText },
     { name: 'Settings', href: '/settings', icon: Settings },

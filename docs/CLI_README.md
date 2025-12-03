@@ -12,6 +12,66 @@
 ## Overview
 FuncDock provides a rich CLI for development, deployment, and management.
 
+## When to Use Which Command
+
+### Development vs Production
+
+**Development:**
+- Use `npm run dev` or `make dev` for local development with hot reload
+- Use `make quickstart` for first-time setup
+- Use `npm run test:watch` for test-driven development
+
+**Production:**
+- Use `npm start` or `make start` for production server
+- Use `make production` for Docker-based production deployment
+- Use `make build` to build Docker images
+
+### Deployment Methods
+
+**Choose based on your needs:**
+
+1. **Host-based Git Deployment** (`make deploy-host-git`)
+   - ✅ Private repositories
+   - ✅ Using existing Git credentials
+   - ✅ Most secure option
+   - ✅ No container Git setup needed
+
+2. **Container-based Git Deployment** (`make deploy-git`)
+   - ✅ Public repositories
+   - ✅ CI/CD pipelines
+   - ⚠️ Requires Git credentials in container
+
+3. **Local Deployment** (`make deploy-local`)
+   - ✅ Development and testing
+   - ✅ Quick iteration
+   - ✅ No Git operations
+
+4. **Dashboard OAuth Deployment**
+   - ✅ Browser-based workflow
+   - ✅ No CLI needed
+   - ✅ Visual repository selection
+
+### Command Decision Tree
+
+```
+Starting FuncDock?
+├─ First time? → make quickstart
+├─ Development? → npm run dev or make dev
+└─ Production? → npm start or make production
+
+Deploying Function?
+├─ From private Git repo? → make deploy-host-git
+├─ From public Git repo? → make deploy-git
+├─ From local directory? → make deploy-local
+└─ Via browser? → Use dashboard
+
+Testing?
+├─ All tests? → npm test
+├─ Watch mode? → npm run test:watch
+├─ With coverage? → npm run test:coverage
+└─ In Docker? → node scripts/test-function-in-docker.js
+```
+
 ## Makefile Commands
 - `make quickstart` — Setup and start everything
 - `make dev` — Start dev server
@@ -130,6 +190,7 @@ npm run reload
 curl -X POST http://localhost:3000/api/reload \
   -H "Content-Type: application/json" \
   -d '{"functionName": "my-function"}'
+# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
 ```
 
 ## Make Commands Reference

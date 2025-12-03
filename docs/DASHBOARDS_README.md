@@ -51,6 +51,7 @@ The FuncDock dashboard is your **command center** for managing, monitoring, and 
 ```
 http://localhost:3000/dashboard/
 ```
+**Note:** The server defaults to port 3003 if the `PORT` environment variable is not set. Set `PORT=3000` to use port 3000.
 
 ### Production
 ```
@@ -58,8 +59,53 @@ https://your-domain.com/dashboard/
 ```
 
 ### Authentication
-- **Local**: No authentication required
-- **Production**: Configure authentication in Settings
+
+FuncDock uses JWT-based authentication for dashboard and API access.
+
+**Default Credentials (Development):**
+- **Username:** `admin`
+- **Password:** `admin`
+
+**⚠️ Important:** Change these credentials in production by setting environment variables:
+```bash
+ADMIN_USERNAME=your-secure-username
+ADMIN_PASSWORD=your-secure-password
+JWT_SECRET=your-super-secret-jwt-key
+```
+
+**Login Flow:**
+1. Navigate to dashboard login page
+2. Enter username and password
+3. Receive JWT token (stored in browser localStorage)
+4. Token used for all API requests
+5. Token expires after 24 hours (re-login required)
+
+**API Authentication:**
+For programmatic access, login via API:
+
+```bash
+# Login
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}'
+
+# Response includes token
+# {
+#   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+#   "user": { "username": "admin", "role": "admin" }
+# }
+
+# Use token in subsequent requests
+curl http://localhost:3000/api/status \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+**Token Management:**
+- Tokens are stored in browser localStorage (dashboard)
+- Tokens expire after 24 hours
+- Logout clears token from localStorage
+- Verify token: `GET /api/auth/verify`
+- Logout: `POST /api/auth/logout`
 
 ---
 
@@ -115,6 +161,7 @@ Test your functions directly from the dashboard:
 
 ```javascript
 // Example test configuration
+// Note: This is for dashboard testing interface, not route.config.json
 {
   "method": "POST",
   "path": "/api/users",
@@ -126,6 +173,7 @@ Test your functions directly from the dashboard:
     "Content-Type": "application/json"
   }
 }
+// For route.config.json, use "methods": ["POST"] (plural array)
 ```
 
 **Test Features:**
@@ -186,7 +234,7 @@ Browse and manage function files:
 
 ### Global Logs View
 
-Access comprehensive logging at `http://localhost:3000/dashboard/logs`
+Access comprehensive logging at `http://localhost:3000/dashboard/logs` (or your configured port)
 
 #### Log Filters
 
@@ -233,7 +281,7 @@ Each log entry shows:
 
 ### Deploy New Function
 
-Access deployment at `http://localhost:3000/dashboard/deploy`
+Access deployment at `http://localhost:3000/dashboard/deploy` (or your configured port)
 
 #### Method 1: File Upload
 
@@ -290,7 +338,7 @@ Access deployment at `http://localhost:3000/dashboard/deploy`
 
 ### System Settings
 
-Access settings at `http://localhost:3000/dashboard/settings`
+Access settings at `http://localhost:3000/dashboard/settings` (or your configured port)
 
 #### General Configuration
 - **Platform Name**: Customize dashboard title
@@ -379,6 +427,7 @@ Access settings at `http://localhost:3000/dashboard/settings`
 ```bash
 # Check if FuncDock is running
 curl http://localhost:3000/api/status
+# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
 
 # Restart the server
 npm run dev
@@ -412,3 +461,211 @@ DEBUG=funcdock:* npm run dev
 # Check debug logs in dashboard
 # Navigate to Settings > Debug Mode
 ```
+
+---
+
+## Deploying Functions via GitHub & Bitbucket (OAuth)
+
+FuncDock supports OAuth-based deployment from GitHub and Bitbucket, allowing you to deploy functions directly from your repositories without managing Git credentials.
+
+### Overview
+
+OAuth deployment provides:
+- **No Git credentials needed** - Authenticate via OAuth
+- **Repository selection** - Browse and select repos from your account
+- **Secure token management** - Tokens stored securely per user
+- **Easy deployment** - Deploy with a few clicks
+
+### Prerequisites
+
+1. **GitHub/Bitbucket Account** - You need an account with repositories
+2. **OAuth App Registration** - Register OAuth apps with GitHub/Bitbucket
+3. **Environment Variables** - Configure OAuth credentials
+
+### Setting Up GitHub OAuth
+
+#### Step 1: Create GitHub OAuth App
+
+1. Go to GitHub → Settings → Developer settings → OAuth Apps
+2. Click "New OAuth App"
+3. Fill in the details:
+   - **Application name:** FuncDock (or your choice)
+   - **Homepage URL:** `http://localhost:3000` (or your domain)
+   - **Authorization callback URL:** `http://localhost:3000/api/oauth/github/callback`
+     - For production: `https://yourdomain.com/api/oauth/github/callback`
+4. Click "Register application"
+5. **Copy the Client ID and generate a Client Secret**
+
+#### Step 2: Configure Environment Variables
+
+Add to your `.env` file or environment:
+
+```bash
+GITHUB_CLIENT_ID=your_github_client_id_here
+GITHUB_CLIENT_SECRET=your_github_client_secret_here
+GITHUB_REDIRECT_URI=http://localhost:3000/api/oauth/github/callback
+# For production:
+# GITHUB_REDIRECT_URI=https://yourdomain.com/api/oauth/github/callback
+```
+
+#### Step 3: Restart Server
+
+```bash
+# Restart to load new environment variables
+npm run dev
+```
+
+### Setting Up Bitbucket OAuth
+
+#### Step 1: Create Bitbucket OAuth Consumer
+
+1. Go to Bitbucket → Personal settings → Access management → OAuth
+2. Click "Add consumer"
+3. Fill in the details:
+   - **Name:** FuncDock (or your choice)
+   - **Callback URL:** `http://localhost:3000/api/oauth/bitbucket/callback`
+     - For production: `https://yourdomain.com/api/oauth/bitbucket/callback`
+   - **Permissions:** Select "Repositories: Read" (and "Write" if needed)
+4. Click "Save"
+5. **Copy the Key (Client ID) and Secret (Client Secret)**
+
+#### Step 2: Configure Environment Variables
+
+Add to your `.env` file or environment:
+
+```bash
+BITBUCKET_CLIENT_ID=your_bitbucket_client_id_here
+BITBUCKET_CLIENT_SECRET=your_bitbucket_client_secret_here
+BITBUCKET_REDIRECT_URI=http://localhost:3000/api/oauth/bitbucket/callback
+# For production:
+# BITBUCKET_REDIRECT_URI=https://yourdomain.com/api/oauth/bitbucket/callback
+```
+
+#### Step 3: Restart Server
+
+```bash
+# Restart to load new environment variables
+npm run dev
+```
+
+### Using OAuth Deployment
+
+#### Step 1: Login to Dashboard
+
+1. Open the dashboard: `http://localhost:3000/dashboard/`
+2. Login with your admin credentials
+3. Navigate to the **Deploy** section
+
+#### Step 2: Connect GitHub/Bitbucket
+
+1. Click "Connect GitHub" or "Connect Bitbucket"
+2. You'll be redirected to GitHub/Bitbucket for authorization
+3. Authorize FuncDock to access your repositories
+4. You'll be redirected back to the dashboard
+
+#### Step 3: Deploy from Repository
+
+1. Select your provider (GitHub or Bitbucket)
+2. Browse your repositories
+3. Select the repository you want to deploy
+4. Choose branch (default: main/master)
+5. Enter function name
+6. Click "Deploy"
+
+### OAuth Callback URLs
+
+**Important:** The callback URL must match exactly what you configured in your OAuth app.
+
+**Development:**
+```
+http://localhost:3000/api/oauth/github/callback
+http://localhost:3000/api/oauth/bitbucket/callback
+```
+
+**Production:**
+```
+https://yourdomain.com/api/oauth/github/callback
+https://yourdomain.com/api/oauth/bitbucket/callback
+```
+
+### Troubleshooting OAuth
+
+#### "Invalid redirect_uri"
+
+**Problem:** Callback URL doesn't match OAuth app configuration
+
+**Solution:**
+1. Verify callback URL in OAuth app matches environment variable
+2. Check for trailing slashes
+3. Ensure protocol matches (http vs https)
+4. Verify port number is correct
+
+#### "OAuth app not found"
+
+**Problem:** Client ID is incorrect or app was deleted
+
+**Solution:**
+1. Verify `GITHUB_CLIENT_ID` or `BITBUCKET_CLIENT_ID` is correct
+2. Check OAuth app still exists in GitHub/Bitbucket
+3. Regenerate client secret if needed
+
+#### "Access denied"
+
+**Problem:** User didn't authorize or revoked access
+
+**Solution:**
+1. User must authorize FuncDock in GitHub/Bitbucket
+2. Check OAuth app permissions
+3. Re-authorize if access was revoked
+
+#### "Cannot list repositories"
+
+**Problem:** OAuth token doesn't have required permissions
+
+**Solution:**
+1. Check OAuth app permissions in GitHub/Bitbucket
+2. Ensure "Repositories: Read" permission is granted
+3. Re-authorize with correct permissions
+
+### Security Best Practices
+
+**✅ DO:**
+- Use HTTPS in production
+- Keep client secrets secure (never commit to Git)
+- Use environment variables for credentials
+- Regularly rotate client secrets
+- Limit OAuth app permissions to minimum required
+- Use separate OAuth apps for dev/staging/production
+
+**❌ DON'T:**
+- Commit OAuth credentials to Git
+- Share client secrets
+- Use overly permissive OAuth scopes
+- Use the same OAuth app for multiple environments
+
+### Production Deployment
+
+For production, ensure:
+
+1. **HTTPS Enabled** - OAuth requires HTTPS in production
+2. **Correct Callback URLs** - Match your production domain
+3. **Environment Variables** - Set in production environment
+4. **Secret Management** - Use secure secret management (AWS Secrets Manager, etc.)
+5. **Monitoring** - Monitor OAuth authentication failures
+
+### Example Production Configuration
+
+```bash
+# .env.production
+GITHUB_CLIENT_ID=prod_github_client_id
+GITHUB_CLIENT_SECRET=prod_github_client_secret
+GITHUB_REDIRECT_URI=https://funcdock.yourdomain.com/api/oauth/github/callback
+
+BITBUCKET_CLIENT_ID=prod_bitbucket_client_id
+BITBUCKET_CLIENT_SECRET=prod_bitbucket_client_secret
+BITBUCKET_REDIRECT_URI=https://funcdock.yourdomain.com/api/oauth/bitbucket/callback
+```
+
+---
+
+For more deployment options, see [DEPLOYMENT_README.md](DEPLOYMENT_README.md).

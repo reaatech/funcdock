@@ -6,6 +6,8 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Functions from './pages/Functions'
 import FunctionDetail from './pages/FunctionDetail'
+import Layers from './pages/Layers'
+import LayerDetail from './pages/LayerDetail'
 import Deploy from './pages/Deploy'
 import Logs from './pages/Logs'
 import Settings from './pages/Settings'
@@ -38,6 +40,8 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/functions" element={<Functions />} />
         <Route path="/functions/:name" element={<FunctionDetail />} />
+        <Route path="/layers" element={<Layers />} />
+        <Route path="/layers/:name" element={<LayerDetail />} />
         <Route path="/deploy" element={<Deploy />} />
         <Route path="/logs" element={<Logs />} />
         <Route path="/settings" element={<Settings />} />

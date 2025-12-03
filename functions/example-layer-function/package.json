@@ -1,0 +1,17 @@
+{
+  "name": "example-layer-function",
+  "version": "1.0.0",
+  "description": "Example function demonstrating shared-utils layer usage",
+  "main": "handler.js",
+  "type": "module",
+  "dependencies": {},
+  "keywords": [
+    "serverless",
+    "function",
+    "layer",
+    "example"
+  ],
+  "author": "FuncDock",
+  "license": "MIT"
+}
+

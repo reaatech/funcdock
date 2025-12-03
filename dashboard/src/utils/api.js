@@ -120,6 +120,12 @@ export const functionsApi = {
   
   // Get function environment variables
   getEnv: (name) => api.get(`/api/functions/${name}/env`),
+  
+  // Set function layer
+  setLayer: (name, layer) => api.put(`/api/functions/${name}/layer`, { layer }),
+  
+  // Remove function layer
+  removeLayer: (name) => api.delete(`/api/functions/${name}/layer`),
 }
 
 export const authApi = {
@@ -145,4 +151,73 @@ export const githubApi = {
 export const bitbucketApi = {
   getBitbucketOAuthUrl: () => api.get('/api/oauth/bitbucket'),
   getBitbucketRepos: () => api.get('/api/bitbucket/repos'),
+}
+
+// Layers API
+export const layersApi = {
+  // Get all layers
+  getLayers: () => api.get('/api/layers'),
+  
+  // Get layer details
+  getLayer: (name) => api.get(`/api/layers/${name}`),
+  
+  // Get layer files
+  getLayerFiles: (name) => api.get(`/api/layers/${name}/files`),
+  
+  // Get layer file content
+  getLayerFileContent: (name, filePath) => api.get(`/api/layers/${name}/files/content?path=${encodeURIComponent(filePath)}`),
+  
+  // Download layer file
+  downloadLayerFile: (name, filePath) => api.get(`/api/layers/${name}/files/download?path=${encodeURIComponent(filePath)}`, {
+    responseType: 'blob'
+  }),
+  
+  // Deploy layer from local files
+  deployFromLocal: (name, files) => {
+    const formData = new FormData()
+    formData.append('name', name)
+    files.forEach(file => {
+      formData.append('files', file)
+    })
+    return api.post('/api/layers/deploy/local', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
+  
+  // Deploy layer from git
+  deployFromGit: (name, repo, branch, commit) => {
+    return api.post('/api/layers/deploy/git', {
+      name,
+      repo,
+      branch,
+      commit
+    })
+  },
+  
+  // Update layer
+  updateLayer: (name, files) => {
+    const formData = new FormData()
+    files.forEach(file => {
+      formData.append('files', file)
+    })
+    return api.put(`/api/layers/${name}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
+  
+  // Delete layer
+  deleteLayer: (name) => api.delete(`/api/layers/${name}`),
+  
+  // Update layer file
+  updateLayerFile: (name, filePath, content) => api.put(`/api/layers/${name}/files`, { path: filePath, content }),
+  
+  // Reload layer
+  reloadLayer: (name) => api.post(`/api/layers/${name}/reload`),
+  
+  // Reload all layers
+  reloadAllLayers: () => api.post('/api/layers/reload'),
 } 

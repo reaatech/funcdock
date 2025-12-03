@@ -20,6 +20,7 @@ import { body, validationResult } from 'express-validator';
 import Logger from './utils/logger.js';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import * as layerLoader from './utils/layer-loader.js';
 dotenv.config();
 
 const execAsync = promisify(exec);
@@ -122,6 +123,8 @@ io.on('connection', (socket) => {
 
 // Global state
 const loadedFunctions = new Map();
+const loadedLayers = new Map(); // Track loaded layers
+const layerToFunctions = new Map(); // Track which functions use which layers
 const registeredRoutes = new Map();
 const activeCronJobs = new Map(); // Track active cron jobs
 const logger = new Logger();
@@ -382,6 +385,90 @@ const loadFunction = async (functionDir) => {
       return false;
     }
 
+    // Load and setup layer for this function
+    let layerName = null;
+    const previousFunctionInfo = loadedFunctions.get(functionName);
+    
+    // Clean up old layer association before reading new one
+    if (previousFunctionInfo && previousFunctionInfo.layerName) {
+      const oldLayerName = previousFunctionInfo.layerName;
+      try {
+        // Clean up old layer symlink
+        await layerLoader.removeLayerSymlink(functionDir, oldLayerName, logger);
+        // Remove from layer-to-function mapping
+        const functionsUsingLayer = layerToFunctions.get(oldLayerName);
+        if (functionsUsingLayer) {
+          functionsUsingLayer.delete(functionName);
+          if (functionsUsingLayer.size === 0) {
+            layerToFunctions.delete(oldLayerName);
+          }
+        }
+      } catch (cleanupError) {
+        // Log but continue - cleanup failure shouldn't block function loading
+        logger.error(`Failed to cleanup old layer association for ${functionName}: ${cleanupError.message}`, { stack: cleanupError.stack });
+        // Ensure mapping is cleaned up even if symlink removal fails
+        const functionsUsingLayer = layerToFunctions.get(oldLayerName);
+        if (functionsUsingLayer) {
+          functionsUsingLayer.delete(functionName);
+          if (functionsUsingLayer.size === 0) {
+            layerToFunctions.delete(oldLayerName);
+          }
+        }
+      }
+    }
+
+    // Read layers.json to get layer name
+    let functionStatus = 'running';
+    let layerError = null;
+    
+    try {
+      layerName = await layerLoader.readFunctionLayers(functionDir);
+      
+      if (layerName) {
+        // Validate layer exists
+        const layer = loadedLayers.get(layerName);
+        if (!layer) {
+          logger.error(`Function ${functionName} references layer '${layerName}' which is not loaded`);
+          logger.alert(`Function ${functionName} will fail at runtime if it imports from missing layer '${layerName}'`);
+          functionStatus = 'error';
+          layerError = `Layer '${layerName}' not found`;
+        } else {
+          // Create symlink to layer
+          const symlinkCreated = await layerLoader.createLayerSymlink(
+            functionDir,
+            layerName,
+            layer.nodejsPath,
+            logger
+          );
+          
+          if (symlinkCreated) {
+            // Track layer-to-function dependency
+            if (!layerToFunctions.has(layerName)) {
+              layerToFunctions.set(layerName, new Set());
+            }
+            layerToFunctions.get(layerName).add(functionName);
+            logger.info(`Function ${functionName} is using layer: ${layerName}`);
+          } else {
+            logger.error(`Failed to create symlink for layer ${layerName} in function ${functionName}`);
+            logger.alert(`Function ${functionName} will fail at runtime if it imports from layer '${layerName}'`);
+            functionStatus = 'error';
+            layerError = `Failed to create symlink for layer '${layerName}'`;
+            // Don't add to layerToFunctions map if symlink creation failed
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(`Failed to read layers.json for function ${functionName}: ${error.message}`, { stack: error.stack });
+      // If layers.json exists but is malformed, set error status
+      try {
+        await fs.access(path.join(functionDir, 'layers.json'));
+        functionStatus = 'error';
+        layerError = `Invalid layers.json format: ${error.message}`;
+      } catch {
+        // layers.json doesn't exist, that's fine - no layer specified
+      }
+    }
+
     // Clear existing routes for this function
     if (loadedFunctions.has(functionName)) {
       unregisterFunctionRoutes(functionName);
@@ -529,17 +616,21 @@ const loadFunction = async (functionDir) => {
       routes: functionRoutes,
       loadedAt: new Date(),
       lastDeployed: new Date().toISOString(),
-      status: 'running',
+      status: functionStatus,
       path: functionDir,
-      envVars
+      envVars,
+      layerName: layerName || null,
+      layerError: layerError || null
     });
 
     // Emit socket event for function loaded
     io.emit('function:loaded', {
       name: functionName,
-      status: 'running',
+      status: functionStatus,
       routes: functionRoutes.length,
-      cronJobs: activeCronJobs.has(functionName) ? activeCronJobs.get(functionName).length : 0
+      cronJobs: activeCronJobs.has(functionName) ? activeCronJobs.get(functionName).length : 0,
+      layerName: layerName || null,
+      layerError: layerError || null
     });
 
     logger.info(`Successfully loaded function: ${functionName} with ${functionRoutes.length} routes`);
@@ -547,13 +638,41 @@ const loadFunction = async (functionDir) => {
 
   } catch (error) {
     logger.error(`Failed to load function ${functionName}: ${error.message}`, { stack: error.stack });
+    
+    // Ensure layer dependency tracking is cleaned up if function load fails
+    // This prevents stale entries in layerToFunctions map
+    if (layerName) {
+      const functionsUsingLayer = layerToFunctions.get(layerName);
+      if (functionsUsingLayer) {
+        functionsUsingLayer.delete(functionName);
+        if (functionsUsingLayer.size === 0) {
+          layerToFunctions.delete(layerName);
+        }
+      }
+    }
+    
     return false;
   }
 };
 
 // Unload a function
-const unloadFunction = (functionName) => {
+const unloadFunction = async (functionName) => {
   if (loadedFunctions.has(functionName)) {
+    const functionInfo = loadedFunctions.get(functionName);
+    
+    // Clean up layer symlink
+    if (functionInfo.layerName) {
+      await layerLoader.removeLayerSymlink(functionInfo.path, functionInfo.layerName, logger);
+      // Remove from layer-to-function mapping
+      const functionsUsingLayer = layerToFunctions.get(functionInfo.layerName);
+      if (functionsUsingLayer) {
+        functionsUsingLayer.delete(functionName);
+        if (functionsUsingLayer.size === 0) {
+          layerToFunctions.delete(functionInfo.layerName);
+        }
+      }
+    }
+    
     unregisterFunctionRoutes(functionName);
     stopCronJobs(functionName);
     loadedFunctions.delete(functionName);
@@ -596,8 +715,10 @@ const loadAllFunctions = async () => {
 // Set up file system watching
 const setupFileWatcher = () => {
   const functionsDir = path.join(__dirname, 'functions');
+  const layersDir = path.join(__dirname, 'layers');
 
-  const watcher = chokidar.watch(functionsDir, {
+  // Watch functions directory
+  const functionsWatcher = chokidar.watch(functionsDir, {
     ignored: [
       '**/node_modules/**',
       '**/.git/**',
@@ -700,7 +821,7 @@ const setupFileWatcher = () => {
     };
   })();
 
-  watcher
+  functionsWatcher
     .on('add', (filePath) => {
       // CRITICAL SAFETY: Prevent reloads on IDE files
       if (filePath.includes('.idea') || filePath.includes('.vscode') ||
@@ -734,7 +855,7 @@ const setupFileWatcher = () => {
       // If it's a critical file, unload the function
       const fileName = path.basename(filePath);
       if (fileName === 'route.config.json') {
-        unloadFunction(functionName);
+        await unloadFunction(functionName);
       } else if (fileName === 'cron.json') {
         // For cron.json deletion, just reload the function without cron jobs
         debounceReload(functionName);
@@ -768,7 +889,7 @@ const setupFileWatcher = () => {
           }
 
           if (isHandlerFile) {
-            unloadFunction(functionName);
+            await unloadFunction(functionName);
           }
         } catch (error) {
           // If we can't read the config, just reload the function
@@ -793,8 +914,148 @@ const setupFileWatcher = () => {
       }
     });
 
-  logger.info('File system watcher initialized');
-  return watcher;
+  logger.info('File system watcher initialized for functions');
+
+  // Watch layers directory
+  const layersWatcher = chokidar.watch(layersDir, {
+    ignored: [
+      '**/node_modules/**',
+      '**/.git/**',
+      '**/package-lock.json',
+      '**/.package-lock.json',
+      '**/npm-debug.log*',
+      '**/yarn-debug.log*',
+      '**/yarn-error.log*',
+      '**/.npm/**',
+      '**/.cache/**',
+      '**/coverage/**',
+      '**/.nyc_output/**',
+      '**/.npmrc',
+      '**/.yarnrc',
+      '**/yarn.lock',
+      '**/pnpm-lock.yaml',
+      '**/bun.lockb',
+      '**/.pnpm/**',
+      '**/.yarn/**',
+      '**/node_modules/.cache/**',
+      '**/node_modules/.package-lock.json',
+      '**/node_modules/.staging/**',
+      '**/.DS_Store',
+      '**/Thumbs.db',
+      '**/*.tmp',
+      '**/*.temp',
+      '**/.vscode/**',
+      '**/.idea/**'
+    ],
+    persistent: true,
+    ignoreInitial: true,
+    depth: 3,
+    awaitWriteFinish: {
+      stabilityThreshold: 2000,
+      pollInterval: 100
+    }
+  });
+
+  // Debounce function for layer reloads
+  const debounceLayerReload = (() => {
+    const timeouts = new Map();
+    const lastReload = new Map();
+
+    return (layerName, delay = 2000) => {
+      const now = Date.now();
+      const lastTime = lastReload.get(layerName) || 0;
+
+      // Prevent reloading the same layer more than once every 5 seconds
+      if (now - lastTime < 5000) {
+        return;
+      }
+
+      if (timeouts.has(layerName)) {
+        clearTimeout(timeouts.get(layerName));
+      }
+
+      timeouts.set(layerName, setTimeout(async () => {
+        try {
+          const layerPath = path.join(layersDir, layerName);
+          const reloadedLayer = await layerLoader.loadLayer(layerPath, logger);
+          loadedLayers.set(layerName, reloadedLayer);
+
+          // Reload all functions that use this layer
+          const functionsUsingLayer = layerToFunctions.get(layerName);
+          if (functionsUsingLayer) {
+            logger.info(`Reloading ${functionsUsingLayer.size} function(s) using layer ${layerName}`);
+            for (const functionName of functionsUsingLayer) {
+              const functionPath = path.join(functionsDir, functionName);
+              await loadFunction(functionPath);
+            }
+          }
+
+          lastReload.set(layerName, Date.now());
+        } catch (error) {
+          logger.error(`Failed to reload layer ${layerName}: ${error.message}`, { stack: error.stack });
+        } finally {
+          timeouts.delete(layerName);
+        }
+      }, delay));
+    };
+  })();
+
+  layersWatcher
+    .on('add', (filePath) => {
+      const layerName = path.relative(layersDir, filePath).split(path.sep)[0];
+      logger.info(`Layer file added: ${filePath}`);
+      debounceLayerReload(layerName);
+    })
+    .on('change', (filePath) => {
+      const layerName = path.relative(layersDir, filePath).split(path.sep)[0];
+      logger.info(`Layer file changed: ${filePath}`);
+      debounceLayerReload(layerName);
+    })
+    .on('unlink', async (filePath) => {
+      const layerName = path.relative(layersDir, filePath).split(path.sep)[0];
+      logger.info(`Layer file removed: ${filePath}`);
+      debounceLayerReload(layerName);
+    })
+    .on('addDir', (dirPath) => {
+      const relativePath = path.relative(layersDir, dirPath);
+      if (!relativePath.includes(path.sep)) {
+        // This is a new layer directory
+        logger.info(`New layer directory detected: ${relativePath}`);
+        debounceLayerReload(relativePath, 2000);
+      }
+    })
+    .on('unlinkDir', async (dirPath) => {
+      const relativePath = path.relative(layersDir, dirPath);
+      if (!relativePath.includes(path.sep)) {
+        // Layer directory was removed
+        logger.info(`Layer directory removed: ${relativePath}`);
+        
+        // Get functions using this layer BEFORE deleting from map
+        const functionsUsingLayer = layerToFunctions.get(relativePath);
+        
+        // Remove from loaded layers and mapping
+        loadedLayers.delete(relativePath);
+        layerToFunctions.delete(relativePath);
+        
+        // Reload functions that were using this layer (they'll fail gracefully)
+        if (functionsUsingLayer) {
+          for (const functionName of functionsUsingLayer) {
+            const functionPath = path.join(functionsDir, functionName);
+            await loadFunction(functionPath);
+          }
+        }
+      }
+    });
+
+  logger.info('File system watcher initialized for layers');
+
+  // Return combined watcher object
+  return {
+    close: () => {
+      functionsWatcher.close();
+      layersWatcher.close();
+    }
+  };
 };
 
 // API endpoints for management
@@ -922,7 +1183,8 @@ app.get('/api/functions', authenticateToken, (req, res) => {
     status: func.status || 'running',
     routes: func.routes || [],
     cronJobs: activeCronJobs.has(func.name) ? activeCronJobs.get(func.name).length : 0,
-    lastDeployed: func.lastDeployed || new Date().toISOString()
+    lastDeployed: func.lastDeployed || new Date().toISOString(),
+    layerName: func.layerName || null
   }));
 
   res.json({ functions });
@@ -979,7 +1241,8 @@ try {
     cronJobs: cronJobDetails,
     lastDeployed: func.lastDeployed || new Date().toISOString(),
     path: func.path,
-    baseUrl
+    baseUrl,
+    layerName: func.layerName || null
   };
 
   res.json(functionData);
@@ -1037,8 +1300,14 @@ app.delete('/api/functions/:name', authenticateToken, async (req, res) => {
   try {
     const { name } = req.params;
 
-    // Unload function
-    unloadFunction(name);
+    // Unload function (await to ensure cleanup completes before deletion)
+    try {
+      await unloadFunction(name);
+    } catch (unloadError) {
+      // Log error but continue with deletion - symlink cleanup failure shouldn't block deletion
+      logger.error(`Error unloading function ${name} during deletion: ${unloadError.message}`, { stack: unloadError.stack });
+      logger.warn(`Continuing with function deletion despite unload error`);
+    }
 
     // Remove function directory
     const functionDir = path.join(__dirname, 'functions', name);
@@ -1624,9 +1893,26 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Load all layers
+const loadAllLayers = async () => {
+  const layersDir = path.join(__dirname, 'layers');
+  const layers = await layerLoader.loadAllLayers(layersDir, logger);
+  
+  // Update global loadedLayers map
+  for (const [name, layer] of layers.entries()) {
+    loadedLayers.set(name, layer);
+  }
+  
+  logger.info(`Loaded ${layers.size} layers`);
+  return layers;
+};
+
 // Initialize the server
 const initializeServer = async () => {
   logger.info('Initializing FuncDock Platform...');
+
+  // Load all layers first
+  await loadAllLayers();
 
   // Load all functions
   await loadAllFunctions();
@@ -1676,7 +1962,9 @@ const initializeServer = async () => {
   // Graceful shutdown
   process.on('SIGTERM', () => {
     logger.info('SIGTERM received, shutting down gracefully...');
-    watcher.close();
+    if (watcher && typeof watcher.close === 'function') {
+      watcher.close();
+    }
 
     // Stop all cron jobs
     for (const [functionName] of activeCronJobs.entries()) {
@@ -1691,7 +1979,9 @@ const initializeServer = async () => {
 
   process.on('SIGINT', () => {
     logger.info('SIGINT received, shutting down gracefully...');
-    watcher.close();
+    if (watcher && typeof watcher.close === 'function') {
+      watcher.close();
+    }
 
     // Stop all cron jobs
     for (const [functionName] of activeCronJobs.entries()) {
@@ -1866,5 +2156,716 @@ app.get('/api/functions/:name/env', authenticateToken, async (req, res) => {
   } catch (error) {
     logger.error(`Failed to load env for function ${name}: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Failed to load environment variables' });
+  }
+});
+
+// Set/update function's layer association
+app.put('/api/functions/:name/layer', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { layer } = req.body;
+
+    const func = loadedFunctions.get(name);
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    // Validate layer exists if provided
+    if (layer) {
+      const layerObj = loadedLayers.get(layer);
+      if (!layerObj) {
+        return res.status(404).json({ message: `Layer '${layer}' not found` });
+      }
+    }
+
+    // Write or update layers.json
+    const layersJsonPath = path.join(func.path, 'layers.json');
+    if (layer) {
+      // Set layer - write as string directly for consistency with readFunctionLayers support
+      await fs.writeFile(layersJsonPath, JSON.stringify(layer), 'utf-8');
+    } else {
+      // Remove layer association
+      try {
+        await fs.unlink(layersJsonPath);
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+        // File doesn't exist, that's fine
+      }
+    }
+
+    // Reload the function to apply changes
+    const success = await loadFunction(func.path);
+
+    if (success) {
+      res.json({
+        message: layer ? `Layer '${layer}' associated with function` : 'Layer association removed',
+        layer: layer || null
+      });
+    } else {
+      res.status(500).json({ message: 'Failed to reload function after layer change' });
+    }
+  } catch (error) {
+    logger.error(`Set function layer error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Remove function's layer association
+app.delete('/api/functions/:name/layer', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    const func = loadedFunctions.get(name);
+    if (!func) {
+      return res.status(404).json({ message: 'Function not found' });
+    }
+
+    // Remove layers.json
+    const layersJsonPath = path.join(func.path, 'layers.json');
+    try {
+      await fs.unlink(layersJsonPath);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+      // File doesn't exist, that's fine
+    }
+
+    // Reload the function to apply changes
+    const success = await loadFunction(func.path);
+
+    if (success) {
+      res.json({ message: 'Layer association removed' });
+    } else {
+      res.status(500).json({ message: 'Failed to reload function after layer removal' });
+    }
+  } catch (error) {
+    logger.error(`Remove function layer error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// ==================== Layer Management API ====================
+
+// Get all layers
+app.get('/api/layers', authenticateToken, (req, res) => {
+  const layers = Array.from(loadedLayers.values()).map(layer => ({
+    name: layer.name,
+    version: layer.config.version || '1.0.0',
+    description: layer.config.description || '',
+    status: layer.status,
+    loadedAt: layer.loadedAt,
+    functionsUsing: Array.from(layerToFunctions.get(layer.name) || [])
+  }));
+
+  res.json({ layers });
+});
+
+// Get layer details
+app.get('/api/layers/:name', authenticateToken, async (req, res) => {
+  const { name } = req.params;
+  const layer = loadedLayers.get(name);
+
+  if (!layer) {
+    return res.status(404).json({ message: 'Layer not found' });
+  }
+
+  const functionsUsing = Array.from(layerToFunctions.get(name) || []);
+
+  res.json({
+    name: layer.name,
+    version: layer.config.version || '1.0.0',
+    description: layer.config.description || '',
+    status: layer.status,
+    loadedAt: layer.loadedAt,
+    path: layer.path,
+    nodejsPath: layer.nodejsPath,
+    functionsUsing,
+    config: layer.config
+  });
+});
+
+// Get layer files
+app.get('/api/layers/:name/files', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const layer = loadedLayers.get(name);
+
+    if (!layer) {
+      return res.status(404).json({ message: 'Layer not found' });
+    }
+
+    const buildFileTree = async (dirPath, relativePath = '') => {
+      const items = [];
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        const itemPath = relativePath ? path.join(relativePath, entry.name) : entry.name;
+
+        if (entry.isDirectory()) {
+          // Skip node_modules and other system directories
+          if (entry.name === 'node_modules' || entry.name === '.git' || entry.name.startsWith('.')) {
+            continue;
+          }
+
+          const children = await buildFileTree(fullPath, itemPath);
+          if (children.length > 0) {
+            items.push({
+              name: entry.name,
+              path: itemPath,
+              type: 'directory',
+              children
+            });
+          }
+        } else {
+          items.push({
+            name: entry.name,
+            path: itemPath,
+            type: 'file',
+            size: (await fs.stat(fullPath)).size
+          });
+        }
+      }
+
+      return items.sort((a, b) => {
+        // Directories first, then files
+        if (a.type !== b.type) {
+          return a.type === 'directory' ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    };
+
+    const files = await buildFileTree(layer.nodejsPath);
+    res.json({ files });
+  } catch (error) {
+    logger.error(`Get layer files error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get layer file content
+app.get('/api/layers/:name/files/content', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { path: filePath } = req.query;
+
+    if (!filePath) {
+      return res.status(400).json({ message: 'File path is required' });
+    }
+
+    const layer = loadedLayers.get(name);
+    if (!layer) {
+      return res.status(404).json({ message: 'Layer not found' });
+    }
+
+    const fullPath = path.join(layer.nodejsPath, filePath);
+
+    // Security check: ensure the file is within the layer nodejs directory
+    const normalizedFullPath = path.resolve(fullPath);
+    const normalizedLayerPath = path.resolve(layer.nodejsPath);
+
+    if (!normalizedFullPath.startsWith(normalizedLayerPath)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+      const content = await fs.readFile(fullPath, 'utf-8');
+      res.json({ content });
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return res.status(404).json({ message: 'File not found' });
+      }
+      throw error;
+    }
+  } catch (error) {
+    logger.error(`Get layer file content error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Download layer file
+app.get('/api/layers/:name/files/download', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { path: filePath } = req.query;
+
+    if (!filePath) {
+      return res.status(400).json({ message: 'File path is required' });
+    }
+
+    const layer = loadedLayers.get(name);
+    if (!layer) {
+      return res.status(404).json({ message: 'Layer not found' });
+    }
+
+    const fullPath = path.join(layer.nodejsPath, filePath);
+
+    // Security check: ensure the file is within the layer nodejs directory
+    const normalizedFullPath = path.resolve(fullPath);
+    const normalizedLayerPath = path.resolve(layer.nodejsPath);
+
+    if (!normalizedFullPath.startsWith(normalizedLayerPath)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+      const stats = await fs.stat(fullPath);
+      if (stats.isDirectory()) {
+        return res.status(400).json({ message: 'Cannot download directory' });
+      }
+
+      res.download(fullPath);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return res.status(404).json({ message: 'File not found' });
+      }
+      throw error;
+    }
+  } catch (error) {
+    logger.error(`Download layer file error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Deploy layer from local files
+app.post('/api/layers/deploy/local', authenticateToken, upload.array('files'), async (req, res) => {
+  try {
+    const { name } = req.body;
+    const files = req.files;
+
+    if (!name || !files || files.length === 0) {
+      return res.status(400).json({ message: 'Layer name and files are required' });
+    }
+
+    // Validate layer name
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ message: 'Layer name must be a non-empty string' });
+    }
+
+    // Check for invalid characters in layer name
+    const invalidChars = /[<>:"/\\|?*\x00-\x1f]/;
+    if (invalidChars.test(name)) {
+      return res.status(400).json({ 
+        message: 'Layer name contains invalid characters. Cannot contain: < > : " / \\ | ? * or control characters' 
+      });
+    }
+
+    // Check if layer already exists
+    if (loadedLayers.has(name)) {
+      return res.status(409).json({ 
+        message: `Layer '${name}' already exists. Use PUT /api/layers/${name} to update it.` 
+      });
+    }
+
+    // Create layer directory structure
+    const layerDir = path.join(__dirname, 'layers', name);
+    const nodejsDir = path.join(layerDir, 'nodejs');
+    await fs.mkdir(nodejsDir, { recursive: true });
+
+    // Move uploaded files to layer nodejs directory
+    for (const file of files) {
+      const destPath = path.join(nodejsDir, file.originalname);
+      await fs.rename(file.path, destPath);
+    }
+
+    // Load the layer
+    const layers = await layerLoader.loadAllLayers(path.join(__dirname, 'layers'), logger);
+    for (const [layerName, layer] of layers.entries()) {
+      loadedLayers.set(layerName, layer);
+    }
+
+    // Reload functions that use this layer
+    const functionsUsingLayer = layerToFunctions.get(name);
+    if (functionsUsingLayer) {
+      for (const functionName of functionsUsingLayer) {
+        const functionPath = path.join(__dirname, 'functions', functionName);
+        await loadFunction(functionPath);
+      }
+    }
+
+    // Emit socket event
+    io.emit('layer:deployed', { name, status: 'loaded' });
+
+    res.json({
+      message: 'Layer deployed successfully',
+      layer: { name, status: 'loaded' }
+    });
+  } catch (error) {
+    logger.error(`Layer deployment error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Deploy layer from Git
+app.post('/api/layers/deploy/git', authenticateToken, async (req, res) => {
+  try {
+    const { name, repo, branch = 'main', commit } = req.body;
+
+    if (!name || !repo) {
+      return res.status(400).json({ message: 'Layer name and repository URL are required' });
+    }
+
+    // Validate layer name
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ message: 'Layer name must be a non-empty string' });
+    }
+
+    // Check for invalid characters in layer name
+    const invalidChars = /[<>:"/\\|?*\x00-\x1f]/;
+    if (invalidChars.test(name)) {
+      return res.status(400).json({ 
+        message: 'Layer name contains invalid characters. Cannot contain: < > : " / \\ | ? * or control characters' 
+      });
+    }
+
+    // Check if layer already exists
+    if (loadedLayers.has(name)) {
+      return res.status(409).json({ 
+        message: `Layer '${name}' already exists. Use PUT /api/layers/${name} to update it.` 
+      });
+    }
+
+    const layerDir = path.join(__dirname, 'layers', name);
+
+    // Check if layer directory already exists
+    try {
+      const stats = await fs.stat(layerDir);
+      if (stats.isDirectory()) {
+        // Check if it's a git repository
+        try {
+          await fs.access(path.join(layerDir, '.git'));
+          // It's a git repo, try to pull instead
+          logger.info(`Layer directory ${name} already exists as git repo, pulling latest changes`);
+          const pullCommand = commit
+            ? `cd ${layerDir} && git fetch && git checkout ${commit}`
+            : `cd ${layerDir} && git pull origin ${branch}`;
+          await execAsync(pullCommand);
+        } catch {
+          // Not a git repo or .git doesn't exist, remove and clone fresh
+          logger.info(`Removing existing layer directory ${name} before cloning`);
+          await fs.rm(layerDir, { recursive: true, force: true });
+          // Clone the repository
+          const gitCommand = commit
+            ? `git clone -b ${branch} ${repo} ${layerDir} && cd ${layerDir} && git checkout ${commit}`
+            : `git clone -b ${branch} ${repo} ${layerDir}`;
+          await execAsync(gitCommand);
+        }
+      } else {
+        // Exists but not a directory, remove it
+        await fs.rm(layerDir, { recursive: true, force: true });
+        const gitCommand = commit
+          ? `git clone -b ${branch} ${repo} ${layerDir} && cd ${layerDir} && git checkout ${commit}`
+          : `git clone -b ${branch} ${repo} ${layerDir}`;
+        await execAsync(gitCommand);
+      }
+    } catch (error) {
+      // Directory doesn't exist, clone fresh
+      if (error.code === 'ENOENT') {
+        const gitCommand = commit
+          ? `git clone -b ${branch} ${repo} ${layerDir} && cd ${layerDir} && git checkout ${commit}`
+          : `git clone -b ${branch} ${repo} ${layerDir}`;
+        await execAsync(gitCommand);
+      } else {
+        throw error;
+      }
+    }
+
+    // Load the layer
+    const layers = await layerLoader.loadAllLayers(path.join(__dirname, 'layers'), logger);
+    for (const [layerName, layer] of layers.entries()) {
+      loadedLayers.set(layerName, layer);
+    }
+
+    // Reload functions that use this layer
+    const functionsUsingLayer = layerToFunctions.get(name);
+    if (functionsUsingLayer) {
+      for (const functionName of functionsUsingLayer) {
+        const functionPath = path.join(__dirname, 'functions', functionName);
+        await loadFunction(functionPath);
+      }
+    }
+
+    // Emit socket event
+    io.emit('layer:deployed', { name, status: 'loaded' });
+
+    res.json({
+      message: 'Layer deployed from Git successfully',
+      layer: { name, status: 'loaded' }
+    });
+  } catch (error) {
+    logger.error(`Git layer deployment error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Failed to deploy from Git repository' });
+  }
+});
+
+// Update layer
+app.put('/api/layers/:name', authenticateToken, upload.array('files'), async (req, res) => {
+  try {
+    const { name } = req.params;
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ message: 'Files are required' });
+    }
+
+    const layer = loadedLayers.get(name);
+    if (!layer) {
+      return res.status(404).json({ message: 'Layer not found' });
+    }
+
+    const nodejsDir = path.join(layer.path, 'nodejs');
+
+    // Move uploaded files to layer nodejs directory
+    for (const file of files) {
+      const destPath = path.join(nodejsDir, file.originalname);
+      await fs.rename(file.path, destPath);
+    }
+
+    // Reload the layer
+    const reloadedLayer = await layerLoader.loadLayer(layer.path, logger);
+    loadedLayers.set(name, reloadedLayer);
+
+    // Reload functions that use this layer
+    const functionsUsingLayer = layerToFunctions.get(name);
+    if (functionsUsingLayer) {
+      for (const functionName of functionsUsingLayer) {
+        const functionPath = path.join(__dirname, 'functions', functionName);
+        await loadFunction(functionPath);
+      }
+    }
+
+    // Emit socket event
+    io.emit('layer:updated', { name, status: 'loaded' });
+
+    res.json({
+      message: 'Layer updated successfully',
+      layer: { name, status: 'loaded' }
+    });
+  } catch (error) {
+    logger.error(`Update layer error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Reload a specific layer
+app.post('/api/layers/:name/reload', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    const layer = loadedLayers.get(name);
+    if (!layer) {
+      return res.status(404).json({ message: 'Layer not found' });
+    }
+
+    // Reload the layer
+    const reloadedLayer = await layerLoader.loadLayer(layer.path, logger);
+    loadedLayers.set(name, reloadedLayer);
+
+    // Reload all functions that use this layer
+    const functionsUsingLayer = layerToFunctions.get(name);
+    if (functionsUsingLayer) {
+      logger.info(`Reloading ${functionsUsingLayer.size} function(s) using layer ${name}`);
+      for (const functionName of functionsUsingLayer) {
+        const functionPath = path.join(__dirname, 'functions', functionName);
+        await loadFunction(functionPath);
+      }
+    }
+
+    // Emit socket event
+    io.emit('layer:updated', { name, status: 'loaded' });
+
+    res.json({
+      message: 'Layer reloaded successfully',
+      layer: { name, status: 'loaded' }
+    });
+  } catch (error) {
+    logger.error(`Reload layer error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Reload all layers
+app.post('/api/layers/reload', authenticateToken, async (req, res) => {
+  try {
+    const layersDir = path.join(__dirname, 'layers');
+    const layers = await layerLoader.loadAllLayers(layersDir, logger);
+    
+    // Update global loadedLayers map
+    for (const [layerName, layer] of layers.entries()) {
+      loadedLayers.set(layerName, layer);
+    }
+
+    // Reload all functions that use any layer
+    const allFunctionNames = new Set();
+    for (const [layerName] of layers.entries()) {
+      const functionsUsingLayer = layerToFunctions.get(layerName);
+      if (functionsUsingLayer) {
+        functionsUsingLayer.forEach(funcName => allFunctionNames.add(funcName));
+      }
+    }
+
+    for (const functionName of allFunctionNames) {
+      const functionPath = path.join(__dirname, 'functions', functionName);
+      await loadFunction(functionPath);
+    }
+
+    res.json({
+      message: 'All layers reloaded successfully',
+      layersReloaded: layers.size,
+      functionsReloaded: allFunctionNames.size
+    });
+  } catch (error) {
+    logger.error(`Reload all layers error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Update layer file content
+app.put('/api/layers/:name/files', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { path: filePath, content } = req.body;
+
+    if (!filePath || content === undefined) {
+      return res.status(400).json({ message: 'File path and content are required' });
+    }
+
+    const layer = loadedLayers.get(name);
+    if (!layer) {
+      return res.status(404).json({ message: 'Layer not found' });
+    }
+
+    const fullPath = path.join(layer.nodejsPath, filePath);
+
+    // Security check: ensure the file is within the layer nodejs directory
+    const normalizedFullPath = path.resolve(fullPath);
+    const normalizedLayerPath = path.resolve(layer.nodejsPath);
+
+    if (!normalizedFullPath.startsWith(normalizedLayerPath)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Ensure parent directory exists
+    const parentDir = path.dirname(fullPath);
+    await fs.mkdir(parentDir, { recursive: true });
+
+    // Read original file content for potential rollback
+    let originalContent = null;
+    try {
+      originalContent = await fs.readFile(fullPath, 'utf-8');
+    } catch (error) {
+      // File doesn't exist yet, that's fine
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    // Write file content
+    await fs.writeFile(fullPath, content, 'utf-8');
+
+    try {
+      // Reload the layer
+      const reloadedLayer = await layerLoader.loadLayer(layer.path, logger);
+      loadedLayers.set(name, reloadedLayer);
+
+      // Reload functions that use this layer
+      const functionsUsingLayer = layerToFunctions.get(name);
+      if (functionsUsingLayer) {
+        for (const functionName of functionsUsingLayer) {
+          const functionPath = path.join(__dirname, 'functions', functionName);
+          await loadFunction(functionPath);
+        }
+      }
+
+      // Emit socket event
+      io.emit('layer:updated', { name, status: 'loaded' });
+
+      res.json({ message: 'Layer file updated successfully' });
+    } catch (reloadError) {
+      // Rollback file content if layer reload fails
+      logger.error(`Layer reload failed after file update, rolling back: ${reloadError.message}`, { stack: reloadError.stack });
+      try {
+        if (originalContent !== null) {
+          await fs.writeFile(fullPath, originalContent, 'utf-8');
+          logger.info(`Rolled back file ${filePath} to original content`);
+        } else {
+          // File was new, delete it
+          await fs.unlink(fullPath);
+          logger.info(`Removed newly created file ${filePath} due to reload failure`);
+        }
+      } catch (rollbackError) {
+        logger.error(`Failed to rollback file ${filePath}: ${rollbackError.message}`, { stack: rollbackError.stack });
+      }
+      res.status(500).json({ 
+        message: 'Failed to reload layer after file update',
+        error: reloadError.message,
+        details: 'File was rolled back to original state'
+      });
+      return;
+    }
+  } catch (error) {
+    logger.error(`Update layer file error: ${error.message}`, { stack: error.stack });
+    
+    // Provide more detailed error messages
+    let errorMessage = 'Internal server error';
+    let statusCode = 500;
+    
+    if (error.code === 'ENOENT') {
+      errorMessage = `File not found: ${error.message}`;
+      statusCode = 404;
+    } else if (error.code === 'EACCES' || error.code === 'EPERM') {
+      errorMessage = `Permission denied: ${error.message}`;
+      statusCode = 403;
+    } else if (error.message.includes('Access denied')) {
+      errorMessage = error.message;
+      statusCode = 403;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(statusCode).json({ 
+      message: errorMessage,
+      error: error.message
+    });
+  }
+});
+
+// Delete layer
+app.delete('/api/layers/:name', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    const layer = loadedLayers.get(name);
+    if (!layer) {
+      return res.status(404).json({ message: 'Layer not found' });
+    }
+
+    // Check if any functions are using this layer
+    const functionsUsingLayer = layerToFunctions.get(name);
+    if (functionsUsingLayer && functionsUsingLayer.size > 0) {
+      return res.status(400).json({
+        message: `Cannot delete layer: ${functionsUsingLayer.size} function(s) are using it`,
+        functionsUsing: Array.from(functionsUsingLayer)
+      });
+    }
+
+    // Remove layer directory
+    await fs.rm(layer.path, { recursive: true, force: true });
+
+    // Remove from loaded layers
+    loadedLayers.delete(name);
+    layerToFunctions.delete(name);
+
+    // Emit socket event
+    io.emit('layer:deleted', { name });
+
+    res.json({ message: 'Layer deleted successfully' });
+  } catch (error) {
+    logger.error(`Delete layer error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
