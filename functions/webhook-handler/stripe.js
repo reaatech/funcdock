@@ -7,19 +7,31 @@
 
 export default async function handler(req, res) {
   const { logger } = req;
-  const stripeSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
+  const stripeSecret = req.env?.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripeSecret) {
+    return res.status(400).json({
+      error: 'Stripe webhook secret not configured',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const signature = req.headers['stripe-signature'];
+  if (!signature) {
+    return res.status(401).json({
+      error: 'Missing Stripe signature',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   let event;
-
   try {
-    // Stripe sends the raw body as a string
-    const signature = req.headers['stripe-signature'];
-    const body = req.bodyRaw || req.body; // bodyRaw if available, else body
-
-    // Dynamically import Stripe
+    const body = req.bodyRaw || req.body;
     const { default: Stripe } = await import('stripe');
-    const stripe = new Stripe('sk_test_placeholder'); // Not used for verification
+    const stripe = new Stripe(
+      req.env?.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
+    );
 
-    // Validate the event signature
     event = stripe.webhooks.constructEvent(
       typeof body === 'string' ? body : JSON.stringify(body),
       signature,
@@ -28,10 +40,9 @@ export default async function handler(req, res) {
 
     logger.info('Stripe webhook received', {
       eventType: event.type,
-      eventId: event.id
+      eventId: event.id,
     });
 
-    // Example: handle a payment_intent.succeeded event
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object;
       logger.info('Payment succeeded', { paymentIntentId: paymentIntent.id });
@@ -42,4 +53,4 @@ export default async function handler(req, res) {
     logger.error('Stripe webhook error', { error: err.message });
     res.status(400).json({ error: 'Webhook Error', message: err.message });
   }
-} 
+}

@@ -9,7 +9,7 @@ export default async function handler(req) {
   logger.log('CRON', 'Cron job testing environment variables', {
     hasEnv: !!env,
     envKeys: env ? Object.keys(env) : [],
-    functionName: req.functionName
+    functionName: req.functionName,
   });
 
   // Test accessing environment variables
@@ -19,7 +19,7 @@ export default async function handler(req) {
       hasDatabaseUrl: !!env.DATABASE_URL,
       debugMode: env.DEBUG,
       logLevel: env.LOG_LEVEL,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // You can use the environment variables for your cron job logic
@@ -40,4 +40,4 @@ export default async function handler(req) {
 
   // Your cron job logic here...
   logger.log('CRON', 'Cron job completed successfully');
-} 
+}

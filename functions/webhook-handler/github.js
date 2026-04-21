@@ -4,13 +4,16 @@
 
 import crypto from 'crypto';
 
-export default async function handler(req, res, next) {
+export default async function handler(req, res, _next) {
   const { method, headers, body } = req;
 
   // Add CORS headers
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Signature, X-Hub-Signature-256');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, X-Signature, X-Hub-Signature-256'
+  );
 
   if (method === 'OPTIONS') {
     return res.status(200).end();
@@ -22,7 +25,7 @@ export default async function handler(req, res, next) {
       handler: 'github.js',
       method,
       supportedMethods: ['POST'],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -30,21 +33,33 @@ export default async function handler(req, res, next) {
   const signature = headers['x-hub-signature-256'];
   const delivery = headers['x-github-delivery'];
 
-  // Verify signature if secret is configured
-  const secret = process.env.GITHUB_WEBHOOK_SECRET;
-  if (secret && signature) {
-    const expectedSignature = 'sha256=' + crypto
-      .createHmac('sha256', secret)
-      .update(JSON.stringify(body))
-      .digest('hex');
+  const secret = req.env?.GITHUB_WEBHOOK_SECRET || process.env.GITHUB_WEBHOOK_SECRET;
+  if (!secret) {
+    return res.status(400).json({
+      error: 'GitHub webhook secret not configured',
+      handler: 'github.js',
+      timestamp: new Date().toISOString(),
+    });
+  }
 
-    if (signature !== expectedSignature) {
-      return res.status(401).json({
-        error: 'Invalid signature',
-        handler: 'github.js',
-        timestamp: new Date().toISOString()
-      });
-    }
+  if (!signature) {
+    return res.status(401).json({
+      error: 'Missing signature',
+      handler: 'github.js',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const rawBody = req.bodyRaw || (typeof body === 'string' ? body : JSON.stringify(body));
+  const expectedSignature =
+    'sha256=' + crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+
+  if (signature !== expectedSignature) {
+    return res.status(401).json({
+      error: 'Invalid signature',
+      handler: 'github.js',
+      timestamp: new Date().toISOString(),
+    });
   }
 
   // Process different GitHub events
@@ -55,7 +70,7 @@ export default async function handler(req, res, next) {
     delivery,
     repository: body.repository?.full_name,
     sender: body.sender?.login,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
   // Add event-specific processing
@@ -70,7 +85,7 @@ export default async function handler(req, res, next) {
       responseData.pullRequest = {
         number: body.pull_request?.number,
         title: body.pull_request?.title,
-        state: body.pull_request?.state
+        state: body.pull_request?.state,
       };
       break;
 
@@ -79,7 +94,7 @@ export default async function handler(req, res, next) {
       responseData.issue = {
         number: body.issue?.number,
         title: body.issue?.title,
-        state: body.issue?.state
+        state: body.issue?.state,
       };
       break;
   }
@@ -87,4 +102,4 @@ export default async function handler(req, res, next) {
   console.log('GitHub webhook processed:', responseData);
 
   return res.status(200).json(responseData);
-} 
+}

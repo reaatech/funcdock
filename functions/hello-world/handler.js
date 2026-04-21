@@ -3,7 +3,7 @@
  * Demonstrates basic HTTP methods and response patterns
  */
 
-export default async function handler(req, res, next) {
+export default async function handler(req, res, _next) {
   const { method, query, body, headers } = req;
   const { logger, env } = req; // Get the injected logger and environment variables
 
@@ -11,7 +11,7 @@ export default async function handler(req, res, next) {
   logger.info(`Request received: ${method} ${req.routePath}`, {
     query,
     hasBody: !!body,
-    userAgent: headers['user-agent']
+    userAgent: headers['user-agent'],
   });
 
   // Log environment variable usage (if available)
@@ -20,7 +20,7 @@ export default async function handler(req, res, next) {
       hasApiKey: !!env.API_KEY,
       hasDatabaseUrl: !!env.DATABASE_URL,
       debugMode: env.DEBUG === 'true',
-      logLevel: env.LOG_LEVEL
+      logLevel: env.LOG_LEVEL,
     });
   }
 
@@ -36,29 +36,31 @@ export default async function handler(req, res, next) {
 
   switch (method) {
     case 'GET':
-      return await handleGet(req, res, next);
+      return await handleGet(req, res, _next);
 
     case 'POST':
-      return await handlePost(req, res, next);
+      return await handlePost(req, res, _next);
 
     case 'PUT':
-      return await handlePut(req, res, next);
+      return await handlePut(req, res, _next);
 
     case 'DELETE':
-      return await handleDelete(req, res, next);
+      return await handleDelete(req, res, _next);
 
     default:
-      logger.warn(`Unsupported method: ${method}`, { supportedMethods: ['GET', 'POST', 'PUT', 'DELETE'] });
+      logger.warn(`Unsupported method: ${method}`, {
+        supportedMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+      });
       return res.status(405).json({
         error: 'Method Not Allowed',
         method,
         supportedMethods: ['GET', 'POST', 'PUT', 'DELETE'],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
   }
 }
 
-async function handleGet(req, res, next) {
+async function handleGet(req, res, _next) {
   const { name = 'World', format = 'json' } = req.query;
   const { logger } = req;
 
@@ -70,15 +72,21 @@ async function handleGet(req, res, next) {
     method: 'GET',
     function: 'hello-world',
     version: '1.0.0',
-    requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
   };
 
   // Support different response formats
   if (format === 'text') {
-    return res.status(200).text(responseData.message);
+    return res.status(200).send(responseData.message);
   }
 
   if (format === 'html') {
+    const escapedMessage = String(responseData.message)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
     const html = `
       <!DOCTYPE html>
       <html>
@@ -93,7 +101,7 @@ async function handleGet(req, res, next) {
         <body>
           <h1>🚀 Serverless Function Response</h1>
           <div class="response">
-            <h2>${responseData.message}</h2>
+            <h2>${escapedMessage}</h2>
             <p class="timestamp">Generated at: ${responseData.timestamp}</p>
             <p>Request ID: <code>${responseData.requestId}</code></p>
           </div>
@@ -106,7 +114,7 @@ async function handleGet(req, res, next) {
   return res.status(200).json(responseData);
 }
 
-async function handlePost(req, res, next) {
+async function handlePost(req, res, _next) {
   const { name, message } = req.body || {};
   const { logger } = req;
 
@@ -118,7 +126,7 @@ async function handlePost(req, res, next) {
     return res.status(400).json({
       error: 'Bad Request',
       message: 'Name is required in request body',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -128,13 +136,13 @@ async function handlePost(req, res, next) {
     timestamp: new Date().toISOString(),
     method: 'POST',
     function: 'hello-world',
-    status: 'created'
+    status: 'created',
   };
 
   return res.status(201).json(responseData);
 }
 
-async function handlePut(req, res, next) {
+async function handlePut(req, res, _next) {
   const { id } = req.query;
   const updateData = req.body;
 
@@ -142,7 +150,7 @@ async function handlePut(req, res, next) {
     return res.status(400).json({
       error: 'Bad Request',
       message: 'ID parameter is required for updates',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -152,20 +160,20 @@ async function handlePut(req, res, next) {
     timestamp: new Date().toISOString(),
     method: 'PUT',
     function: 'hello-world',
-    resourceId: id
+    resourceId: id,
   };
 
   return res.status(200).json(responseData);
 }
 
-async function handleDelete(req, res, next) {
+async function handleDelete(req, res, _next) {
   const { id } = req.query;
 
   if (!id) {
     return res.status(400).json({
       error: 'Bad Request',
       message: 'ID parameter is required for deletion',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -174,7 +182,7 @@ async function handleDelete(req, res, next) {
     timestamp: new Date().toISOString(),
     method: 'DELETE',
     function: 'hello-world',
-    resourceId: id
+    resourceId: id,
   };
 
   return res.status(200).json(responseData);

@@ -2,7 +2,7 @@
  * Test Handler - Specific handler for /hello-world/test route
  */
 
-export default async function handler(req, res, next) {
+export default async function handler(req, res, _next) {
   const { method, query } = req;
 
   // Add CORS headers
@@ -21,7 +21,7 @@ export default async function handler(req, res, next) {
       method: 'GET',
       query,
       timestamp: new Date().toISOString(),
-      status: 'healthy'
+      status: 'healthy',
     });
   }
 
@@ -30,6 +30,6 @@ export default async function handler(req, res, next) {
     handler: 'test.js',
     method,
     supportedMethods: ['GET'],
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-} 
+}

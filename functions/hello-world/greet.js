@@ -2,7 +2,7 @@
  * Greet Handler - Specific handler for /hello-world/greet route
  */
 
-export default async function handler(req, res, next) {
+export default async function handler(req, res, _next) {
   const { method, query, body } = req;
   const { logger } = req; // Get the injected logger
 
@@ -18,17 +18,18 @@ export default async function handler(req, res, next) {
   }
 
   switch (method) {
-    case 'GET':
+    case 'GET': {
       const name = query.name || 'World';
       logger.info(`Greeting requested for: ${name}`);
       return res.status(200).json({
         message: `Hello, ${name}!`,
         handler: 'greet.js',
         method: 'GET',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
+    }
 
-    case 'POST':
+    case 'POST': {
       const { name: postName, message } = body || {};
       logger.info(`Greeting sent`, { recipient: postName, hasCustomMessage: !!message });
       return res.status(201).json({
@@ -36,8 +37,9 @@ export default async function handler(req, res, next) {
         customMessage: message,
         handler: 'greet.js',
         method: 'POST',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
+    }
 
     default:
       return res.status(405).json({
@@ -45,7 +47,7 @@ export default async function handler(req, res, next) {
         handler: 'greet.js',
         method,
         supportedMethods: ['GET', 'POST'],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
   }
-} 
+}
