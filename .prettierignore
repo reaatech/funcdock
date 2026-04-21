@@ -1,0 +1,9 @@
+node_modules/
+package-lock.json
+dashboard/package-lock.json
+public/
+coverage/
+dashboard/dist/
+logs/
+functions/*/node_modules/
+.git/

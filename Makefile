@@ -1,9 +1,17 @@
 # FuncDock Platform Makefile
+#
+# DEPRECATED: Use the `funcdock` CLI instead.
+#   npm install -g funcdock    # or use npx funcdock
+#   funcdock --help            # See all commands
+#
+# This Makefile is kept for backward compatibility.
 
 .PHONY: help setup install start dev stop logs status deploy clean test build push
 
 # Default target
 help: ## Show this help message
+	@echo "⚠️  Makefile is deprecated. Use: funcdock --help"
+	@echo ""
 	@echo "FuncDock Platform"
 	@echo "================"
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
