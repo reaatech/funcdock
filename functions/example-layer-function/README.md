@@ -15,6 +15,7 @@ This function references the `shared-utils` layer via `layers.json`:
 ```
 
 The layer provides:
+
 - **Validation utilities**: Email, phone, required fields, length validation
 - **Formatting utilities**: Phone numbers, currency, dates
 - **String utilities**: Sanitization, slugification, capitalization
@@ -29,6 +30,7 @@ The layer provides:
 Returns information about the function and available endpoints.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -47,6 +49,7 @@ Returns information about the function and available endpoints.
 Validates email, phone, name, and age fields using layer utilities.
 
 **Request Body:**
+
 ```json
 {
   "email": "user@example.com",
@@ -57,6 +60,7 @@ Validates email, phone, name, and age fields using layer utilities.
 ```
 
 **Response (Success):**
+
 ```json
 {
   "success": true,
@@ -71,13 +75,12 @@ Validates email, phone, name, and age fields using layer utilities.
 ```
 
 **Response (Error):**
+
 ```json
 {
   "success": false,
   "message": "Validation failed",
-  "errors": [
-    { "field": "email", "error": "Invalid email format" }
-  ]
+  "errors": [{ "field": "email", "error": "Invalid email format" }]
 }
 ```
 
@@ -86,6 +89,7 @@ Validates email, phone, name, and age fields using layer utilities.
 Formats phone numbers, currency, and dates using layer utilities.
 
 **Request Body:**
+
 ```json
 {
   "phone": "5551234567",
@@ -97,6 +101,7 @@ Formats phone numbers, currency, and dates using layer utilities.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -124,16 +129,16 @@ Formats phone numbers, currency, and dates using layer utilities.
 Returns a paginated list of users.
 
 **Query Parameters:**
+
 - `page` (optional): Page number (default: 1)
 - `pageSize` (optional): Items per page (default: 10)
 
 **Response:**
+
 ```json
 {
   "success": true,
-  "data": [
-    { "id": 1, "name": "John Doe", "email": "john@example.com", "phone": "555-1234" }
-  ],
+  "data": [{ "id": 1, "name": "John Doe", "email": "john@example.com", "phone": "555-1234" }],
   "pagination": {
     "page": 1,
     "pageSize": 10,
@@ -149,6 +154,7 @@ Returns a paginated list of users.
 Creates a new user with validation.
 
 **Request Body:**
+
 ```json
 {
   "name": "Jane Smith",
@@ -158,6 +164,7 @@ Creates a new user with validation.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -177,6 +184,7 @@ Creates a new user with validation.
 Performs various string and number utility operations.
 
 **Request Body:**
+
 ```json
 {
   "action": "sanitize",
@@ -186,6 +194,7 @@ Performs various string and number utility operations.
 ```
 
 **Available Actions:**
+
 - `sanitize`: Remove HTML tags and dangerous characters
 - `slugify`: Convert string to URL-friendly slug
 - `capitalize`: Capitalize first letter
@@ -194,6 +203,7 @@ Performs various string and number utility operations.
 - `formatNumber`: Format number with specified decimals
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -234,7 +244,7 @@ import {
   successResponse,
   errorResponse,
   ValidationError,
-  handleError
+  handleError,
 } from 'shared-utils';
 ```
 
@@ -264,4 +274,3 @@ This function has no direct dependencies. All utilities come from the `shared-ut
 
 - [LAYERS_README.md](../../docs/LAYERS_README.md) - Complete layer documentation
 - [USAGE_README.md](../../docs/USAGE_README.md) - Function development guide
-

@@ -11,6 +11,22 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
+.env.staging
+.claude
+.kimi
+
+# Secrets and credentials
+*.pem
+*.key
+*.pub
+id_rsa
+id_ed25519
+*.ppk
+secrets/
+credentials
+*.secret
+auth.json
 
 # Logs
 logs/
@@ -21,6 +37,13 @@ pids/
 *.pid
 *.seed
 *.pid.lock
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+*.dump
 
 # Coverage directory used by tools like istanbul
 coverage/
@@ -75,11 +98,10 @@ Thumbs.db
 *.swo
 *~
 
-# Docker
-.dockerignore
-
 # Function deployment metadata
 functions/*/.deployment.json
+functions/**/.env
+functions/**/.env.*
 
 # Deployment backup files
 *.backup

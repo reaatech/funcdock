@@ -15,7 +15,7 @@ const colors = {
   blue: '\x1b[34m',
   yellow: '\x1b[33m',
   red: '\x1b[31m',
-  reset: '\x1b[0m'
+  reset: '\x1b[0m',
 };
 
 function log(message, color = 'reset') {
@@ -77,7 +77,9 @@ async function checkGitConfig() {
     // Test GitHub access
     log('\n5. Testing GitHub access...', 'yellow');
     try {
-      await execAsync('git ls-remote --exit-code https://github.com/octocat/Hello-World.git', { timeout: 10000 });
+      await execAsync('git ls-remote --exit-code https://github.com/octocat/Hello-World.git', {
+        timeout: 10000,
+      });
       log('   ✅ HTTPS access to GitHub working', 'green');
     } catch (error) {
       if (error.code === 128) {
@@ -89,7 +91,9 @@ async function checkGitConfig() {
     }
 
     try {
-      await execAsync('git ls-remote --exit-code git@github.com:octocat/Hello-World.git', { timeout: 10000 });
+      await execAsync('git ls-remote --exit-code git@github.com:octocat/Hello-World.git', {
+        timeout: 10000,
+      });
       log('   ✅ SSH access to GitHub working', 'green');
     } catch (error) {
       if (error.code === 128) {
@@ -106,11 +110,10 @@ async function checkGitConfig() {
     log('• For public repositories, either method works', 'green');
     log('• Use SSH keys for the most secure authentication', 'green');
     log('• Test your setup with: git ls-remote <your-repo-url>', 'green');
-
   } catch (error) {
     log(`❌ Error checking Git configuration: ${error.message}`, 'red');
   }
 }
 
 // Run the check
-checkGitConfig().catch(console.error); 
+checkGitConfig().catch(console.error);

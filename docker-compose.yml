@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  funcdock:
+    build: .
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./functions:/app/functions
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required (min 16 chars); set it in .env}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required; set it in .env}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required (min 8 chars) unless ADMIN_PASSWORD_HASH is set; see .env.example}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH:-}
+      - DEPLOY_API_KEY=${DEPLOY_API_KEY:-}
+      - MCP_API_KEY=${MCP_API_KEY:-}
+      - MCP_HTTP_HOST=${MCP_HTTP_HOST:-127.0.0.1}
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Caddy reverse proxy for production
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - funcdock
+    restart: unless-stopped
+    profiles:
+      - production
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

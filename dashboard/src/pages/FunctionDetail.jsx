@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { useSocket } from '../contexts/SocketContext'
-import { functionsApi, layersApi } from '../utils/api'
-import { 
-  Code, 
-  Play, 
-  Trash2, 
-  Settings, 
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useSocket } from '../contexts/SocketContext';
+import { functionsApi, layersApi } from '../utils/api';
+import {
+  Code,
+  Play,
+  Trash2,
+  Settings,
   Eye,
   Clock,
   CheckCircle,
@@ -34,111 +34,121 @@ import {
   Edit as EditIcon,
   Trash2 as DeleteIcon,
   Package,
-  Layers as LayersIcon
-} from 'lucide-react'
-import LoadingSpinner from '../components/LoadingSpinner'
-import toast from 'react-hot-toast'
+  Layers as LayersIcon,
+  Save,
+  FileType2,
+} from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 const FunctionDetail = () => {
-  const { name } = useParams()
-  const [functionData, setFunctionData] = useState(null)
-  const [logs, setLogs] = useState([])
-  const [metrics, setMetrics] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
+  const { name } = useParams();
+  const [functionData, setFunctionData] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
   const [testData, setTestData] = useState({
     method: 'GET',
     path: '/',
     data: '',
-    headers: ''
-  })
-  const [testResult, setTestResult] = useState(null)
-  const [testLoading, setTestLoading] = useState(false)
-  const [updateFiles, setUpdateFiles] = useState([])
-  const { on } = useSocket()
-  const [copied, setCopied] = useState(false)
-  
+    headers: '',
+  });
+  const [testResult, setTestResult] = useState(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const [updateFiles, setUpdateFiles] = useState([]);
+  const { on, off } = useSocket();
+  const [copied, setCopied] = useState(false);
+
   // New state for cron jobs management
-  const [cronJobs, setCronJobs] = useState([])
-  const [editingCron, setEditingCron] = useState(false)
+  const [cronJobs, setCronJobs] = useState([]);
+  const [editingCron, setEditingCron] = useState(false);
   const [newCronJob, setNewCronJob] = useState({
     name: '',
     schedule: '',
     handler: 'cron-handler.js',
     timezone: 'UTC',
-    description: ''
-  })
-  const [editingCronIndex, setEditingCronIndex] = useState(-1)
-  
+    description: '',
+  });
+  const [editingCronIndex, setEditingCronIndex] = useState(-1);
+
   // New state for file explorer
-  const [functionFiles, setFunctionFiles] = useState([])
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [fileContent, setFileContent] = useState('')
-  
+  const [functionFiles, setFunctionFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileContent, setFileContent] = useState('');
+
   // Layer management state
-  const [availableLayers, setAvailableLayers] = useState([])
-  const [selectedLayer, setSelectedLayer] = useState('')
-  const [layerLoading, setLayerLoading] = useState(false)
-  const [layersLoading, setLayersLoading] = useState(false)
-  const [fileLoading, setFileLoading] = useState(false)
-  const [expandedFolders, setExpandedFolders] = useState(new Set())
+  const [availableLayers, setAvailableLayers] = useState([]);
+  const [selectedLayer, setSelectedLayer] = useState('');
+  const [layerLoading, setLayerLoading] = useState(false);
+  const [layersLoading, setLayersLoading] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState(new Set());
 
   // New state for environment variables
-  const [envVars, setEnvVars] = useState(null)
-  const [envLoading, setEnvLoading] = useState(false)
+  const [envVars, setEnvVars] = useState(null);
+  const [envLoading, setEnvLoading] = useState(false);
 
-  const [logLevel, setLogLevel] = useState('all')
-  const [expandedLogs, setExpandedLogs] = useState(new Set())
+  const [logLevel, setLogLevel] = useState('all');
+  const [expandedLogs, setExpandedLogs] = useState(new Set());
 
   useEffect(() => {
-    fetchFunctionData()
+    fetchFunctionData();
 
     // Listen for real-time updates
-    on('function:updated', (data) => {
+    const handleFunctionUpdated = (data) => {
       if (data.name === name) {
-        setFunctionData(prev => ({ ...prev, ...data }))
+        setFunctionData((prev) => ({ ...prev, ...data }));
       }
-    })
+    };
 
-    on('function:loaded', (data) => {
+    const handleFunctionLoaded = (data) => {
       if (data.name === name) {
-        setFunctionData(prev => ({ ...prev, ...data }))
+        setFunctionData((prev) => ({ ...prev, ...data }));
       }
-    })
+    };
 
-    // Listen for layer updates that might affect this function
-    on('layer:updated', (data) => {
+    const handleLayerUpdated = (data) => {
       if (functionData?.layerName === data.name) {
-        fetchFunctionData() // Refresh to get updated layer info
+        fetchFunctionData();
       }
-    })
+    };
 
-    // Listen for layer deletion - refresh function if it was using the deleted layer
-    on('layer:deleted', (data) => {
+    const handleLayerDeleted = (data) => {
       if (functionData?.layerName === data.name) {
-        fetchFunctionData() // Refresh to show error status for missing layer
+        fetchFunctionData();
       }
-    })
+    };
 
-    // Listen for new layer deployments to refresh available layers list
-    on('layer:deployed', () => {
-      fetchAvailableLayers() // Refresh available layers dropdown
-    })
+    const handleLayerDeployed = () => {
+      fetchAvailableLayers();
+    };
+
+    on('function:updated', handleFunctionUpdated);
+    on('function:loaded', handleFunctionLoaded);
+    on('layer:updated', handleLayerUpdated);
+    on('layer:deleted', handleLayerDeleted);
+    on('layer:deployed', handleLayerDeployed);
 
     return () => {
-      // Cleanup socket listeners
-    }
-  }, [name, on, functionData?.layerName])
+      off('function:updated', handleFunctionUpdated);
+      off('function:loaded', handleFunctionLoaded);
+      off('layer:updated', handleLayerUpdated);
+      off('layer:deleted', handleLayerDeleted);
+      off('layer:deployed', handleLayerDeployed);
+    };
+  }, [on, off, name, functionData?.layerName]);
 
   useEffect(() => {
     if (activeTab === 'env') {
-      setEnvLoading(true)
-      functionsApi.getEnv(name)
-        .then(res => setEnvVars(res.data.env || {}))
+      setEnvLoading(true);
+      functionsApi
+        .getEnv(name)
+        .then((res) => setEnvVars(res.data.env || {}))
         .catch(() => setEnvVars({}))
-        .finally(() => setEnvLoading(false))
+        .finally(() => setEnvLoading(false));
     }
-  }, [activeTab, name])
+  }, [activeTab, name]);
 
   const fetchFunctionData = async () => {
     try {
@@ -147,277 +157,277 @@ const FunctionDetail = () => {
         functionsApi.getLogs(name, 50),
         functionsApi.getMetrics(name),
         functionsApi.getCronJobs(name),
-        functionsApi.getFunctionFiles(name)
-      ])
-      
-      setFunctionData(functionRes.data)
+        functionsApi.getFunctionFiles(name),
+      ]);
+
+      setFunctionData(functionRes.data);
       // Parse each log line as JSON if possible
-      const rawLogs = logsRes.data.logs || []
-      const parsedLogs = rawLogs.map(line => {
-        if (typeof line === 'object' && line !== null) return line
+      const rawLogs = logsRes.data.logs || [];
+      const parsedLogs = rawLogs.map((line) => {
+        if (typeof line === 'object' && line !== null) return line;
         try {
-          return JSON.parse(line)
+          return JSON.parse(line);
         } catch {
-          return { message: line, level: 'INFO', timestamp: '', isPlain: true }
+          return { message: line, level: 'INFO', timestamp: '', isPlain: true };
         }
-      })
-      setLogs(parsedLogs)
-      setMetrics(metricsRes.data)
-      setCronJobs(cronRes.data.jobs || [])
-      setFunctionFiles(filesRes.data.files || [])
+      });
+      setLogs(parsedLogs);
+      setMetrics(metricsRes.data);
+      setCronJobs(cronRes.data.jobs || []);
+      setFunctionFiles(filesRes.data.files || []);
     } catch (error) {
-      console.error('Failed to fetch function data:', error)
-      toast.error('Failed to load function data')
+      console.error('Failed to fetch function data:', error);
+      toast.error('Failed to load function data');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleTestFunction = async () => {
-    setTestLoading(true)
+    setTestLoading(true);
     try {
       const response = await functionsApi.testFunction(
         name,
         testData.method,
         testData.data ? JSON.parse(testData.data) : null
-      )
-      setTestResult(response.data)
-      toast.success('Function test completed')
+      );
+      setTestResult(response.data);
+      toast.success('Function test completed');
     } catch (error) {
-      console.error('Test failed:', error)
-      toast.error('Function test failed')
+      console.error('Test failed:', error);
+      toast.error('Function test failed');
     } finally {
-      setTestLoading(false)
+      setTestLoading(false);
     }
-  }
+  };
 
   const handleUpdateFunction = async () => {
     if (updateFiles.length === 0) {
-      toast.error('Please select files to update')
-      return
+      toast.error('Please select files to update');
+      return;
     }
 
     try {
-      await functionsApi.updateFunction(name, updateFiles)
-      toast.success('Function updated successfully')
-      fetchFunctionData()
-      setUpdateFiles([])
+      await functionsApi.updateFunction(name, updateFiles);
+      toast.success('Function updated successfully');
+      fetchFunctionData();
+      setUpdateFiles([]);
     } catch (error) {
-      console.error('Update failed:', error)
-      toast.error('Failed to update function')
+      console.error('Update failed:', error);
+      toast.error('Failed to update function');
     }
-  }
+  };
 
   const handleDeleteFunction = async () => {
     if (!confirm(`Are you sure you want to delete the function "${name}"?`)) {
-      return
+      return;
     }
 
     try {
-      await functionsApi.deleteFunction(name)
-      toast.success(`Function "${name}" deleted successfully`)
+      await functionsApi.deleteFunction(name);
+      toast.success(`Function "${name}" deleted successfully`);
       // Redirect to functions list
-      window.location.href = '/functions'
+      window.location.href = '/functions';
     } catch (error) {
-      console.error('Failed to delete function:', error)
-      toast.error('Failed to delete function')
+      console.error('Failed to delete function:', error);
+      toast.error('Failed to delete function');
     }
-  }
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'running':
-        return <CheckCircle className="h-5 w-5 text-success-600" />
+        return <CheckCircle className="h-5 w-5 text-success-600" />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-danger-600" />
+        return <XCircle className="h-5 w-5 text-danger-600" />;
       case 'stopped':
-        return <AlertTriangle className="h-5 w-5 text-warning-600" />
+        return <AlertTriangle className="h-5 w-5 text-warning-600" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-600" />
+        return <Clock className="h-5 w-5 text-gray-600" />;
     }
-  }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'running':
-        return 'badge-success'
+        return 'badge-success';
       case 'error':
-        return 'badge-danger'
+        return 'badge-danger';
       case 'stopped':
-        return 'badge-warning'
+        return 'badge-warning';
       default:
-        return 'badge-info'
+        return 'badge-info';
     }
-  }
+  };
 
   // Copy function URL to clipboard
   const handleCopyUrl = () => {
     if (functionData?.baseUrl) {
-      const url = window.location.origin + functionData.baseUrl
-      navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      const url = window.location.origin + functionData.baseUrl;
+      navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     }
-  }
+  };
 
   // Fetch available layers
   const fetchAvailableLayers = async () => {
-    setLayersLoading(true)
+    setLayersLoading(true);
     try {
-      const response = await layersApi.getLayers()
-      setAvailableLayers(response.data.layers || [])
+      const response = await layersApi.getLayers();
+      setAvailableLayers(response.data.layers || []);
     } catch (error) {
-      console.error('Failed to fetch layers:', error)
+      console.error('Failed to fetch layers:', error);
     } finally {
-      setLayersLoading(false)
+      setLayersLoading(false);
     }
-  }
+  };
 
   // Handle layer change
   const handleLayerChange = async (layerName) => {
-    setLayerLoading(true)
+    setLayerLoading(true);
     try {
       if (layerName) {
-        await functionsApi.setLayer(name, layerName)
-        toast.success(`Layer '${layerName}' associated with function`)
+        await functionsApi.setLayer(name, layerName);
+        toast.success(`Layer '${layerName}' associated with function`);
       } else {
-        await functionsApi.removeLayer(name)
-        toast.success('Layer association removed')
+        await functionsApi.removeLayer(name);
+        toast.success('Layer association removed');
       }
-      fetchFunctionData()
-      setSelectedLayer('')
+      fetchFunctionData();
+      setSelectedLayer('');
     } catch (error) {
-      console.error('Failed to update layer:', error)
-      toast.error(error.response?.data?.message || 'Failed to update layer')
+      console.error('Failed to update layer:', error);
+      toast.error(error.response?.data?.message || 'Failed to update layer');
     } finally {
-      setLayerLoading(false)
+      setLayerLoading(false);
     }
-  }
+  };
 
   // Remove layer association
   const handleRemoveLayer = async () => {
     if (!confirm('Are you sure you want to remove the layer association?')) {
-      return
+      return;
     }
-    await handleLayerChange(null)
-  }
+    await handleLayerChange(null);
+  };
 
   // Cron job management functions
   const handleAddCronJob = () => {
-    setEditingCron(true)
-    setEditingCronIndex(-1)
+    setEditingCron(true);
+    setEditingCronIndex(-1);
     setNewCronJob({
       name: '',
       schedule: '',
       handler: 'cron-handler.js',
       timezone: 'UTC',
-      description: ''
-    })
-  }
+      description: '',
+    });
+  };
 
   const handleEditCronJob = (index) => {
-    setEditingCron(true)
-    setEditingCronIndex(index)
-    setNewCronJob({ ...cronJobs[index] })
-  }
+    setEditingCron(true);
+    setEditingCronIndex(index);
+    setNewCronJob({ ...cronJobs[index] });
+  };
 
   const handleDeleteCronJob = (index) => {
-    const updatedJobs = cronJobs.filter((_, i) => i !== index)
-    setCronJobs(updatedJobs)
-  }
+    const updatedJobs = cronJobs.filter((_, i) => i !== index);
+    setCronJobs(updatedJobs);
+  };
 
   const handleSaveCronJob = async () => {
     if (!newCronJob.name || !newCronJob.schedule || !newCronJob.handler) {
-      toast.error('Please fill in all required fields')
-      return
+      toast.error('Please fill in all required fields');
+      return;
     }
 
     try {
-      let updatedJobs
+      let updatedJobs;
       if (editingCronIndex >= 0) {
         // Editing existing job
-        updatedJobs = [...cronJobs]
-        updatedJobs[editingCronIndex] = newCronJob
+        updatedJobs = [...cronJobs];
+        updatedJobs[editingCronIndex] = newCronJob;
       } else {
         // Adding new job
-        updatedJobs = [...cronJobs, newCronJob]
+        updatedJobs = [...cronJobs, newCronJob];
       }
 
-      await functionsApi.updateCronJobs(name, updatedJobs)
-      setCronJobs(updatedJobs)
-      setEditingCron(false)
-      setEditingCronIndex(-1)
-      toast.success('Cron jobs updated successfully')
+      await functionsApi.updateCronJobs(name, updatedJobs);
+      setCronJobs(updatedJobs);
+      setEditingCron(false);
+      setEditingCronIndex(-1);
+      toast.success('Cron jobs updated successfully');
     } catch (error) {
-      console.error('Failed to update cron jobs:', error)
-      toast.error('Failed to update cron jobs')
+      console.error('Failed to update cron jobs:', error);
+      toast.error('Failed to update cron jobs');
     }
-  }
+  };
 
   const handleCancelCronEdit = () => {
-    setEditingCron(false)
-    setEditingCronIndex(-1)
+    setEditingCron(false);
+    setEditingCronIndex(-1);
     setNewCronJob({
       name: '',
       schedule: '',
       handler: 'cron-handler.js',
       timezone: 'UTC',
-      description: ''
-    })
-  }
+      description: '',
+    });
+  };
 
   // File explorer functions
   const handleFileClick = async (file) => {
     if (file.type === 'directory') {
-      const newExpanded = new Set(expandedFolders)
+      const newExpanded = new Set(expandedFolders);
       if (newExpanded.has(file.path)) {
-        newExpanded.delete(file.path)
+        newExpanded.delete(file.path);
       } else {
-        newExpanded.add(file.path)
+        newExpanded.add(file.path);
       }
-      setExpandedFolders(newExpanded)
+      setExpandedFolders(newExpanded);
     } else {
-      setSelectedFile(file)
-      setFileLoading(true)
+      setSelectedFile(file);
+      setFileLoading(true);
       try {
-        const response = await functionsApi.getFileContent(name, file.path)
-        setFileContent(response.data.content)
+        const response = await functionsApi.getFileContent(name, file.path);
+        setFileContent(response.data.content);
       } catch (error) {
-        console.error('Failed to load file content:', error)
-        toast.error('Failed to load file content')
-        setFileContent('Error loading file content')
+        console.error('Failed to load file content:', error);
+        toast.error('Failed to load file content');
+        setFileContent('Error loading file content');
       } finally {
-        setFileLoading(false)
+        setFileLoading(false);
       }
     }
-  }
+  };
 
   const handleDownloadFile = async (file) => {
     try {
-      const response = await functionsApi.downloadFile(name, file.path)
-      const url = window.URL.createObjectURL(response.data)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = file.name
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      toast.success('File downloaded successfully')
+      const response = await functionsApi.downloadFile(name, file.path);
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('File downloaded successfully');
     } catch (error) {
-      console.error('Failed to download file:', error)
-      toast.error('Failed to download file')
+      console.error('Failed to download file:', error);
+      toast.error('Failed to download file');
     }
-  }
+  };
 
   const renderFileTree = (files, level = 0) => {
     return files.map((file) => {
-      const isExpanded = expandedFolders.has(file.path)
-      const hasChildren = file.children && file.children.length > 0
-      
+      const isExpanded = expandedFolders.has(file.path);
+      const hasChildren = file.children && file.children.length > 0;
+
       return (
         <div key={file.path}>
-          <div 
+          <div
             className={`flex items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
               selectedFile?.path === file.path ? 'bg-blue-50 dark:bg-blue-900/20' : ''
             }`}
@@ -445,8 +455,8 @@ const FunctionDetail = () => {
               <div className="ml-auto flex items-center space-x-1">
                 <button
                   onClick={(e) => {
-                    e.stopPropagation()
-                    handleFileClick(file)
+                    e.stopPropagation();
+                    handleFileClick(file);
                   }}
                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                   title="View file"
@@ -455,8 +465,8 @@ const FunctionDetail = () => {
                 </button>
                 <button
                   onClick={(e) => {
-                    e.stopPropagation()
-                    handleDownloadFile(file)
+                    e.stopPropagation();
+                    handleDownloadFile(file);
                   }}
                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                   title="Download file"
@@ -470,92 +480,94 @@ const FunctionDetail = () => {
             <div>{renderFileTree(file.children, level + 1)}</div>
           )}
         </div>
-      )
-    })
-  }
+      );
+    });
+  };
 
   // Filter logs by selected log level
-  const filteredLogs = logs.filter(log => {
+  const filteredLogs = logs.filter((log) => {
     if (logLevel === 'CRON') return log.level === 'CRON' || log.level === 'CRON_ERROR';
-    if (logLevel !== 'all' && log.level !== logLevel) return false
-    return true
-  })
+    if (logLevel !== 'all' && log.level !== logLevel) return false;
+    return true;
+  });
 
   const getLogLevelColor = (level) => {
     switch (level) {
       case 'ERROR':
       case 'CRON_ERROR':
-        return 'text-red-600 bg-red-50 dark:bg-red-900/20'
+        return 'text-red-600 bg-red-50 dark:bg-red-900/20';
       case 'WARN':
-        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
+        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20';
       case 'INFO':
-        return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+        return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20';
       default:
-        return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20'
+        return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20';
     }
-  }
+  };
 
   const toggleLogExpansion = (index) => {
-    const newExpanded = new Set(expandedLogs)
+    const newExpanded = new Set(expandedLogs);
     if (newExpanded.has(index)) {
-      newExpanded.delete(index)
+      newExpanded.delete(index);
     } else {
-      newExpanded.add(index)
+      newExpanded.add(index);
     }
-    setExpandedLogs(newExpanded)
-  }
+    setExpandedLogs(newExpanded);
+  };
 
   const formatLogData = (log) => {
     // If it's a plain string or simple message, return as is
     if (log.isPlain || typeof log === 'string') {
-      return log.message || log
+      return log.message || log;
     }
-    
+
     // Check if this is a string that was converted to an object with numeric keys
     // This happens when a string is passed as the second parameter to logger
     if (log.message && typeof log.message === 'string') {
-      const { message, timestamp, level, ...otherData } = log
-      
+      const { message, timestamp, level, ...otherData } = log;
+
       // Check if otherData looks like a string split into numeric keys
-      const numericKeys = Object.keys(otherData).filter(key => !isNaN(parseInt(key)))
+      const numericKeys = Object.keys(otherData).filter((key) => !isNaN(parseInt(key)));
       if (numericKeys.length > 0 && numericKeys.length === Object.keys(otherData).length) {
         // This is likely a string that was converted to an object
-        const reconstructedString = Object.values(otherData).join('')
+        const reconstructedString = Object.values(otherData).join('');
         return {
           message: `${message} ${reconstructedString}`,
-          data: null // No additional data to expand
-        }
+          data: null, // No additional data to expand
+        };
       }
-      
+
       // Normal case: has other properties
       if (Object.keys(otherData).length > 0) {
         return {
           message,
-          data: otherData
-        }
+          data: otherData,
+        };
       }
     }
-    
+
     // If it's a complex object without a message, show the whole object
     return {
       message: 'Log data',
-      data: log
-    }
-  }
+      data: log,
+    };
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" text="Loading function details..." />
       </div>
-    )
+    );
   }
 
   if (!functionData) {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Function not found</h3>
+        <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+          Function not found
+        </h3>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           The function "{name}" could not be found.
         </p>
@@ -565,7 +577,7 @@ const FunctionDetail = () => {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -588,7 +600,8 @@ const FunctionDetail = () => {
           {functionData.baseUrl && (
             <div className="mt-2 flex items-center space-x-2">
               <span className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                {window.location.origin}{functionData.baseUrl}
+                {window.location.origin}
+                {functionData.baseUrl}
               </span>
               <button
                 onClick={handleCopyUrl}
@@ -631,9 +644,9 @@ const FunctionDetail = () => {
             { id: 'metrics', label: 'Metrics', icon: Activity },
             { id: 'test', label: 'Test', icon: TestTube },
             { id: 'env', label: 'Env', icon: Settings },
-            { id: 'update', label: 'Update', icon: Upload }
+            { id: 'update', label: 'Update', icon: Upload },
           ].map((tab) => {
-            const Icon = tab.icon
+            const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
@@ -647,7 +660,7 @@ const FunctionDetail = () => {
                 <Icon className="h-4 w-4 mr-1" />
                 {tab.label}
               </button>
-            )
+            );
           })}
         </nav>
       </div>
@@ -674,9 +687,13 @@ const FunctionDetail = () => {
                   <div className="flex items-center">
                     <Calendar className="h-6 w-6 text-success-600" />
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Cron Jobs</p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Cron Jobs
+                      </p>
                       <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {Array.isArray(functionData.cronJobs) ? functionData.cronJobs.length : (functionData.cronJobs || 0)}
+                        {Array.isArray(functionData.cronJobs)
+                          ? functionData.cronJobs.length
+                          : functionData.cronJobs || 0}
                       </p>
                     </div>
                   </div>
@@ -685,7 +702,9 @@ const FunctionDetail = () => {
                   <div className="flex items-center">
                     <Activity className="h-6 w-6 text-warning-600" />
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Invocations</p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Invocations
+                      </p>
                       <p className="text-lg font-semibold text-gray-900 dark:text-white">
                         {metrics?.invocations || 0}
                       </p>
@@ -696,9 +715,13 @@ const FunctionDetail = () => {
                   <div className="flex items-center">
                     <Clock className="h-6 w-6 text-info-600" />
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Deployed</p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Last Deployed
+                      </p>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {functionData.lastDeployed ? new Date(functionData.lastDeployed).toLocaleDateString() : 'N/A'}
+                        {functionData.lastDeployed
+                          ? new Date(functionData.lastDeployed).toLocaleDateString()
+                          : 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -711,7 +734,9 @@ const FunctionDetail = () => {
                     <div className="flex items-center">
                       <Package className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2" />
                       <div>
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Using Layer</p>
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                          Using Layer
+                        </p>
                         <Link
                           to={`/layers/${functionData.layerName}`}
                           className="text-lg font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
@@ -720,10 +745,7 @@ const FunctionDetail = () => {
                         </Link>
                       </div>
                     </div>
-                    <Link
-                      to={`/layers/${functionData.layerName}`}
-                      className="btn-secondary btn-sm"
-                    >
+                    <Link to={`/layers/${functionData.layerName}`} className="btn-secondary btn-sm">
                       <Eye className="h-4 w-4 mr-1" />
                       View Layer
                     </Link>
@@ -732,7 +754,9 @@ const FunctionDetail = () => {
               )}
 
               <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Function Information</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+                  Function Information
+                </h3>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                   <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                     <div>
@@ -740,16 +764,26 @@ const FunctionDetail = () => {
                       <dd className="text-sm text-gray-900 dark:text-white">{functionData.name}</dd>
                     </div>
                     <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
-                      <dd className="text-sm text-gray-900 dark:text-white">{functionData.status}</dd>
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Status
+                      </dt>
+                      <dd className="text-sm text-gray-900 dark:text-white">
+                        {functionData.status}
+                      </dd>
                     </div>
                     <div>
                       <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Path</dt>
-                      <dd className="text-sm text-gray-900 dark:text-white">{functionData.path || 'N/A'}</dd>
+                      <dd className="text-sm text-gray-900 dark:text-white">
+                        {functionData.path || 'N/A'}
+                      </dd>
                     </div>
                     <div>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Handler</dt>
-                      <dd className="text-sm text-gray-900 dark:text-white">{functionData.handler || 'handler.js'}</dd>
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Handler
+                      </dt>
+                      <dd className="text-sm text-gray-900 dark:text-white">
+                        {functionData.handler || 'handler.js'}
+                      </dd>
                     </div>
                   </dl>
                 </div>
@@ -760,51 +794,73 @@ const FunctionDetail = () => {
           {/* Routes Tab */}
           {activeTab === 'routes' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Function Routes</h3>
-              
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Function Routes
+              </h3>
+
               {/* Routes Summary */}
               {functionData.routes && functionData.routes.length > 0 && (
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg mb-6">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Routes</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{functionData.routes.length}</p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Total Routes
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {functionData.routes.length}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Available Methods</p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Available Methods
+                      </p>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {Array.from(new Set(functionData.routes.map(route => route.method))).map((method) => (
-                          <span 
-                            key={method} 
-                            className={`badge text-xs ${
-                              method === 'GET' ? 'badge-success' :
-                              method === 'POST' ? 'badge-primary' :
-                              method === 'PUT' ? 'badge-warning' :
-                              method === 'DELETE' ? 'badge-danger' :
-                              method === 'PATCH' ? 'badge-info' :
-                              method === 'OPTIONS' ? 'badge-secondary' :
-                              'badge-info'
-                            }`}
-                          >
-                            {method}
-                          </span>
-                        ))}
+                        {Array.from(new Set(functionData.routes.map((route) => route.method))).map(
+                          (method) => (
+                            <span
+                              key={method}
+                              className={`badge text-xs ${
+                                method === 'GET'
+                                  ? 'badge-success'
+                                  : method === 'POST'
+                                    ? 'badge-primary'
+                                    : method === 'PUT'
+                                      ? 'badge-warning'
+                                      : method === 'DELETE'
+                                        ? 'badge-danger'
+                                        : method === 'PATCH'
+                                          ? 'badge-info'
+                                          : method === 'OPTIONS'
+                                            ? 'badge-secondary'
+                                            : 'badge-info'
+                              }`}
+                            >
+                              {method}
+                            </span>
+                          )
+                        )}
                       </div>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Base URL</p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Base URL
+                      </p>
                       <p className="text-sm font-mono text-gray-900 dark:text-white mt-1">
-                        {window.location.origin}{functionData.baseUrl || ''}
+                        {window.location.origin}
+                        {functionData.baseUrl || ''}
                       </p>
                     </div>
                   </div>
                 </div>
               )}
-              
+
               {functionData.routes && functionData.routes.length > 0 ? (
                 <div className="space-y-4">
                   {functionData.routes.map((route, index) => (
-                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div
+                      key={index}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                    >
                       <div className="space-y-3">
                         {/* Route Path and Full URL */}
                         <div>
@@ -827,23 +883,32 @@ const FunctionDetail = () => {
                             </button>
                           </div>
                           <p className="text-sm text-gray-500 dark:text-gray-400 font-mono bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded mt-1">
-                            {window.location.origin}{route.path}
+                            {window.location.origin}
+                            {route.path}
                           </p>
                         </div>
 
                         {/* HTTP Methods */}
                         <div>
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">HTTP Method:</p>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            HTTP Method:
+                          </p>
                           <div className="flex flex-wrap gap-2">
-                            <span 
+                            <span
                               className={`badge text-xs font-medium ${
-                                route.method === 'GET' ? 'badge-success' :
-                                route.method === 'POST' ? 'badge-primary' :
-                                route.method === 'PUT' ? 'badge-warning' :
-                                route.method === 'DELETE' ? 'badge-danger' :
-                                route.method === 'PATCH' ? 'badge-info' :
-                                route.method === 'OPTIONS' ? 'badge-secondary' :
-                                'badge-info'
+                                route.method === 'GET'
+                                  ? 'badge-success'
+                                  : route.method === 'POST'
+                                    ? 'badge-primary'
+                                    : route.method === 'PUT'
+                                      ? 'badge-warning'
+                                      : route.method === 'DELETE'
+                                        ? 'badge-danger'
+                                        : route.method === 'PATCH'
+                                          ? 'badge-info'
+                                          : route.method === 'OPTIONS'
+                                            ? 'badge-secondary'
+                                            : 'badge-info'
                               }`}
                             >
                               {route.method}
@@ -855,7 +920,10 @@ const FunctionDetail = () => {
                         <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-600">
                           <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Handler: <span className="font-mono text-gray-900 dark:text-white">{route.handler || 'handler.js'}</span>
+                              Handler:{' '}
+                              <span className="font-mono text-gray-900 dark:text-white">
+                                {route.handler || 'handler.js'}
+                              </span>
                             </p>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -873,12 +941,15 @@ const FunctionDetail = () => {
                   <div className="mx-auto w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                     <Code className="h-10 w-10 text-gray-400" />
                   </div>
-                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No routes configured</h3>
+                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                    No routes configured
+                  </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    This function doesn't have any routes configured yet. Add routes to your route.config.json file.
+                    This function doesn't have any routes configured yet. Add routes to your
+                    route.config.json file.
                   </p>
                   <div className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 p-3 rounded font-mono">
-                    Example: {"{"}"path": "/", "methods": ["GET", "POST"]{"}"}
+                    Example: {'{'}"path": "/", "methods": ["GET", "POST"]{'}'}
                   </div>
                 </div>
               )}
@@ -963,17 +1034,21 @@ const FunctionDetail = () => {
                       </label>
                       <textarea
                         value={newCronJob.description}
-                        onChange={(e) => setNewCronJob({ ...newCronJob, description: e.target.value })}
+                        onChange={(e) =>
+                          setNewCronJob({ ...newCronJob, description: e.target.value })
+                        }
                         className="input mt-1"
                         rows={2}
                         placeholder="What does this cron job do?"
                       />
                     </div>
                   </div>
-                  
+
                   {/* Cron Examples */}
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <h5 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Common Cron Examples:</h5>
+                    <h5 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                      Common Cron Examples:
+                    </h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                       <div className="flex items-center space-x-2">
                         <button
@@ -1014,17 +1089,11 @@ const FunctionDetail = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-end space-x-2 mt-4">
-                    <button
-                      onClick={handleCancelCronEdit}
-                      className="btn-secondary btn-sm"
-                    >
+                    <button onClick={handleCancelCronEdit} className="btn-secondary btn-sm">
                       <X className="h-4 w-4 mr-1" />
                       Cancel
                     </button>
-                    <button
-                      onClick={handleSaveCronJob}
-                      className="btn-primary btn-sm"
-                    >
+                    <button onClick={handleSaveCronJob} className="btn-primary btn-sm">
                       <Save className="h-4 w-4 mr-1" />
                       Save
                     </button>
@@ -1036,12 +1105,19 @@ const FunctionDetail = () => {
               {cronJobs.length > 0 ? (
                 <div className="space-y-3">
                   {cronJobs.map((job, idx) => (
-                    <div key={idx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div
+                      key={idx}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                    >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex-1">
                           <div className="flex items-center mb-2">
-                            <span className="font-medium text-gray-900 dark:text-white mr-3">{job.name}</span>
-                            <span className="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm">{job.schedule}</span>
+                            <span className="font-medium text-gray-900 dark:text-white mr-3">
+                              {job.name}
+                            </span>
+                            <span className="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm">
+                              {job.schedule}
+                            </span>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             Handler: <span className="font-mono">{job.handler}</span>
@@ -1050,7 +1126,9 @@ const FunctionDetail = () => {
                             )}
                           </p>
                           {job.description && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{job.description}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              {job.description}
+                            </p>
                           )}
                         </div>
                         <div className="flex items-center space-x-2 mt-3 sm:mt-0">
@@ -1078,9 +1156,12 @@ const FunctionDetail = () => {
                   <div className="mx-auto w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                     <Calendar className="h-10 w-10 text-gray-400" />
                   </div>
-                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No cron jobs configured</h3>
+                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                    No cron jobs configured
+                  </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    This function doesn't have any scheduled cron jobs. Add cron jobs to schedule automated tasks.
+                    This function doesn't have any scheduled cron jobs. Add cron jobs to schedule
+                    automated tasks.
                   </p>
                   <button
                     onClick={handleAddCronJob}
@@ -1097,13 +1178,17 @@ const FunctionDetail = () => {
           {/* Files Tab */}
           {activeTab === 'files' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Function Files</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Function Files
+              </h3>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* File Tree */}
                 <div className="lg:col-span-1">
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                     <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">File Explorer</h4>
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                        File Explorer
+                      </h4>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                       {functionFiles.length > 0 ? (
@@ -1154,7 +1239,9 @@ const FunctionDetail = () => {
                       ) : (
                         <div className="text-center py-12">
                           <File className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                          <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No file selected</h3>
+                          <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                            No file selected
+                          </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             Select a file from the explorer to view its content
                           </p>
@@ -1171,9 +1258,13 @@ const FunctionDetail = () => {
           {activeTab === 'logs' && (
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white min-w-fit">Function Logs</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white min-w-fit">
+                  Function Logs
+                </h3>
                 <div className="flex flex-wrap items-center gap-2 min-w-0 sm:justify-end w-full sm:w-auto">
-                  <label className="text-xs text-gray-500 dark:text-gray-400 mr-1 whitespace-nowrap">Limit-Debug:</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 mr-1 whitespace-nowrap">
+                    Limit-Debug:
+                  </label>
                   <select
                     value={logs.length}
                     onChange={(e) => fetchFunctionData()}
@@ -1183,10 +1274,12 @@ const FunctionDetail = () => {
                     <option value={100}>Last 100</option>
                     <option value={200}>Last 200</option>
                   </select>
-                  <label className="text-xs text-gray-500 dark:text-gray-400 ml-2 mr-1 whitespace-nowrap">Level-Debug:</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 ml-2 mr-1 whitespace-nowrap">
+                    Level-Debug:
+                  </label>
                   <select
                     value={logLevel}
-                    onChange={e => setLogLevel(e.target.value)}
+                    onChange={(e) => setLogLevel(e.target.value)}
                     className="input text-sm w-auto min-w-[90px]"
                   >
                     <option value="all">All Levels</option>
@@ -1208,10 +1301,13 @@ const FunctionDetail = () => {
               {filteredLogs.length > 0 ? (
                 <div className="space-y-2">
                   {filteredLogs.map((log, index) => {
-                    const formattedLog = formatLogData(log)
-                    const isExpanded = expandedLogs.has(index)
-                    const hasExpandableData = typeof formattedLog === 'object' && formattedLog.data && formattedLog.data !== null
-                    
+                    const formattedLog = formatLogData(log);
+                    const isExpanded = expandedLogs.has(index);
+                    const hasExpandableData =
+                      typeof formattedLog === 'object' &&
+                      formattedLog.data &&
+                      formattedLog.data !== null;
+
                     return (
                       <div
                         key={index}
@@ -1219,8 +1315,8 @@ const FunctionDetail = () => {
                           log.level === 'ERROR' || log.level === 'CRON_ERROR'
                             ? 'border-red-200 bg-red-50 dark:bg-red-900/10'
                             : log.level === 'WARN'
-                            ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10'
-                            : 'border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700'
+                              ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10'
+                              : 'border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700'
                         }`}
                       >
                         <div
@@ -1231,7 +1327,9 @@ const FunctionDetail = () => {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-start space-x-3 flex-1">
-                              <div className={`mt-1 ${getLogLevelColor(log.level)} px-2 py-1 rounded text-xs font-medium`}>
+                              <div
+                                className={`mt-1 ${getLogLevelColor(log.level)} px-2 py-1 rounded text-xs font-medium`}
+                              >
                                 {log.level || 'INFO'}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1241,10 +1339,9 @@ const FunctionDetail = () => {
                                   </span>
                                 </div>
                                 <div className="text-sm font-mono break-words">
-                                  {typeof formattedLog === 'string' 
-                                    ? formattedLog 
-                                    : formattedLog.message || 'No message'
-                                  }
+                                  {typeof formattedLog === 'string'
+                                    ? formattedLog
+                                    : formattedLog.message || 'No message'}
                                 </div>
                               </div>
                             </div>
@@ -1259,7 +1356,7 @@ const FunctionDetail = () => {
                             )}
                           </div>
                         </div>
-                        
+
                         {isExpanded && hasExpandableData && (
                           <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
                             <div className="p-3">
@@ -1273,13 +1370,15 @@ const FunctionDetail = () => {
                           </div>
                         )}
                       </div>
-                    )
+                    );
                   })}
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <File className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No logs found</h3>
+                  <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                    No logs found
+                  </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     No logs available for this function
                   </p>
@@ -1291,33 +1390,53 @@ const FunctionDetail = () => {
           {/* Metrics Tab */}
           {activeTab === 'metrics' && metrics && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Function Metrics</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Function Metrics
+              </h3>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Invocations</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.invocations}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Total Invocations
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {metrics.invocations}
+                  </p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Errors</p>
                   <p className="text-2xl font-bold text-red-600">{metrics.errors}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Response Time</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.avgResponseTime?.toFixed(2)}ms</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Invocation</p>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {metrics.lastInvocation ? new Date(metrics.lastInvocation).toLocaleString() : 'N/A'}
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Avg Response Time
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {metrics.avgResponseTime?.toFixed(2)}ms
                   </p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Routes</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.routes?.length || 0}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Last Invocation
+                  </p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {metrics.lastInvocation
+                      ? new Date(metrics.lastInvocation).toLocaleString()
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Active Routes
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {metrics.routes?.length || 0}
+                  </p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Cron Jobs</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.cronJobs}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {metrics.cronJobs}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1326,7 +1445,9 @@ const FunctionDetail = () => {
           {/* Test Tab */}
           {activeTab === 'test' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Test Function</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Test Function
+              </h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
@@ -1370,11 +1491,7 @@ const FunctionDetail = () => {
                     placeholder='{"key": "value"}'
                   />
                 </div>
-                <button
-                  onClick={handleTestFunction}
-                  disabled={testLoading}
-                  className="btn-primary"
-                >
+                <button onClick={handleTestFunction} disabled={testLoading} className="btn-primary">
                   {testLoading ? (
                     <>
                       <LoadingSpinner size="sm" type="dots" text="Testing..." />
@@ -1389,10 +1506,14 @@ const FunctionDetail = () => {
 
                 {testResult && (
                   <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Result</h4>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Test Result
+                    </h4>
                     <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
-                        <span className={`badge ${testResult.success ? 'badge-success' : 'badge-danger'}`}>
+                        <span
+                          className={`badge ${testResult.success ? 'badge-success' : 'badge-danger'}`}
+                        >
                           {testResult.success ? 'Success' : 'Error'}
                         </span>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -1412,7 +1533,9 @@ const FunctionDetail = () => {
           {/* Env Tab */}
           {activeTab === 'env' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Environment Variables</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Environment Variables
+              </h3>
               {envLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <LoadingSpinner size="sm" text="Loading environment variables..." />
@@ -1429,8 +1552,12 @@ const FunctionDetail = () => {
                     <tbody>
                       {Object.entries(envVars).map(([key, value]) => (
                         <tr key={key}>
-                          <td className="font-mono px-2 py-1 text-gray-900 dark:text-white">{key}</td>
-                          <td className="font-mono px-2 py-1 text-gray-700 dark:text-gray-300">{value}</td>
+                          <td className="font-mono px-2 py-1 text-gray-900 dark:text-white">
+                            {key}
+                          </td>
+                          <td className="font-mono px-2 py-1 text-gray-700 dark:text-gray-300">
+                            {value}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1447,7 +1574,9 @@ const FunctionDetail = () => {
           {/* Update Tab */}
           {activeTab === 'update' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Update Function</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Update Function
+              </h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1457,7 +1586,10 @@ const FunctionDetail = () => {
                     <div className="text-center">
                       <Upload className="mx-auto h-12 w-12 text-gray-400" />
                       <div className="mt-4">
-                        <label htmlFor="update-file-upload" className="btn-primary cursor-pointer inline-flex items-center justify-center whitespace-nowrap">
+                        <label
+                          htmlFor="update-file-upload"
+                          className="btn-primary cursor-pointer inline-flex items-center justify-center whitespace-nowrap"
+                        >
                           <FileText className="h-4 w-4 mr-2" />
                           Select Files
                         </label>
@@ -1467,7 +1599,7 @@ const FunctionDetail = () => {
                           multiple
                           onChange={(e) => setUpdateFiles(Array.from(e.target.files))}
                           className="hidden"
-                          accept=".js,.json,.txt,.md,.yml,.yaml"
+                          accept=".js,.ts,.json,.txt,.md,.yml,.yaml"
                         />
                       </div>
                       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -1484,10 +1616,15 @@ const FunctionDetail = () => {
                     </h4>
                     <div className="space-y-2">
                       {updateFiles.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                        >
                           <div className="flex items-center">
                             <FileText className="h-4 w-4 text-gray-400 mr-2" />
-                            <span className="text-sm text-gray-900 dark:text-white">{file.name}</span>
+                            <span className="text-sm text-gray-900 dark:text-white">
+                              {file.name}
+                            </span>
                             <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
                               ({(file.size / 1024).toFixed(1)} KB)
                             </span>
@@ -1512,7 +1649,7 @@ const FunctionDetail = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default FunctionDetail 
+export default FunctionDetail;

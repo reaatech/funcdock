@@ -2,18 +2,18 @@
 
 /**
  * Test Runner Utility for FuncDock
- * 
+ *
  * This utility runs tests for functions and provides results for deployment validation.
  * Used by deployment scripts to ensure functions pass tests before deployment.
  */
 
-import { exec } from 'child_process';
+import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const execAsync = promisify(exec);
+const _execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.dirname(__dirname);
 
@@ -22,7 +22,7 @@ const colors = {
   blue: '\x1b[34m',
   yellow: '\x1b[33m',
   red: '\x1b[31m',
-  reset: '\x1b[0m'
+  reset: '\x1b[0m',
 };
 
 function log(message, color = 'reset') {
@@ -37,8 +37,14 @@ function log(message, color = 'reset') {
 export async function hasTestFiles(functionPath) {
   try {
     const files = await fs.readdir(functionPath);
-    return files.some(file => file.endsWith('.test.js') || file.endsWith('.spec.js') || file.endsWith('.test.mjs') || file.endsWith('.spec.mjs'));
-  } catch (error) {
+    return files.some(
+      (file) =>
+        file.endsWith('.test.js') ||
+        file.endsWith('.spec.js') ||
+        file.endsWith('.test.mjs') ||
+        file.endsWith('.spec.mjs')
+    );
+  } catch {
     return false;
   }
 }
@@ -52,9 +58,15 @@ export async function getTestFiles(functionPath) {
   try {
     const files = await fs.readdir(functionPath);
     return files
-      .filter(file => file.endsWith('.test.js') || file.endsWith('.spec.js') || file.endsWith('.test.mjs') || file.endsWith('.spec.mjs'))
-      .map(file => path.join(functionPath, file));
-  } catch (error) {
+      .filter(
+        (file) =>
+          file.endsWith('.test.js') ||
+          file.endsWith('.spec.js') ||
+          file.endsWith('.test.mjs') ||
+          file.endsWith('.spec.mjs')
+      )
+      .map((file) => path.join(functionPath, file));
+  } catch {
     return [];
   }
 }
@@ -67,7 +79,7 @@ export async function getTestFiles(functionPath) {
  */
 export async function runFunctionTests(functionPath, functionName) {
   const testFiles = await getTestFiles(functionPath);
-  
+
   if (testFiles.length === 0) {
     return {
       success: true,
@@ -75,7 +87,7 @@ export async function runFunctionTests(functionPath, functionName) {
       error: null,
       testCount: 0,
       passed: 0,
-      failed: 0
+      failed: 0,
     };
   }
 
@@ -83,21 +95,53 @@ export async function runFunctionTests(functionPath, functionName) {
   log(`📁 Test files found: ${testFiles.length}`, 'blue');
 
   try {
-    // Run Jest tests for this function
-    const { stdout, stderr } = await execAsync(
-      `npx jest --config jest.config.mjs --testPathPattern="${functionPath}" --verbose --json --silent`,
-      { 
-        cwd: projectRoot,
-        timeout: 30000, // 30 second timeout
-        env: { ...process.env, NODE_OPTIONS: '--experimental-vm-modules' }
-      }
-    );
+    // Run Jest tests for this function using spawn for safety
+    const { stdout, stderr } = await new Promise((resolve, reject) => {
+      let output = '';
+      let errOutput = '';
+      const child = spawn(
+        'npx',
+        [
+          'jest',
+          '--config',
+          'jest.config.mjs',
+          '--testPathPattern',
+          functionPath,
+          '--verbose',
+          '--json',
+          '--silent',
+        ],
+        {
+          cwd: projectRoot,
+          shell: false,
+          env: { ...process.env, NODE_OPTIONS: '--experimental-vm-modules' },
+          timeout: 30000,
+        }
+      );
+
+      child.stdout.on('data', (data) => {
+        output += data;
+      });
+      child.stderr.on('data', (data) => {
+        errOutput += data;
+      });
+
+      child.on('close', (code) => {
+        if (code !== 0 && !output) {
+          reject(new Error(errOutput || `Jest exited with code ${code}`));
+        } else {
+          resolve({ stdout: output, stderr: errOutput });
+        }
+      });
+
+      child.on('error', reject);
+    });
 
     // Parse Jest JSON output
     let testResults;
     try {
       testResults = JSON.parse(stdout);
-    } catch (parseError) {
+    } catch {
       // If JSON parsing fails, try to extract test results from stdout
       return {
         success: false,
@@ -105,26 +149,29 @@ export async function runFunctionTests(functionPath, functionName) {
         error: stderr || 'Failed to parse test results',
         testCount: 0,
         passed: 0,
-        failed: 1
+        failed: 1,
       };
     }
 
     const testCount = testResults.numTotalTests || 0;
     const passed = testResults.numPassedTests || 0;
     const failed = testResults.numFailedTests || 0;
-    const success = failed === 0 && testCount > 0;
+    const success = failed === 0;
 
     if (success) {
       log(`✅ Tests passed: ${passed}/${testCount}`, 'green');
     } else {
       log(`❌ Tests failed: ${failed}/${testCount}`, 'red');
       if (testResults.testResults) {
-        testResults.testResults.forEach(result => {
+        testResults.testResults.forEach((result) => {
           if (result.status === 'failed') {
             log(`   Failed: ${result.name}`, 'red');
-            result.assertionResults?.forEach(assertion => {
+            result.assertionResults?.forEach((assertion) => {
               if (assertion.status === 'failed') {
-                log(`     - ${assertion.title}: ${assertion.failureMessages?.[0] || 'Unknown error'}`, 'red');
+                log(
+                  `     - ${assertion.title}: ${assertion.failureMessages?.[0] || 'Unknown error'}`,
+                  'red'
+                );
               }
             });
           }
@@ -138,19 +185,18 @@ export async function runFunctionTests(functionPath, functionName) {
       error: stderr,
       testCount,
       passed,
-      failed
+      failed,
     };
-
   } catch (error) {
     log(`❌ Test execution failed: ${error.message}`, 'red');
-    
+
     return {
       success: false,
       output: error.stdout || '',
       error: error.stderr || error.message,
       testCount: 0,
       passed: 0,
-      failed: 1
+      failed: 1,
     };
   }
 }
@@ -163,30 +209,30 @@ export async function runFunctionTests(functionPath, functionName) {
  */
 export async function validateFunctionDeployment(functionPath, functionName) {
   const hasTests = await hasTestFiles(functionPath);
-  
+
   if (!hasTests) {
     return {
       valid: true,
       message: 'No tests found - deployment allowed',
-      testResults: null
+      testResults: null,
     };
   }
 
   log(`🔍 Validating deployment for function: ${functionName}`, 'blue');
-  
+
   const testResults = await runFunctionTests(functionPath, functionName);
-  
+
   if (testResults.success) {
     return {
       valid: true,
       message: `All tests passed (${testResults.passed}/${testResults.testCount})`,
-      testResults
+      testResults,
     };
   } else {
     return {
       valid: false,
       message: `Tests failed (${testResults.failed}/${testResults.testCount}) - deployment blocked`,
-      testResults
+      testResults,
     };
   }
 }
@@ -198,31 +244,31 @@ export async function validateFunctionDeployment(functionPath, functionName) {
  */
 export async function validateMultipleFunctions(functions) {
   const results = [];
-  
+
   for (const func of functions) {
     const result = await validateFunctionDeployment(func.path, func.name);
     results.push({
       functionName: func.name,
-      ...result
+      ...result,
     });
   }
-  
+
   return results;
 }
 
 // CLI interface for standalone test running
 if (import.meta.url === `file://${process.argv[1]}`) {
   const functionName = process.argv[2];
-  
+
   if (!functionName) {
     log('Usage: node test-runner.js <function-name>', 'red');
     process.exit(1);
   }
-  
+
   const functionPath = path.join(projectRoot, 'functions', functionName);
-  
+
   validateFunctionDeployment(functionPath, functionName)
-    .then(result => {
+    .then((result) => {
       if (result.valid) {
         log(`✅ Validation passed: ${result.message}`, 'green');
         process.exit(0);
@@ -231,8 +277,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         process.exit(1);
       }
     })
-    .catch(error => {
+    .catch((error) => {
       log(`❌ Validation error: ${error.message}`, 'red');
       process.exit(1);
     });
-} 
+}

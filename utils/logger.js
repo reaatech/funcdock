@@ -18,7 +18,7 @@ class Logger extends EventEmitter {
       info: 3,
       debug: 4,
       CRON: 5,
-      CRON_ERROR: 6
+      CRON_ERROR: 6,
     };
 
     this.logLevel = this.validateLogLevel(options.logLevel || process.env.LOG_LEVEL || 'info');
@@ -37,7 +37,7 @@ class Logger extends EventEmitter {
       debug: '\x1b[37m',
       CRON: '\x1b[32m',
       CRON_ERROR: '\x1b[41m',
-      reset: '\x1b[0m'
+      reset: '\x1b[0m',
     };
 
     // Track streams for cleanup
@@ -55,7 +55,7 @@ class Logger extends EventEmitter {
   }
 
   validateLogLevel(level) {
-    if (typeof level !== 'string' || !this.levels.hasOwnProperty(level)) {
+    if (typeof level !== 'string' || !Object.prototype.hasOwnProperty.call(this.levels, level)) {
       console.warn(`Invalid log level: ${level}, defaulting to 'info'`);
       return 'info';
     }
@@ -64,8 +64,11 @@ class Logger extends EventEmitter {
 
   sanitizeFunctionName(name) {
     if (!name) return null;
-    // Remove any path separators and limit length
-    return name.replace(/[/\\]/g, '').substring(0, 50);
+    const sanitized = name
+      .replace(/[/\\]/g, '')
+      .replace(/\.\./g, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
+    return sanitized.substring(0, 50);
   }
 
   async initialize() {
@@ -108,7 +111,7 @@ class Logger extends EventEmitter {
     } else if (typeof message === 'object') {
       try {
         formattedMessage = JSON.stringify(message, null, 2);
-      } catch (e) {
+      } catch {
         formattedMessage = '[object - could not stringify]';
       }
     } else {
@@ -120,7 +123,7 @@ class Logger extends EventEmitter {
       pid: processId,
       level: level.toUpperCase(),
       message: formattedMessage,
-      ...meta
+      ...meta,
     };
 
     if (this.functionName && !logEntry.function) {
@@ -196,7 +199,7 @@ class Logger extends EventEmitter {
         this.rotationLocks.add(logFile);
         await this.rotateLogs(logFile);
       }
-    } catch (error) {
+    } catch {
       // Log file might not exist yet
     } finally {
       this.rotationLocks.delete(logFile);
@@ -224,7 +227,7 @@ class Logger extends EventEmitter {
           } else {
             await fs.rename(oldFile, newFile);
           }
-        } catch (error) {
+        } catch {
           // File doesn't exist, continue
         }
       }
@@ -261,10 +264,14 @@ class Logger extends EventEmitter {
       } else {
         console.log(coloredMessage);
       }
-    } catch (parseError) {
+    } catch {
       // Fallback to raw message
-      const outputFn = level === 'error' || level === 'alert' ? console.error :
-        level === 'warn' ? console.warn : console.log;
+      const outputFn =
+        level === 'error' || level === 'alert'
+          ? console.error
+          : level === 'warn'
+            ? console.warn
+            : console.log;
       outputFn(formattedMessage);
     }
   }
@@ -284,7 +291,7 @@ class Logger extends EventEmitter {
         const errorInfo = {
           name: meta.name,
           message: meta.message,
-          stack: meta.stack
+          stack: meta.stack,
         };
         message = `${message} ${meta.name}: ${meta.message}`;
         meta = { error: errorInfo, stack: meta.stack };
@@ -294,15 +301,14 @@ class Logger extends EventEmitter {
         meta.error = {
           name: meta.error.name,
           message: meta.error.message,
-          stack: meta.error.stack
+          stack: meta.error.stack,
         };
         meta.stack = meta.error.stack; // Also add to root for console display
-      }
-      else if (message instanceof Error) {
+      } else if (message instanceof Error) {
         const errorObj = {
           name: message.name,
           message: message.message,
-          stack: message.stack
+          stack: message.stack,
         };
         meta.error = errorObj;
         meta.stack = message.stack; // Add to root for console display
@@ -323,7 +329,6 @@ class Logger extends EventEmitter {
       if (level === 'alert') {
         await this.sendAlert(message, meta);
       }
-
     } catch (error) {
       console.error('Logger error:', error.message);
     }
@@ -374,33 +379,36 @@ class Logger extends EventEmitter {
 
       const payload = {
         text: `🚨 FuncDock Platform Alert`,
-        attachments: [{
-          color: 'danger',
-          fields: [
-            {
-              title: 'Message',
-              value: message,
-              short: false
-            },
-            {
-              title: 'Timestamp',
-              value: new Date().toISOString(),
-              short: true
-            },
-            {
-              title: 'Process ID',
-              value: process.pid.toString(),
-              short: true
-            }
-          ]
-        }]
+        attachments: [
+          {
+            color: 'danger',
+            fields: [
+              {
+                title: 'Message',
+                value: message,
+                short: false,
+              },
+              {
+                title: 'Timestamp',
+                value: new Date().toISOString(),
+                short: true,
+              },
+              {
+                title: 'Process ID',
+                value: process.pid.toString(),
+                short: true,
+              },
+            ],
+          },
+        ],
       };
 
       if (meta && Object.keys(meta).length > 0) {
+        const redactedMeta = this.redactSensitiveData(meta);
         payload.attachments[0].fields.push({
           title: 'Additional Info',
-          value: JSON.stringify(meta, null, 2),
-          short: false
+          value: JSON.stringify(redactedMeta, null, 2),
+          short: false,
         });
       }
 
@@ -410,10 +418,10 @@ class Logger extends EventEmitter {
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
@@ -426,11 +434,48 @@ class Logger extends EventEmitter {
     }
   }
 
+  redactSensitiveData(obj) {
+    if (obj === null || typeof obj !== 'object') return obj;
+    const sensitiveKeys = [
+      'password',
+      'secret',
+      'token',
+      'key',
+      'api_key',
+      'apikey',
+      'api_key',
+      'apiKey',
+      'credential',
+      'private',
+    ];
+    const result = Array.isArray(obj) ? [] : {};
+    for (const [k, v] of Object.entries(obj)) {
+      const lowerKey = k.toLowerCase();
+      if (sensitiveKeys.some((sk) => lowerKey.includes(sk))) {
+        result[k] = '[REDACTED]';
+      } else if (typeof v === 'object' && v !== null) {
+        result[k] = this.redactSensitiveData(v);
+      } else if (
+        typeof v === 'string' &&
+        (v.startsWith('sk-') ||
+          v.startsWith('ghp_') ||
+          v.startsWith('glpat-') ||
+          v.includes('password') ||
+          v.includes('secret'))
+      ) {
+        result[k] = '[REDACTED]';
+      } else {
+        result[k] = v;
+      }
+    }
+    return result;
+  }
+
   // Cleanup method
   async cleanup() {
     await this.flushBuffer();
 
-    for (const [filePath, stream] of this.streams) {
+    for (const [, stream] of this.streams) {
       stream.end();
     }
 
@@ -470,7 +515,7 @@ class Logger extends EventEmitter {
       this.info(`${req.method} ${req.originalUrl}`, {
         ip: req.ip,
         userAgent: req.get('User-Agent'),
-        function: req.functionName
+        function: req.functionName,
       });
 
       res.on('finish', () => {
@@ -481,7 +526,7 @@ class Logger extends EventEmitter {
           statusCode: res.statusCode,
           duration,
           ip: req.ip,
-          function: req.functionName
+          function: req.functionName,
         });
       });
 
@@ -514,11 +559,11 @@ class Logger extends EventEmitter {
       }
 
       const logContent = await fs.readFile(logFile, 'utf-8');
-      const logLines = logContent.split('\n').filter(line => line.trim());
+      const logLines = logContent.split('\n').filter((line) => line.trim());
 
       return {
         total: logLines.length,
-        lines: logLines.slice(-Math.max(1, Math.min(1000, lines))) // Limit between 1-1000
+        lines: logLines.slice(-Math.max(1, Math.min(1000, lines))), // Limit between 1-1000
       };
     } catch (error) {
       return { error: error.message };
@@ -550,11 +595,11 @@ class Logger extends EventEmitter {
       }
 
       const logContent = await fs.readFile(errorLogFile, 'utf-8');
-      const logLines = logContent.split('\n').filter(line => line.trim());
+      const logLines = logContent.split('\n').filter((line) => line.trim());
 
       return {
         total: logLines.length,
-        lines: logLines.slice(-Math.max(1, Math.min(500, lines)))
+        lines: logLines.slice(-Math.max(1, Math.min(500, lines))),
       };
     } catch (error) {
       return { error: error.message };
@@ -598,7 +643,7 @@ class Logger extends EventEmitter {
               hasMainLog: false,
               hasErrorLog: false,
               mainLogSize: 0,
-              errorLogSize: 0
+              errorLogSize: 0,
             });
           }
 
@@ -615,14 +660,14 @@ class Logger extends EventEmitter {
               func.hasMainLog = true;
               func.mainLogSize = stats.size;
             }
-          } catch (error) {
+          } catch {
             // File might not exist or be accessible
           }
         }
       }
 
       return {
-        functions: Array.from(functionMap.values())
+        functions: Array.from(functionMap.values()),
       };
     } catch (error) {
       return { error: error.message };

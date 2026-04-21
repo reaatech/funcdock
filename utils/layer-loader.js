@@ -1,48 +1,50 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { spawn } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isWindows = process.platform === 'win32';
 
 /**
  * Load layer configuration from layer.config.json
  */
 export const loadLayerConfig = async (layerDir, logger = null) => {
   const configPath = path.join(layerDir, 'layer.config.json');
-  
+
   try {
     await fs.access(configPath);
     const configRaw = await fs.readFile(configPath, 'utf-8');
-    
+
     try {
       return JSON.parse(configRaw);
     } catch (parseError) {
       // layer.config.json exists but is malformed JSON
       if (logger) {
-        logger.warn(`Layer ${path.basename(layerDir)}: layer.config.json contains invalid JSON, using default config. Error: ${parseError.message}`);
+        logger.warn(
+          `Layer ${path.basename(layerDir)}: layer.config.json contains invalid JSON, using default config. Error: ${parseError.message}`
+        );
       }
       // Return default config instead of failing
       return {
         name: path.basename(layerDir),
         version: '1.0.0',
         description: '',
-        runtimes: ['nodejs']
+        runtimes: ['nodejs'],
       };
     }
   } catch (error) {
     // layer.config.json is optional, return default config
     if (error.code !== 'ENOENT' && logger) {
       // Some other error reading the file
-      logger.warn(`Layer ${path.basename(layerDir)}: Could not read layer.config.json: ${error.message}`);
+      logger.warn(
+        `Layer ${path.basename(layerDir)}: Could not read layer.config.json: ${error.message}`
+      );
     }
     return {
       name: path.basename(layerDir),
       version: '1.0.0',
       description: '',
-      runtimes: ['nodejs']
+      runtimes: ['nodejs'],
     };
   }
 };
@@ -89,9 +91,46 @@ export const installLayerDependencies = async (layerPath) => {
       return { success: true, message: 'Dependencies already up to date' };
     }
 
-    const { stdout, stderr } = await execAsync('npm install', {
-      cwd: nodejsPath,
-      timeout: 60000 // 1 minute timeout
+    const { stderr } = await new Promise((resolve, reject) => {
+      let settled = false;
+      const child = spawn('npm', ['install'], {
+        cwd: nodejsPath,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (data) => {
+        stdout += data;
+      });
+      child.stderr.on('data', (data) => {
+        stderr += data;
+      });
+
+      child.on('close', (code) => {
+        if (settled) return;
+        settled = true;
+        if (code === 0) {
+          resolve({ stdout, stderr });
+        } else {
+          reject(new Error(stderr.trim() || `npm install failed with exit code ${code}`));
+        }
+      });
+
+      child.on('error', (err) => {
+        if (settled) return;
+        settled = true;
+        reject(err);
+      });
+
+      setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        child.kill('SIGKILL');
+        reject(new Error('npm install timed out after 60 seconds'));
+      }, 60000);
     });
 
     if (stderr && !stderr.includes('npm WARN')) {
@@ -119,21 +158,16 @@ export const loadLayer = async (layerDir, logger) => {
     // Check if nodejs directory exists
     await fs.access(nodejsPath);
     const nodejsStats = await fs.stat(nodejsPath);
-    
+
     if (!nodejsStats.isDirectory()) {
-      throw new Error(`Layer ${layerName}: nodejs path exists but is not a directory: ${nodejsPath}`);
+      throw new Error(
+        `Layer ${layerName}: nodejs path exists but is not a directory: ${nodejsPath}`
+      );
     }
 
     // Validate that nodejs directory contains at least one file
     try {
       const entries = await fs.readdir(nodejsPath);
-      const hasFiles = entries.some(async (entry) => {
-        const entryPath = path.join(nodejsPath, entry);
-        const stats = await fs.stat(entryPath);
-        return stats.isFile();
-      });
-      
-      // Check synchronously for files
       let hasAnyFile = false;
       for (const entry of entries) {
         const entryPath = path.join(nodejsPath, entry);
@@ -144,13 +178,11 @@ export const loadLayer = async (layerDir, logger) => {
             break;
           }
         } catch {
-          // Skip entries we can't stat
           continue;
         }
       }
-      
+
       if (!hasAnyFile && entries.length > 0) {
-        // Has directories but no files - this is okay, just warn
         logger.warn(`Layer ${layerName}: nodejs directory contains no files, only directories`);
       } else if (entries.length === 0) {
         throw new Error(`Layer ${layerName}: nodejs directory is empty`);
@@ -160,7 +192,9 @@ export const loadLayer = async (layerDir, logger) => {
         throw error;
       }
       // Other errors reading directory - log but continue
-      logger.warn(`Layer ${layerName}: Could not validate nodejs directory contents: ${error.message}`);
+      logger.warn(
+        `Layer ${layerName}: Could not validate nodejs directory contents: ${error.message}`
+      );
     }
 
     // Load layer config
@@ -178,11 +212,13 @@ export const loadLayer = async (layerDir, logger) => {
       nodejsPath,
       config,
       loadedAt: new Date(),
-      status: 'loaded'
+      status: 'loaded',
     };
   } catch (error) {
     if (error.code === 'ENOENT') {
-      throw new Error(`Layer ${layerName} is missing nodejs directory at ${nodejsPath}`);
+      throw new Error(`Layer ${layerName} is missing nodejs directory at ${nodejsPath}`, {
+        cause: error,
+      });
     }
     throw error;
   }
@@ -228,18 +264,18 @@ export const loadAllLayers = async (layersDir, logger) => {
  */
 export const readFunctionLayers = async (functionDir) => {
   const layersJsonPath = path.join(functionDir, 'layers.json');
-  
+
   try {
     await fs.access(layersJsonPath);
     const layersRaw = await fs.readFile(layersJsonPath, 'utf-8');
-    
+
     let layersData;
     try {
       layersData = JSON.parse(layersRaw);
     } catch (parseError) {
-      throw new Error(`Invalid JSON in layers.json: ${parseError.message}`);
+      throw new Error(`Invalid JSON in layers.json: ${parseError.message}`, { cause: parseError });
     }
-    
+
     // Support both string format: "layer-name"
     // and object format: { "layer": "layer-name" }
     if (typeof layersData === 'string') {
@@ -256,7 +292,9 @@ export const readFunctionLayers = async (functionDir) => {
       } else if (layersData.layer !== undefined) {
         throw new Error('Layer property must be a non-empty string');
       } else {
-        throw new Error('layers.json must contain either a string or an object with a "layer" property');
+        throw new Error(
+          'layers.json must contain either a string or an object with a "layer" property'
+        );
       }
     } else {
       throw new Error('layers.json must be either a string or an object');
@@ -313,17 +351,45 @@ export const createLayerSymlink = async (functionDir, layerName, layerNodejsPath
       } catch (windowsError) {
         // If symlink fails on Windows, try using junction (doesn't require admin)
         if (windowsError.code === 'EPERM' || windowsError.code === 'EACCES') {
-          logger.warn(`Symlink creation failed on Windows (may require admin). Attempting junction...`);
+          logger.warn(
+            `Symlink creation failed on Windows (may require admin). Attempting junction...`
+          );
           try {
             // Use junction on Windows as fallback (works without admin for directories)
-            await execAsync(`mklink /J "${absoluteSymlinkPath}" "${absoluteLayerPath}"`, {
-              shell: true,
-              windowsVerbatimArguments: false
+            await new Promise((resolve, reject) => {
+              const child = spawn(
+                'cmd',
+                ['/c', 'mklink', '/J', absoluteSymlinkPath, absoluteLayerPath],
+                {
+                  stdio: ['ignore', 'pipe', 'pipe'],
+                  shell: false,
+                }
+              );
+
+              let stderr = '';
+              child.stderr.on('data', (data) => {
+                stderr += data;
+              });
+
+              child.on('close', (code) => {
+                if (code === 0) {
+                  resolve();
+                } else {
+                  reject(new Error(stderr.trim() || `mklink failed with exit code ${code}`));
+                }
+              });
+
+              child.on('error', reject);
             });
             logger.info(`Created junction: ${absoluteSymlinkPath} -> ${absoluteLayerPath}`);
           } catch (junctionError) {
-            logger.error(`Failed to create junction for layer ${layerName}: ${junctionError.message}`, { stack: junctionError.stack });
-            logger.alert(`Layer ${layerName} symlink/junction creation failed. Function may not be able to import from this layer.`);
+            logger.error(
+              `Failed to create junction for layer ${layerName}: ${junctionError.message}`,
+              { stack: junctionError.stack }
+            );
+            logger.alert(
+              `Layer ${layerName} symlink/junction creation failed. Function may not be able to import from this layer.`
+            );
             return false;
           }
         } else {
@@ -337,9 +403,13 @@ export const createLayerSymlink = async (functionDir, layerName, layerNodejsPath
     }
     return true;
   } catch (error) {
-    logger.error(`Failed to create symlink for layer ${layerName}: ${error.message}`, { stack: error.stack });
+    logger.error(`Failed to create symlink for layer ${layerName}: ${error.message}`, {
+      stack: error.stack,
+    });
     if (isWindows) {
-      logger.alert(`On Windows, symlinks may require administrator privileges. Consider running the server as administrator or using Developer Mode.`);
+      logger.alert(
+        `On Windows, symlinks may require administrator privileges. Consider running the server as administrator or using Developer Mode.`
+      );
     }
     return false;
   }
@@ -364,7 +434,9 @@ export const removeLayerSymlink = async (functionDir, layerName, logger) => {
       // Symlink doesn't exist, that's fine
       return true;
     }
-    logger.error(`Failed to remove symlink for layer ${layerName}: ${error.message}`, { stack: error.stack });
+    logger.error(`Failed to remove symlink for layer ${layerName}: ${error.message}`, {
+      stack: error.stack,
+    });
     return false;
   }
 };
@@ -374,28 +446,27 @@ export const removeLayerSymlink = async (functionDir, layerName, logger) => {
  */
 export const cleanupFunctionLayerSymlinks = async (functionDir, logger) => {
   const functionNodeModules = path.join(functionDir, 'node_modules');
-  
+
   try {
     const entries = await fs.readdir(functionNodeModules);
-    
+
     for (const entry of entries) {
       const entryPath = path.join(functionNodeModules, entry);
       try {
         const stats = await fs.lstat(entryPath);
         if (stats.isSymbolicLink()) {
-          // Check if it points to a layer directory
           const targetPath = await fs.readlink(entryPath);
-          if (targetPath.includes('/layers/') && targetPath.includes('/nodejs')) {
+          const resolvedTarget = path.resolve(path.dirname(entryPath), targetPath);
+          if (/[\\/]layers[\\/]/.test(resolvedTarget) && /[\\/]nodejs[\\/]/.test(resolvedTarget)) {
             await fs.unlink(entryPath);
             logger.info(`Cleaned up layer symlink: ${entryPath}`);
           }
         }
-      } catch (error) {
-        // Skip entries we can't process
+      } catch {
         continue;
       }
     }
-    
+
     return true;
   } catch (error) {
     if (error.code === 'ENOENT') {
@@ -406,4 +477,3 @@ export const cleanupFunctionLayerSymlinks = async (functionDir, logger) => {
     return false;
   }
 };
-

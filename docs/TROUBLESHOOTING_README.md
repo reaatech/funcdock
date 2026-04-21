@@ -3,6 +3,7 @@
 This guide helps you diagnose and fix common issues with FuncDock.
 
 ## Index
+
 - [Quick Diagnostics](#quick-diagnostics)
 - [Common Issues](#common-issues)
 - [Deployment Problems](#deployment-problems)
@@ -33,7 +34,7 @@ tail -f logs/app.log
 tail -f logs/error.log
 
 # List all functions
-make list-functions
+funcdock list
 
 # Check platform status
 make status
@@ -53,6 +54,7 @@ make status
 ### Port Already in Use
 
 **Symptoms:**
+
 - Error: `EADDRINUSE: address already in use :::3000`
 - Server fails to start
 
@@ -76,6 +78,7 @@ lsof -i :3000            # macOS
 ### Missing Dependencies
 
 **Symptoms:**
+
 - `Cannot find module` errors
 - Function fails to load
 
@@ -97,6 +100,7 @@ npm install
 ### Permission Errors
 
 **Symptoms:**
+
 - `EACCES` or `EPERM` errors
 - Cannot write to directories
 
@@ -118,6 +122,7 @@ sudo npm run dev  # Not recommended, fix permissions instead
 ### Environment Variable Problems
 
 **Symptoms:**
+
 - Functions can't access environment variables
 - `env` is undefined or empty
 
@@ -144,6 +149,7 @@ source .env && npm run dev
 ### Git Credentials Not Found
 
 **Symptoms:**
+
 - Authentication prompts during deployment
 - `Permission denied` errors
 - `Repository not found` errors
@@ -157,7 +163,7 @@ make check-git
 npm run check-git
 
 # Use host-based deployment (recommended)
-make deploy-host-git REPO=https://github.com/user/repo.git NAME=my-function
+funcdock deploy --git https://github.com/user/repo.git --name my-function
 
 # Configure Git credentials
 git config --global user.name "Your Name"
@@ -173,6 +179,7 @@ ssh-keygen -t ed25519 -C "your.email@example.com"
 ### Missing Required Files
 
 **Symptoms:**
+
 - `handler.js not found`
 - `route.config.json is missing`
 - Deployment fails with file errors
@@ -198,6 +205,7 @@ node -e "JSON.parse(require('fs').readFileSync('functions/my-function/route.conf
 ### Dependency Install Failures
 
 **Symptoms:**
+
 - `npm install` fails in function directory
 - Missing modules after deployment
 - Version conflicts
@@ -226,6 +234,7 @@ npm --version  # Should be recent
 ### Route Conflicts
 
 **Symptoms:**
+
 - `Route conflict detected` error
 - Function deployment fails
 - Routes not working as expected
@@ -250,6 +259,7 @@ curl http://localhost:3000/api/status | jq '.functions[].routes'
 ### Handler Not Exporting Default Function
 
 **Symptoms:**
+
 - `Handler does not export a default function`
 - Function fails to load
 
@@ -271,6 +281,7 @@ export async function handler(req, res) { ... }
 ### Route Configuration Errors
 
 **Symptoms:**
+
 - Routes not registering
 - 404 errors for valid routes
 - Methods not working
@@ -300,6 +311,7 @@ export async function handler(req, res) { ... }
 ### Cron Job Misconfiguration
 
 **Symptoms:**
+
 - Cron jobs not running
 - Invalid schedule errors
 - Handler not found
@@ -328,6 +340,7 @@ ls -la functions/my-function/cron-handler.js
 ### Environment Variable Access
 
 **Symptoms:**
+
 - `env` is undefined
 - Environment variables not accessible
 
@@ -355,6 +368,7 @@ DATABASE_URL=postgres://...
 ### Dashboard Not Loading
 
 **Symptoms:**
+
 - Blank page
 - 404 errors
 - Connection refused
@@ -385,6 +399,7 @@ npm run dev
 ### Real-Time Logs Not Updating
 
 **Symptoms:**
+
 - Logs not appearing in dashboard
 - WebSocket connection errors
 
@@ -409,6 +424,7 @@ npm run dev
 ### Functions Not Appearing in Dashboard
 
 **Symptoms:**
+
 - Functions deployed but not visible
 - Empty function list
 
@@ -419,7 +435,7 @@ npm run dev
 curl http://localhost:3000/api/status | jq '.functions'
 
 # Check function status
-make list-functions
+funcdock list
 
 # Reload functions
 make reload
@@ -435,6 +451,7 @@ tail -f logs/functions/my-function.log
 ### Jest/Nock Not Installed
 
 **Symptoms:**
+
 - `Cannot find module 'jest'`
 - Test command fails
 
@@ -458,6 +475,7 @@ npm install
 ### Failing Tests
 
 **Symptoms:**
+
 - Tests fail with errors
 - Coverage too low
 
@@ -468,7 +486,7 @@ npm install
 npm test -- --verbose
 
 # Run specific test file
-npm test -- handler.test.js
+npm test -- handler.test.mjs
 
 # Check test coverage
 npm run test:coverage
@@ -477,12 +495,13 @@ npm run test:coverage
 npm run test:watch
 
 # Check test setup
-cat test/setup.js
+cat test/setup.mjs
 ```
 
 ### Docker Test Environment Issues
 
 **Symptoms:**
+
 - Docker tests fail
 - Container won't start
 
@@ -496,7 +515,7 @@ docker ps
 docker build -f Dockerfile.test -t funcdock-test .
 
 # Run test manually
-node scripts/test-function-in-docker.js --function=./functions/hello-world
+funcdock test hello-world --docker
 
 # Check Docker logs
 docker logs <container-id>
@@ -509,6 +528,7 @@ docker logs <container-id>
 ### Slow Function Execution
 
 **Symptoms:**
+
 - Functions take too long to respond
 - Timeout errors
 
@@ -533,6 +553,7 @@ node --inspect server.js
 ### High Memory Usage
 
 **Symptoms:**
+
 - Server crashes
 - Out of memory errors
 
@@ -559,6 +580,7 @@ NODE_OPTIONS="--max-old-space-size=2048" npm run dev
 ### CORS Errors
 
 **Symptoms:**
+
 - `Access-Control-Allow-Origin` errors
 - Requests blocked by browser
 
@@ -570,12 +592,12 @@ export default async function handler(req, res) {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
+
   // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-  
+
   // Your handler code...
 }
 ```
@@ -583,6 +605,7 @@ export default async function handler(req, res) {
 ### Connection Timeouts
 
 **Symptoms:**
+
 - Requests timeout
 - Functions don't respond
 
@@ -626,7 +649,7 @@ vm_stat       # Memory (macOS)
 
 ```bash
 # List all functions
-make list-functions
+funcdock list
 
 # Check function status
 curl http://localhost:3000/api/status | jq '.functions[]'
@@ -705,7 +728,8 @@ tail -f logs/app.log | grep --color=always "ERROR\|WARN"
 ### Q: Why is my function returning 404?
 
 A: Check:
-1. Function is deployed: `make list-functions`
+
+1. Function is deployed: `funcdock list`
 2. Route configuration is correct
 3. Base URL matches: `curl http://localhost:3000/{base}/`
 4. Route path is correct in `route.config.json`
@@ -713,6 +737,7 @@ A: Check:
 ### Q: How do I debug a function?
 
 A:
+
 1. Check function logs: `tail -f logs/functions/my-function.log`
 2. Add logging: `logger.info('Debug point', { data })`
 3. Test locally: `curl http://localhost:3000/my-function/`
@@ -722,6 +747,7 @@ A:
 ### Q: Why are cron jobs not running?
 
 A: Check:
+
 1. Cron syntax is valid (use crontab.guru)
 2. Handler file exists and exports default function
 3. Timezone is correct
@@ -730,6 +756,7 @@ A: Check:
 ### Q: How do I reset everything?
 
 A:
+
 ```bash
 # Stop server
 # Remove functions (backup first!)
@@ -743,6 +770,7 @@ npm run dev
 ### Q: Can I run multiple instances?
 
 A: Yes, but:
+
 - Use different ports
 - Configure load balancer
 - Share state via external storage (Redis, DB)
@@ -762,6 +790,7 @@ A: Yes, but:
 ### When Asking for Help
 
 **Include:**
+
 - Error messages (full text)
 - Steps to reproduce
 - Environment details (Node version, OS)
@@ -769,11 +798,13 @@ A: Yes, but:
 - What you've tried
 
 **GitHub Issues:**
+
 - Use clear, descriptive titles
 - Include code examples if relevant
 - Tag appropriately (bug, question, etc.)
 
 **Community:**
+
 - Be respectful and patient
 - Provide context
 - Help others when you can
@@ -789,4 +820,4 @@ A: Yes, but:
 
 ---
 
-**Still stuck?** Open an issue on GitHub with details about your problem. 
+**Still stuck?** Open an issue on GitHub with details about your problem.

@@ -1,88 +1,92 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { io } from 'socket.io-client'
-import { useAuth } from './AuthContext'
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { io } from 'socket.io-client';
+import { useAuth } from './AuthContext';
 
-const SocketContext = createContext()
+const SocketContext = createContext();
 
 export const useSocket = () => {
-  const context = useContext(SocketContext)
+  const context = useContext(SocketContext);
   if (!context) {
-    throw new Error('useSocket must be used within a SocketProvider')
+    throw new Error('useSocket must be used within a SocketProvider');
   }
-  return context
-}
+  return context;
+};
 
 export const SocketProvider = ({ children }) => {
-  const [socket, setSocket] = useState(null)
-  const [connected, setConnected] = useState(false)
-  const { isAuthenticated } = useAuth()
+  const [socket, setSocket] = useState(null);
+  const [connected, setConnected] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated) {
       const newSocket = io('/', {
-        auth: {
-          token: localStorage.getItem('funcdock-token')
-        }
-      })
+        withCredentials: true,
+      });
 
       newSocket.on('connect', () => {
-        setConnected(true)
-        console.log('Connected to FuncDock server')
-      })
+        setConnected(true);
+      });
 
       newSocket.on('disconnect', () => {
-        setConnected(false)
-        console.log('Disconnected from FuncDock server')
-      })
+        setConnected(false);
+      });
 
       newSocket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error)
-        setConnected(false)
-      })
+        console.error('Socket connection error:', error);
+        setConnected(false);
+      });
 
-      setSocket(newSocket)
+      setSocket(newSocket);
 
       return () => {
-        newSocket.close()
-      }
+        newSocket.close();
+      };
     } else {
       if (socket) {
-        socket.close()
-        setSocket(null)
-        setConnected(false)
+        socket.close();
+        setSocket(null);
+        setConnected(false);
       }
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated]);
 
-  const emit = (event, data) => {
-    if (socket && connected) {
-      socket.emit(event, data)
-    }
-  }
+  const emit = useCallback(
+    (event, data) => {
+      if (socket && connected) {
+        socket.emit(event, data);
+      }
+    },
+    [socket, connected]
+  );
 
-  const on = (event, callback) => {
-    if (socket) {
-      socket.on(event, callback)
-    }
-  }
+  const on = useCallback(
+    (event, callback) => {
+      if (socket) {
+        socket.on(event, callback);
+      }
+    },
+    [socket]
+  );
 
-  const off = (event, callback) => {
-    if (socket) {
-      socket.off(event, callback)
-    }
-  }
+  const off = useCallback(
+    (event, callback) => {
+      if (socket) {
+        socket.off(event, callback);
+      }
+    },
+    [socket]
+  );
 
-  const value = {
-    socket,
-    connected,
-    emit,
-    on,
-    off
-  }
+  const value = useMemo(
+    () => ({
+      socket,
+      connected,
+      emit,
+      on,
+      off,
+    }),
+    [socket, connected, emit, on, off]
+  );
 
-  return (
-    <SocketContext.Provider value={value}>
-      {children}
-    </SocketContext.Provider>
-  )
-} 
+  return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
+};

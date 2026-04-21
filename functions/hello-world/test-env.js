@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   logger.info('Testing environment variables access', {
     hasEnv: !!env,
-    envKeys: env ? Object.keys(env) : []
+    envKeys: env ? Object.keys(env) : [],
   });
 
   // Add CORS headers
@@ -25,13 +25,15 @@ export default async function handler(req, res) {
       message: 'Environment variables test',
       hasEnvironmentVariables: !!env,
       environmentVariables: env ? Object.keys(env) : [],
-      sampleValues: env ? {
-        hasApiKey: !!env.API_KEY,
-        hasDatabaseUrl: !!env.DATABASE_URL,
-        debugMode: env.DEBUG,
-        logLevel: env.LOG_LEVEL
-      } : null,
-      timestamp: new Date().toISOString()
+      sampleValues: env
+        ? {
+            hasApiKey: !!env.API_KEY,
+            hasDatabaseUrl: !!env.DATABASE_URL,
+            debugMode: env.DEBUG,
+            logLevel: env.LOG_LEVEL,
+          }
+        : null,
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -39,6 +41,6 @@ export default async function handler(req, res) {
     error: 'Method Not Allowed',
     method: req.method,
     supportedMethods: ['GET'],
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-} 
+}

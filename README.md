@@ -10,8 +10,10 @@
 - [DASHBOARDS](docs/DASHBOARDS_README.md)
 - [TESTING](docs/TESTING_README.md)
 - [TROUBLESHOOTING](docs/TROUBLESHOOTING_README.md)
-- [CONTRIBUTING](docs/CONTRIBUTING_README.md)
 - [SECURITY](docs/SECURITY_README.md)
+- [ARCHITECTURE](ARCHITECTURE.md) — System design and component interactions
+- [AGENTS](AGENTS.md) — Development conventions for AI coding agents
+- [CONTRIBUTING](CONTRIBUTING.md) — How to contribute
 
 ---
 
@@ -91,7 +93,7 @@ export default async function handler(req, res, next) {
   res.json({
     message: `Hello, ${query.name || 'World'}!`,
     env: env.MY_SECRET,
-    time: new Date().toISOString()
+    time: new Date().toISOString(),
   });
   // Call next() if you want to pass control to additional middleware
 }
@@ -157,17 +159,17 @@ export default async function handler(req) {
 ### 4. Production-Grade Testing
 
 ```js
-// functions/hello-world/handler.test.js
-import { testHandler, expectStatus } from '../../test/setup.js';
+// functions/hello-world/handler.test.mjs
+import { testHandler, expectStatus } from '../../test/setup.mjs';
 import handler from './handler.js';
 
 describe('Hello World Handler', () => {
   it('should return successful response', async () => {
     const { res } = await testHandler(handler, {
       method: 'GET',
-      query: { name: 'FuncDock' }
+      query: { name: 'FuncDock' },
     });
-  
+
     expectStatus(res, 200);
     expect(res.body.message).toBe('Hello, FuncDock!');
   });
@@ -194,27 +196,27 @@ No builds, no container restarts, no downtime. Routes, handlers, cron jobs, depe
 
 ```bash
 # Git-based deployments (perfect for CI/CD)
-make deploy-host-git REPO=https://github.com/user/my-function.git NAME=my-function
+funcdock deploy --git https://github.com/user/my-function.git --name my-function
 
 # CI/CD Pipeline Integration
 # Add this to your .github/workflows/deploy.yml:
 # - name: Deploy to FuncDock
-#   run: make deploy-host-git REPO=${{ github.repository }} NAME=my-function
+#   run: funcdock deploy --git ${{ github.repository }} --name my-function
 
 # Local deployment (instant hot reload)
-make deploy-local PATH=./my-function NAME=my-function
+funcdock deploy --local ./my-function --name my-function
 
 # Create new functions
-make create-function NAME=payment-processor
+funcdock create payment-processor
 
 # Update existing functions (zero downtime)
-make update-function NAME=my-function
+funcdock update my-function
 
 # Test in production-identical environment before deploy
-node scripts/test-function-in-docker.js --function=./functions/my-function
+funcdock test my-function --docker
 
 # Watch everything happen in real-time
-npm run logs
+funcdock logs --follow
 ```
 
 ### 7. Monitor Everything Live
@@ -245,20 +247,19 @@ More screenshots available in the [screenshots](screenshots/) directory.
 ```bash
 # 1. Install the future
 npm install
-npm run setup
+funcdock setup
 
 # 2. Launch into orbit
-npm run dev
+funcdock dev
 # OR with Docker
-make quickstart
+funcdock setup && npm install && funcdock dev
 
 # 3. Open the magic
 # Dashboard: http://localhost:3000/dashboard/
 # Status: http://localhost:3000/api/status
-# Note: Server defaults to port 3003 if PORT env var is not set. Set PORT=3000 to use port 3000.
 
 # 4. Start building impossible things
-make create-function NAME=my-awesome-api
+funcdock create my-awesome-api
 ```
 
 **Prerequisites**: Node.js 22+, Docker (optional), `jq` (`brew install jq`)
@@ -334,7 +335,7 @@ Thousands of developers have discovered the joy of instant deployments, real-tim
 
 [**TESTING**](docs/TESTING_README.md) — Production-grade testing | [**TROUBLESHOOTING**](docs/TROUBLESHOOTING_README.md) — Solve any issue | [**SECURITY**](docs/SECURITY_README.md) — Enterprise security
 
-[**CONTRIBUTING**](docs/CONTRIBUTING_README.md) — Join the community
+[**ARCHITECTURE**](ARCHITECTURE.md) — System design | [**AGENTS**](AGENTS.md) — Agent conventions | [**CONTRIBUTING**](CONTRIBUTING.md) — Join the community
 
 ---
 
@@ -356,7 +357,7 @@ Thousands of developers have discovered the joy of instant deployments, real-tim
 
 ⭐ **Star this repo if FuncDock revolutionized your serverless experience!** ⭐
 
-*Built with ❤️ by developers who believe serverless should be joyful, not painful.*
+_Built with ❤️ by developers who believe serverless should be joyful, not painful._
 
 ## Commercial Support
 

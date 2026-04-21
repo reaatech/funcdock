@@ -1,0 +1,26 @@
+name: Auto Deploy Function
+
+on:
+  repository_dispatch:
+    types: [function-updated]
+
+jobs:
+  auto-deploy:
+    name: Auto Deploy Updated Function
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy updated function
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVERLESS_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: FUNCTION_NAME
+          script: |
+            cd /app
+            node scripts/deploy.js --update "$FUNCTION_NAME"
+            echo "✅ Function $FUNCTION_NAME auto-updated"
+        env:
+          FUNCTION_NAME: ${{ github.event.client_payload.function_name }}

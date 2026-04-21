@@ -1,6 +1,7 @@
 # 🚀 FuncDock — Testing Guide
 
 ## Index
+
 - [Overview](#overview)
 - [Unit Testing](#unit-testing)
 - [Integration Testing](#integration-testing)
@@ -13,31 +14,39 @@
 ---
 
 ## Overview
+
 FuncDock supports comprehensive testing with Jest, Nock, and Docker for true production parity.
 
 ## Unit Testing
-- Write tests for each handler (e.g., `handler.test.js`).
+
+- Write tests for each handler (e.g., `handler.test.mjs`).
 - Use Jest for assertions and mocking.
 
 ## Integration Testing
+
 - Test API endpoints and external integrations.
 - Use Nock for HTTP mocking.
 
 ## Dockerized Testing
+
 - Run tests in a Docker container for production parity.
-- `node scripts/test-function-in-docker.js --function=./functions/hello-world`
+- `funcdock test hello-world` --docker
 
 ## Test Utilities
-- Use helpers from `test/setup.js` (e.g., `testHandler`, `mockEnvVars`).
+
+- Use helpers from `test/setup.mjs` (e.g., `testHandler`, `mockEnvVars`).
 
 ## Examples
-- See `functions/hello-world/handler.test.js` for real tests.
+
+- See `functions/hello-world/handler.test.mjs` for real tests.
 
 ## CI/CD
+
 - Add tests to your pipeline to block bad deploys.
 - Use `make test-functions` for all functions.
 
 ## Troubleshooting
+
 - See [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md) for test issues.
 
 ## Unit Testing with Jest and Nock
@@ -52,11 +61,11 @@ Each function can include test files that follow this pattern:
 functions/
   my-function/
     handler.js           # Main function code
-    handler.test.js      # Unit tests for handler
+    handler.test.mjs      # Unit tests for handler
     users.js             # Custom handler for /users route
-    users.test.js        # Tests for users handler
+    users.test.mjs        # Tests for users handler
     cron-handler.js      # Cron job handler
-    cron-handler.test.js # Tests for cron handler
+    cron-handler.test.mjs # Tests for cron handler
 ```
 
 ### Running Tests
@@ -83,25 +92,25 @@ npm run test:integration
 
 ### Test Utilities
 
-The testing framework provides several utilities in `test/setup.js`:
+The testing framework provides several utilities in `test/setup.mjs`:
 
 ```javascript
-import { 
-  testHandler,           // Test a handler function
-  createMockRequest,     // Create mock request object
-  createMockResponse,    // Create mock response object
-  expectStatus,          // Assert response status
-  expectResponseFields,  // Assert response fields
-  mockEnvVars,          // Mock environment variables
-  nock                  // HTTP mocking library
-} from '../../test/setup.js';
+import {
+  testHandler, // Test a handler function
+  createMockRequest, // Create mock request object
+  createMockResponse, // Create mock response object
+  expectStatus, // Assert response status
+  expectResponseFields, // Assert response fields
+  mockEnvVars, // Mock environment variables
+  nock, // HTTP mocking library
+} from '../../test/setup.mjs';
 ```
 
 ### Example Test File
 
 ```javascript
-// handler.test.js
-import { testHandler, expectStatus, expectResponseFields, nock } from '../../test/setup.js';
+// handler.test.mjs
+import { testHandler, expectStatus, expectResponseFields, nock } from '../../test/setup.mjs';
 import handler from './handler.js';
 
 describe('My Function Handler', () => {
@@ -109,13 +118,13 @@ describe('My Function Handler', () => {
     it('should return successful response', async () => {
       const { res } = await testHandler(handler, {
         method: 'GET',
-        query: { id: '123' }
+        query: { id: '123' },
       });
 
       expectStatus(res, 200);
       expectResponseFields(res.body, {
         message: 'Success',
-        function: 'my-function'
+        function: 'my-function',
       });
     });
   });
@@ -123,13 +132,11 @@ describe('My Function Handler', () => {
   describe('External API calls', () => {
     it('should handle external API calls', async () => {
       // Mock external API
-      nock('https://api.example.com')
-        .get('/users/123')
-        .reply(200, { id: '123', name: 'John' });
+      nock('https://api.example.com').get('/users/123').reply(200, { id: '123', name: 'John' });
 
       const { res } = await testHandler(handler, {
         method: 'GET',
-        query: { userId: '123' }
+        query: { userId: '123' },
       });
 
       expectStatus(res, 200);
@@ -153,18 +160,18 @@ describe('My Function Handler', () => {
 ### Testing Dynamic Routes
 
 ```javascript
-// users.test.js - Testing dynamic routing
+// users.test.mjs - Testing dynamic routing
 describe('Users Handler', () => {
   it('should handle path parameters', async () => {
     const { res } = await testHandler(handler, {
       method: 'GET',
-      params: { id: '123', postId: '456' }
+      params: { id: '123', postId: '456' },
     });
 
     expectStatus(res, 200);
     expect(res.body.data).toMatchObject({
       userId: '123',
-      postId: '456'
+      postId: '456',
     });
   });
 });
@@ -173,7 +180,7 @@ describe('Users Handler', () => {
 ### Testing Cron Jobs
 
 ```javascript
-// cron-handler.test.js
+// cron-handler.test.mjs
 describe('Cron Handler', () => {
   it('should handle scheduled tasks', async () => {
     const { res } = await testHandler(handler, {
@@ -181,8 +188,8 @@ describe('Cron Handler', () => {
       body: {
         cronJob: 'daily-backup',
         schedule: '0 2 * * *',
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
 
     expectStatus(res, 200);
@@ -196,13 +203,15 @@ describe('Cron Handler', () => {
 For true production parity, you can run Jest+Nock unit tests for any function in a Docker environment that matches production. This is the recommended way to ensure your function will work after deployment.
 
 ### Run all tests for a function
+
 ```bash
-node scripts/test-function-in-docker.js --function=./functions/hello-world
+funcdock test hello-world --docker
 ```
 
 ### Run only tests for a specific route/handler
+
 ```bash
-node scripts/test-function-in-docker.js --function=./functions/hello-world --route=/greet
+funcdock test hello-world --docker --route=/greet
 ```
 
 - Uses `Dockerfile.test` to match the production environment (Node 22, Redis, etc.)
@@ -216,6 +225,7 @@ node scripts/test-function-in-docker.js --function=./functions/hello-world --rou
 ## Integration Testing
 
 ### Test All Functions
+
 ```bash
 # Run comprehensive test suite
 make test-functions
@@ -228,6 +238,7 @@ VERBOSE=true ./scripts/test-functions.sh
 ```
 
 ### Manual Testing
+
 ```bash
 # Test example functions
 make example-test
@@ -235,5 +246,5 @@ make example-test
 # Individual function tests
 curl http://localhost:3000/hello-world/
 curl -X POST http://localhost:3000/webhook-handler/github
-# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
-``` 
+# Note: Replace 3000 with your actual port (port 3000)
+```

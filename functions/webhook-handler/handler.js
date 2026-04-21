@@ -6,12 +6,15 @@
 import crypto from 'crypto';
 
 export default async function handler(req, res, next) {
-  const { method, headers, body, query, logger } = req;
+  const { method, logger } = req;
 
   // Add CORS headers
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Signature, X-Hub-Signature-256');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, X-Signature, X-Hub-Signature-256'
+  );
 
   if (method === 'OPTIONS') {
     return res.status(200).end();
@@ -28,12 +31,12 @@ export default async function handler(req, res, next) {
       return res.status(405).json({
         error: 'Method Not Allowed',
         supportedMethods: ['GET', 'POST'],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
   }
 }
 
-async function handleStatus(req, res, next) {
+async function handleStatus(req, res, _next) {
   return res.status(200).json({
     status: 'active',
     function: 'webhook-handler',
@@ -42,9 +45,9 @@ async function handleStatus(req, res, next) {
       github: '/webhook-handler/github',
       stripe: '/webhook-handler/stripe',
       generic: '/webhook-handler/generic',
-      slack: '/webhook-handler/slack'
+      slack: '/webhook-handler/slack',
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 }
 
@@ -72,7 +75,7 @@ async function handleWebhook(req, res, logger, next) {
     return res.status(500).json({
       error: 'Webhook processing failed',
       message: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 }
@@ -96,26 +99,36 @@ function determineWebhookType(headers, body) {
   return 'generic';
 }
 
-async function handleGitHubWebhook(req, res, logger, next) {
+async function handleGitHubWebhook(req, res, logger, _next) {
   const { headers, body } = req;
   const event = headers['x-github-event'];
   const signature = headers['x-hub-signature-256'];
   const delivery = headers['x-github-delivery'];
 
-  // Verify signature if secret is configured
-  const secret = process.env.GITHUB_WEBHOOK_SECRET;
-  if (secret && signature) {
-    const expectedSignature = 'sha256=' + crypto
-      .createHmac('sha256', secret)
-      .update(JSON.stringify(body))
-      .digest('hex');
+  const secret = req.env?.GITHUB_WEBHOOK_SECRET || process.env.GITHUB_WEBHOOK_SECRET;
+  if (!secret) {
+    return res.status(400).json({
+      error: 'GitHub webhook secret not configured',
+      timestamp: new Date().toISOString(),
+    });
+  }
 
-    if (signature !== expectedSignature) {
-      return res.status(401).json({
-        error: 'Invalid signature',
-        timestamp: new Date().toISOString()
-      });
-    }
+  if (!signature) {
+    return res.status(401).json({
+      error: 'Missing signature',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const rawBody = req.bodyRaw || (typeof body === 'string' ? body : JSON.stringify(body));
+  const expectedSignature =
+    'sha256=' + crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+
+  if (signature !== expectedSignature) {
+    return res.status(401).json({
+      error: 'Invalid signature',
+      timestamp: new Date().toISOString(),
+    });
   }
 
   // Process different GitHub events
@@ -125,7 +138,7 @@ async function handleGitHubWebhook(req, res, logger, next) {
     delivery,
     repository: body.repository?.full_name,
     sender: body.sender?.login,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
   // Add event-specific processing
@@ -140,7 +153,7 @@ async function handleGitHubWebhook(req, res, logger, next) {
       responseData.pullRequest = {
         number: body.pull_request?.number,
         title: body.pull_request?.title,
-        state: body.pull_request?.state
+        state: body.pull_request?.state,
       };
       break;
 
@@ -149,7 +162,7 @@ async function handleGitHubWebhook(req, res, logger, next) {
       responseData.issue = {
         number: body.issue?.number,
         title: body.issue?.title,
-        state: body.issue?.state
+        state: body.issue?.state,
       };
       break;
   }
@@ -160,111 +173,121 @@ async function handleGitHubWebhook(req, res, logger, next) {
   return res.status(200).json(responseData);
 }
 
-async function handleStripeWebhook(req, res, logger, next) {
+async function handleStripeWebhook(req, res, logger, _next) {
   const { headers, body } = req;
   const signature = headers['stripe-signature'];
 
-  // Verify Stripe signature if secret is configured
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (endpointSecret && signature) {
-    try {
-      // Import Stripe dynamically to avoid issues if not installed
-      const { default: Stripe } = await import('stripe');
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
-      
-      // Verify the webhook signature
-      const event = stripe.webhooks.constructEvent(
-        typeof body === 'string' ? body : JSON.stringify(body),
-        signature,
-        endpointSecret
-      );
-      
-      // Use the verified event
-      const responseData = {
-        message: 'Processed Stripe webhook',
-        eventType: event.type,
-        eventId: event.id,
-        livemode: event.livemode,
-        timestamp: new Date().toISOString()
-      };
+  const endpointSecret = req.env?.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
+  if (!endpointSecret) {
+    return res.status(400).json({
+      error: 'Stripe webhook secret not configured',
+      timestamp: new Date().toISOString(),
+    });
+  }
 
-      // Add event-specific processing
-      switch (event.type) {
-        case 'payment_intent.succeeded':
-          responseData.paymentIntent = {
-            id: event.data.object.id,
-            amount: event.data.object.amount,
-            currency: event.data.object.currency
-          };
-          break;
+  if (!signature) {
+    return res.status(401).json({
+      error: 'Missing Stripe signature',
+      timestamp: new Date().toISOString(),
+    });
+  }
 
-        case 'customer.subscription.created':
-        case 'customer.subscription.updated':
-        case 'customer.subscription.deleted':
-          responseData.subscription = {
-            id: event.data.object.id,
-            status: event.data.object.status,
-            customerId: event.data.object.customer
-          };
-          break;
-      }
+  try {
+    const { default: Stripe } = await import('stripe');
+    const stripe = new Stripe(
+      req.env?.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
+    );
 
-      if (logger) logger.log('CRON', 'Stripe webhook processed', responseData);
-      else console.log('Stripe webhook processed:', responseData);
-      return res.status(200).json(responseData);
-      
-    } catch (err) {
-      return res.status(400).json({
-        error: 'Invalid Stripe signature',
-        message: err.message,
-        timestamp: new Date().toISOString()
-      });
+    const event = stripe.webhooks.constructEvent(
+      req.bodyRaw || (typeof body === 'string' ? body : JSON.stringify(body)),
+      signature,
+      endpointSecret
+    );
+
+    const responseData = {
+      message: 'Processed Stripe webhook',
+      eventType: event.type,
+      eventId: event.id,
+      livemode: event.livemode,
+      timestamp: new Date().toISOString(),
+    };
+
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        responseData.paymentIntent = {
+          id: event.data.object.id,
+          amount: event.data.object.amount,
+          currency: event.data.object.currency,
+        };
+        break;
+
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        responseData.subscription = {
+          id: event.data.object.id,
+          status: event.data.object.status,
+          customerId: event.data.object.customer,
+        };
+        break;
     }
+
+    if (logger) logger.log('CRON', 'Stripe webhook processed', responseData);
+    else console.log('Stripe webhook processed:', responseData);
+    return res.status(200).json(responseData);
+  } catch (err) {
+    return res.status(400).json({
+      error: 'Invalid Stripe signature',
+      message: err.message,
+      timestamp: new Date().toISOString(),
+    });
   }
-
-  // If no signature verification is configured, process without verification
-  const responseData = {
-    message: 'Processed Stripe webhook (unverified)',
-    eventType: body.type,
-    eventId: body.id,
-    livemode: body.livemode,
-    timestamp: new Date().toISOString()
-  };
-
-  // Add event-specific processing
-  switch (body.type) {
-    case 'payment_intent.succeeded':
-      responseData.paymentIntent = {
-        id: body.data.object.id,
-        amount: body.data.object.amount,
-        currency: body.data.object.currency
-      };
-      break;
-
-    case 'customer.subscription.created':
-    case 'customer.subscription.updated':
-    case 'customer.subscription.deleted':
-      responseData.subscription = {
-        id: body.data.object.id,
-        status: body.data.object.status,
-        customerId: body.data.object.customer
-      };
-      break;
-  }
-
-  if (logger) logger.log('CRON', 'Stripe webhook processed (unverified)', responseData);
-  else console.log('Stripe webhook processed (unverified):', responseData);
-
-  return res.status(200).json(responseData);
 }
 
-async function handleSlackWebhook(req, res, logger, next) {
-  const { body } = req;
+async function handleSlackWebhook(req, res, logger, _next) {
+  const { headers, body } = req;
 
-  // Handle Slack URL verification challenge
+  const slackSecret = req.env?.SLACK_SIGNING_SECRET || process.env.SLACK_SIGNING_SECRET;
+  if (!slackSecret) {
+    return res.status(400).json({
+      error: 'Slack signing secret not configured',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const signature = headers['x-slack-signature'];
+  const timestamp = headers['x-slack-request-timestamp'];
+
+  if (!signature || !timestamp) {
+    return res.status(401).json({
+      error: 'Missing Slack signature or timestamp',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp)) > 300) {
+    return res.status(401).json({
+      error: 'Slack request timestamp too old (replay attack protection)',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const rawBody = req.bodyRaw || (typeof body === 'string' ? body : JSON.stringify(body));
+  const baseString = `v0:${timestamp}:${rawBody}`;
+  const expectedSignature =
+    'v0=' + crypto.createHmac('sha256', slackSecret).update(baseString).digest('hex');
+
+  if (signature !== expectedSignature) {
+    return res.status(401).json({
+      error: 'Invalid Slack signature',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   if (body.type === 'url_verification') {
     return res.status(200).json({
-      challenge: body.challenge
+      challenge: body.challenge,
     });
   }
 
@@ -272,16 +295,15 @@ async function handleSlackWebhook(req, res, logger, next) {
     message: 'Processed Slack webhook',
     type: body.type,
     team: body.team_id,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
-  // Process different Slack events
   if (body.event) {
     responseData.event = {
       type: body.event.type,
       user: body.event.user,
       channel: body.event.channel,
-      timestamp: body.event.ts
+      timestamp: body.event.ts,
     };
 
     if (body.event.text) {
@@ -295,7 +317,7 @@ async function handleSlackWebhook(req, res, logger, next) {
   return res.status(200).json(responseData);
 }
 
-async function handleGenericWebhook(req, res, logger, next) {
+async function handleGenericWebhook(req, res, logger, _next) {
   const { headers, body, query } = req;
 
   const responseData = {
@@ -303,12 +325,12 @@ async function handleGenericWebhook(req, res, logger, next) {
     headers: {
       contentType: headers['content-type'],
       userAgent: headers['user-agent'],
-      authorization: headers.authorization ? '[REDACTED]' : undefined
+      authorization: headers.authorization ? '[REDACTED]' : undefined,
     },
     bodyType: typeof body,
     hasBody: !!body,
     queryParams: Object.keys(query).length > 0 ? query : undefined,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
   // Add basic payload analysis

@@ -8,12 +8,23 @@ function createMockReqRes(method = 'GET', body = {}, query = {}, params = {}) {
   let statusCode = 200;
   let sentData;
   const res = {
-    status(code) { statusCode = code; return res; },
-    json(data) { sentData = data; return res; },
-    send(data) { sentData = data; return res; },
-    header() { return res; },
+    status(code) {
+      statusCode = code;
+      return res;
+    },
+    json(data) {
+      sentData = data;
+      return res;
+    },
+    send(data) {
+      sentData = data;
+      return res;
+    },
+    header() {
+      return res;
+    },
     getStatus: () => statusCode,
-    getData: () => sentData
+    getData: () => sentData,
   };
   return { req, res };
 }
@@ -33,4 +44,4 @@ describe('test-deploy/handler.js', () => {
     expect(res.getStatus()).toBe(200);
     expect(res.getData()).toBeDefined();
   });
-}); 
+});

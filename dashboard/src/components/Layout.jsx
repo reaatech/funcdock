@@ -1,52 +1,57 @@
-import React, { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { useTheme } from '../contexts/ThemeContext'
-import { useSocket } from '../contexts/SocketContext'
-import { 
-  Home, 
-  Code, 
-  Upload, 
-  FileText, 
-  Settings, 
-  LogOut, 
-  Menu, 
-  X, 
-  Sun, 
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useSocket } from '../contexts/SocketContext';
+import {
+  Home,
+  Code,
+  Upload,
+  FileText,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  Sun,
   Moon,
   Wifi,
   WifiOff,
-  Layers
-} from 'lucide-react'
+  Layers,
+  Plug,
+} from 'lucide-react';
 
 const Layout = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, logout } = useAuth()
-  const { isDark, toggleTheme } = useTheme()
-  const { connected } = useSocket()
-  const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const { connected } = useSocket();
+  const location = useLocation();
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Functions', href: '/functions', icon: Code },
     { name: 'Layers', href: '/layers', icon: Layers },
+    { name: 'MCP', href: '/mcp', icon: Plug },
     { name: 'Deploy', href: '/deploy', icon: Upload },
     { name: 'Logs', href: '/logs', icon: FileText },
     { name: 'Settings', href: '/settings', icon: Settings },
-  ]
+  ];
 
   const isActive = (href) => {
     if (href === '/dashboard') {
-      return location.pathname === '/dashboard' || location.pathname === '/'
+      return location.pathname === '/dashboard' || location.pathname === '/';
     }
-    return location.pathname.startsWith(href)
-  }
+    return location.pathname.startsWith(href);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-gray-600 bg-opacity-75"
+          onClick={() => setSidebarOpen(false)}
+        />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white dark:bg-gray-800">
           <div className="flex h-16 items-center justify-between px-4">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">FuncDock</h1>
@@ -59,7 +64,7 @@ const Layout = ({ children }) => {
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
-              const Icon = item.icon
+              const Icon = item.icon;
               return (
                 <Link
                   key={item.name}
@@ -74,7 +79,7 @@ const Layout = ({ children }) => {
                   <Icon className="mr-3 h-5 w-5" />
                   {item.name}
                 </Link>
-              )
+              );
             })}
           </nav>
         </div>
@@ -88,7 +93,7 @@ const Layout = ({ children }) => {
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
-              const Icon = item.icon
+              const Icon = item.icon;
               return (
                 <Link
                   key={item.name}
@@ -102,7 +107,7 @@ const Layout = ({ children }) => {
                   <Icon className="mr-3 h-5 w-5" />
                   {item.name}
                 </Link>
-              )
+              );
             })}
           </nav>
         </div>
@@ -161,13 +166,11 @@ const Layout = ({ children }) => {
 
         {/* Page content */}
         <main className="py-6">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {children}
-          </div>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">{children}</div>
         </main>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Layout 
+export default Layout;

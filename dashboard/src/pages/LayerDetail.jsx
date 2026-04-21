@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useSocket } from '../contexts/SocketContext'
-import { layersApi } from '../utils/api'
-import { 
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useSocket } from '../contexts/SocketContext';
+import { layersApi } from '../utils/api';
+import {
   Layers as LayersIcon,
   Trash2,
   ArrowLeft,
@@ -20,134 +20,140 @@ import {
   XCircle,
   AlertTriangle,
   Edit,
-  X
-} from 'lucide-react'
-import LoadingSpinner from '../components/LoadingSpinner'
-import toast from 'react-hot-toast'
+  X,
+} from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 const LayerDetail = () => {
-  const { name } = useParams()
-  const navigate = useNavigate()
-  const [layerData, setLayerData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
-  const [layerFiles, setLayerFiles] = useState([])
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [fileContent, setFileContent] = useState('')
-  const [editingFile, setEditingFile] = useState(false)
-  const [editedContent, setEditedContent] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [fileLoading, setFileLoading] = useState(false)
-  const [expandedFolders, setExpandedFolders] = useState(new Set())
+  const { name } = useParams();
+  const navigate = useNavigate();
+  const [layerData, setLayerData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [layerFiles, setLayerFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileContent, setFileContent] = useState('');
+  const [editingFile, setEditingFile] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState(new Set());
 
-  const { on } = useSocket()
+  const { on, off } = useSocket();
 
   useEffect(() => {
-    fetchLayerData()
+    fetchLayerData();
+
+    const handleLayerUpdated = (data) => {
+      if (data.name === name) {
+        fetchLayerData();
+      }
+    };
+
+    const handleLayerDeleted = (data) => {
+      if (data.name === name) {
+        navigate('/layers');
+      }
+    };
 
     // Listen for real-time updates
-    on('layer:updated', (data) => {
-      if (data.name === name) {
-        fetchLayerData()
-      }
-    })
-
-    on('layer:deleted', (data) => {
-      if (data.name === name) {
-        navigate('/layers')
-      }
-    })
+    on('layer:updated', handleLayerUpdated);
+    on('layer:deleted', handleLayerDeleted);
 
     return () => {
-      // Cleanup socket listeners
-    }
-  }, [name, on, navigate])
+      off('layer:updated', handleLayerUpdated);
+      off('layer:deleted', handleLayerDeleted);
+    };
+  }, [name, on, off, navigate]);
 
   const fetchLayerData = async () => {
     try {
       const [layerRes, filesRes] = await Promise.all([
         layersApi.getLayer(name),
-        layersApi.getLayerFiles(name)
-      ])
-      
-      setLayerData(layerRes.data)
-      setLayerFiles(filesRes.data.files || [])
+        layersApi.getLayerFiles(name),
+      ]);
+
+      setLayerData(layerRes.data);
+      setLayerFiles(filesRes.data.files || []);
     } catch (error) {
-      console.error('Failed to fetch layer data:', error)
-      toast.error('Failed to load layer data')
+      console.error('Failed to fetch layer data:', error);
+      toast.error('Failed to load layer data');
       if (error.response?.status === 404) {
-        navigate('/layers')
+        navigate('/layers');
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeleteLayer = async () => {
-    if (!confirm(`Are you sure you want to delete the layer "${name}"? This action cannot be undone.`)) {
-      return
+    if (
+      !confirm(`Are you sure you want to delete the layer "${name}"? This action cannot be undone.`)
+    ) {
+      return;
     }
 
     try {
-      await layersApi.deleteLayer(name)
-      toast.success(`Layer "${name}" deleted successfully`)
-      navigate('/layers')
+      await layersApi.deleteLayer(name);
+      toast.success(`Layer "${name}" deleted successfully`);
+      navigate('/layers');
     } catch (error) {
-      console.error('Failed to delete layer:', error)
-      const errorMsg = error.response?.data?.message || 'Failed to delete layer'
-      toast.error(errorMsg)
+      console.error('Failed to delete layer:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to delete layer';
+      toast.error(errorMsg);
     }
-  }
+  };
 
   const handleFileClick = async (filePath, isDirectory) => {
     if (isDirectory) {
-      const newExpanded = new Set(expandedFolders)
+      const newExpanded = new Set(expandedFolders);
       if (newExpanded.has(filePath)) {
-        newExpanded.delete(filePath)
+        newExpanded.delete(filePath);
       } else {
-        newExpanded.add(filePath)
+        newExpanded.add(filePath);
       }
-      setExpandedFolders(newExpanded)
-      return
+      setExpandedFolders(newExpanded);
+      return;
     }
 
-    setSelectedFile(filePath)
-    setFileLoading(true)
+    setSelectedFile(filePath);
+    setFileLoading(true);
     try {
-      const response = await layersApi.getLayerFileContent(name, filePath)
-      setFileContent(response.data.content)
-      setEditedContent(response.data.content)
-      setEditingFile(false)
+      const response = await layersApi.getLayerFileContent(name, filePath);
+      setFileContent(response.data.content);
+      setEditedContent(response.data.content);
+      setEditingFile(false);
     } catch (error) {
-      console.error('Failed to load file content:', error)
-      toast.error('Failed to load file content')
-      setFileContent('')
+      console.error('Failed to load file content:', error);
+      toast.error('Failed to load file content');
+      setFileContent('');
     } finally {
-      setFileLoading(false)
+      setFileLoading(false);
     }
-  }
+  };
 
   const handleDownloadFile = async (filePath) => {
     try {
-      const response = await layersApi.downloadLayerFile(name, filePath)
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', filePath.split('/').pop())
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      toast.success('File downloaded successfully')
+      const response = await layersApi.downloadLayerFile(name, filePath);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filePath.split('/').pop());
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('File downloaded successfully');
     } catch (error) {
-      console.error('Failed to download file:', error)
-      toast.error('Failed to download file')
+      console.error('Failed to download file:', error);
+      toast.error('Failed to download file');
     }
-  }
+  };
 
   const renderFileTree = (files, level = 0) => {
     return files.map((item) => {
-      const isExpanded = expandedFolders.has(item.path)
-      const isSelected = selectedFile === item.path
+      const isExpanded = expandedFolders.has(item.path);
+      const isSelected = selectedFile === item.path;
 
       if (item.type === 'directory') {
         return (
@@ -171,7 +177,7 @@ const LayerDetail = () => {
               <div>{renderFileTree(item.children, level + 1)}</div>
             )}
           </div>
-        )
+        );
       }
 
       return (
@@ -186,52 +192,48 @@ const LayerDetail = () => {
           <div className="flex items-center flex-1">
             <File className="h-4 w-4 mr-2 text-gray-500" />
             <span className="text-sm text-gray-900 dark:text-white">{item.name}</span>
-            <span className="text-xs text-gray-500 ml-2">
-              ({(item.size / 1024).toFixed(2)} KB)
-            </span>
+            <span className="text-xs text-gray-500 ml-2">({(item.size / 1024).toFixed(2)} KB)</span>
           </div>
           <button
             onClick={(e) => {
-              e.stopPropagation()
-              handleDownloadFile(item.path)
+              e.stopPropagation();
+              handleDownloadFile(item.path);
             }}
             className="btn-secondary btn-sm ml-2"
           >
             <DownloadIcon className="h-4 w-4" />
           </button>
         </div>
-      )
-    })
-  }
+      );
+    });
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'loaded':
-        return <CheckCircle className="h-5 w-5 text-success-600" />
+        return <CheckCircle className="h-5 w-5 text-success-600" />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-danger-600" />
+        return <XCircle className="h-5 w-5 text-danger-600" />;
       default:
-        return <AlertTriangle className="h-5 w-5 text-warning-600" />
+        return <AlertTriangle className="h-5 w-5 text-warning-600" />;
     }
-  }
+  };
 
   if (loading) {
-    return <LoadingSpinner />
+    return <LoadingSpinner />;
   }
 
   if (!layerData) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Layer not found
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Layer not found</h2>
           <Link to="/layers" className="btn-primary">
             Back to Layers
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -242,7 +244,7 @@ const LayerDetail = () => {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Layers
         </Link>
-        
+
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             {getStatusIcon(layerData.status)}
@@ -261,9 +263,7 @@ const LayerDetail = () => {
         </div>
 
         {layerData.description && (
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            {layerData.description}
-          </p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">{layerData.description}</p>
         )}
       </div>
 
@@ -315,7 +315,9 @@ const LayerDetail = () => {
               <div>
                 <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
                 <dd className="mt-1">
-                  <span className={`badge ${layerData.status === 'loaded' ? 'badge-success' : 'badge-warning'}`}>
+                  <span
+                    className={`badge ${layerData.status === 'loaded' ? 'badge-success' : 'badge-warning'}`}
+                  >
                     {layerData.status}
                   </span>
                 </dd>
@@ -359,9 +361,7 @@ const LayerDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* File Tree */}
           <div className="lg:col-span-1 card">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              Files
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Files</h2>
             <div className="max-h-96 overflow-y-auto">
               {layerFiles.length > 0 ? (
                 renderFileTree(layerFiles)
@@ -380,8 +380,8 @@ const LayerDetail = () => {
               {selectedFile && fileContent && !editingFile && (
                 <button
                   onClick={() => {
-                    setEditingFile(true)
-                    setEditedContent(fileContent)
+                    setEditingFile(true);
+                    setEditedContent(fileContent);
                   }}
                   className="btn-primary btn-sm inline-flex items-center"
                 >
@@ -398,18 +398,18 @@ const LayerDetail = () => {
                   <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-end space-x-2">
                     <button
                       onClick={async () => {
-                        setSaving(true)
+                        setSaving(true);
                         try {
-                          await layersApi.updateLayerFile(name, selectedFile, editedContent)
-                          toast.success('File updated successfully')
-                          setFileContent(editedContent)
-                          setEditingFile(false)
-                          fetchLayerData()
+                          await layersApi.updateLayerFile(name, selectedFile, editedContent);
+                          toast.success('File updated successfully');
+                          setFileContent(editedContent);
+                          setEditingFile(false);
+                          fetchLayerData();
                         } catch (error) {
-                          console.error('Failed to update file:', error)
-                          toast.error(error.response?.data?.message || 'Failed to update file')
+                          console.error('Failed to update file:', error);
+                          toast.error(error.response?.data?.message || 'Failed to update file');
                         } finally {
-                          setSaving(false)
+                          setSaving(false);
                         }
                       }}
                       disabled={saving}
@@ -429,8 +429,8 @@ const LayerDetail = () => {
                     </button>
                     <button
                       onClick={() => {
-                        setEditingFile(false)
-                        setEditedContent(fileContent)
+                        setEditingFile(false);
+                        setEditedContent(fileContent);
                       }}
                       disabled={saving}
                       className="btn-secondary btn-sm inline-flex items-center"
@@ -458,14 +458,15 @@ const LayerDetail = () => {
             ) : selectedFile ? (
               <p className="text-gray-500 dark:text-gray-400">Failed to load file content</p>
             ) : (
-              <p className="text-gray-500 dark:text-gray-400">Select a file from the list to view its contents</p>
+              <p className="text-gray-500 dark:text-gray-400">
+                Select a file from the list to view its contents
+              </p>
             )}
           </div>
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default LayerDetail
-
+export default LayerDetail;

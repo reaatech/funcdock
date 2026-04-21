@@ -1,47 +1,43 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-const ThemeContext = createContext()
+const ThemeContext = createContext();
 
 export const useTheme = () => {
-  const context = useContext(ThemeContext)
+  const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider')
+    throw new Error('useTheme must be used within a ThemeProvider');
   }
-  return context
-}
+  return context;
+};
 
 export const ThemeProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('funcdock-theme')
+    const saved = localStorage.getItem('funcdock-theme');
     if (saved !== null) {
-      return saved === 'dark'
+      return saved === 'dark';
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  })
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
 
   useEffect(() => {
-    const root = window.document.documentElement
+    const root = window.document.documentElement;
     if (isDark) {
-      root.classList.add('dark')
-      localStorage.setItem('funcdock-theme', 'dark')
+      root.classList.add('dark');
+      localStorage.setItem('funcdock-theme', 'dark');
     } else {
-      root.classList.remove('dark')
-      localStorage.setItem('funcdock-theme', 'light')
+      root.classList.remove('dark');
+      localStorage.setItem('funcdock-theme', 'light');
     }
-  }, [isDark])
+  }, [isDark]);
 
   const toggleTheme = () => {
-    setIsDark(!isDark)
-  }
+    setIsDark(!isDark);
+  };
 
   const value = {
     isDark,
-    toggleTheme
-  }
+    toggleTheme,
+  };
 
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  )
-} 
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+};

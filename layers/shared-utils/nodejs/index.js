@@ -17,7 +17,7 @@ export function validatePhone(phone) {
     return false;
   }
   // Remove common formatting characters
-  const cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
+  const cleaned = phone.replace(/[\s\-().]/g, '');
   // Check if it's a valid phone number (10-15 digits)
   return /^\+?[1-9]\d{9,14}$/.test(cleaned);
 }
@@ -47,22 +47,22 @@ export function formatPhone(phone, format = 'US') {
   if (!phone || typeof phone !== 'string') {
     return phone;
   }
-  
+
   const cleaned = phone.replace(/\D/g, '');
-  
+
   if (format === 'US' && cleaned.length === 10) {
     return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   }
-  
+
   if (format === 'US' && cleaned.length === 11 && cleaned[0] === '1') {
     return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
   }
-  
+
   // Default: return cleaned with + prefix if international
   if (cleaned.length > 10) {
     return `+${cleaned}`;
   }
-  
+
   return cleaned;
 }
 
@@ -72,7 +72,7 @@ export function formatCurrency(amount, currency = 'USD', locale = 'en-US') {
   }
   return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: currency
+    currency: currency,
   }).format(amount);
 }
 
@@ -80,25 +80,25 @@ export function formatDate(date, format = 'iso') {
   if (!date) {
     return null;
   }
-  
+
   const d = date instanceof Date ? date : new Date(date);
-  
+
   if (isNaN(d.getTime())) {
     return null;
   }
-  
+
   if (format === 'iso') {
     return d.toISOString();
   }
-  
+
   if (format === 'date') {
     return d.toLocaleDateString();
   }
-  
+
   if (format === 'datetime') {
     return d.toLocaleString();
   }
-  
+
   return d.toISOString();
 }
 
@@ -107,17 +107,17 @@ export function sanitizeString(str, maxLength = null) {
   if (typeof str !== 'string') {
     return '';
   }
-  
+
   // Remove potentially dangerous characters
   let sanitized = str
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<[^>]+>/g, '')
     .trim();
-  
+
   if (maxLength && sanitized.length > maxLength) {
     sanitized = sanitized.substring(0, maxLength);
   }
-  
+
   return sanitized;
 }
 
@@ -125,7 +125,7 @@ export function slugify(str) {
   if (typeof str !== 'string') {
     return '';
   }
-  
+
   return str
     .toLowerCase()
     .trim()
@@ -147,7 +147,8 @@ export function successResponse(data, message = 'Success', statusCode = 200) {
     success: true,
     message,
     data,
-    timestamp: new Date().toISOString()
+    statusCode,
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -155,13 +156,14 @@ export function errorResponse(message, errors = null, statusCode = 400) {
   const response = {
     success: false,
     message,
-    timestamp: new Date().toISOString()
+    statusCode,
+    timestamp: new Date().toISOString(),
   };
-  
+
   if (errors) {
     response.errors = Array.isArray(errors) ? errors : [errors];
   }
-  
+
   return response;
 }
 
@@ -172,16 +174,16 @@ export function paginatedResponse(data, page = 1, pageSize = 10, total = null) {
     pagination: {
       page: parseInt(page),
       pageSize: parseInt(pageSize),
-      total: total !== null ? parseInt(total) : data.length
+      total: total !== null ? parseInt(total) : data.length,
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   if (total !== null) {
     response.pagination.totalPages = Math.ceil(total / pageSize);
     response.pagination.hasMore = page * pageSize < total;
   }
-  
+
   return response;
 }
 
@@ -209,31 +211,31 @@ export function handleError(error, logger = null) {
     logger.error('Error occurred', {
       message: error.message,
       code: error.code,
-      stack: error.stack
+      stack: error.stack,
     });
   }
-  
+
   if (error instanceof ValidationError) {
     return {
       success: false,
       error: error.message,
       field: error.field,
-      code: error.code
+      code: error.code,
     };
   }
-  
+
   if (error instanceof AppError) {
     return {
       success: false,
       error: error.message,
-      code: error.code
+      code: error.code,
     };
   }
-  
+
   return {
     success: false,
     error: 'An unexpected error occurred',
-    code: 'INTERNAL_ERROR'
+    code: 'INTERNAL_ERROR',
   };
 }
 
@@ -280,7 +282,6 @@ export function formatNumber(value, decimals = 0) {
   }
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
+    maximumFractionDigits: decimals,
   }).format(value);
 }
-
