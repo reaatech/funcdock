@@ -46,20 +46,20 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: GIT_URL,BRANCH,FUNCTION_NAME
           script: |
             cd /app
-            
-            # Deploy the function
-            node scripts/deploy.js --git "${{ inputs.git_url }}" --name "${{ inputs.function_name }}" --branch "${{ inputs.branch }}"
-            
-            # Verify deployment
+            node scripts/deploy.js --git "$GIT_URL" --name "$FUNCTION_NAME" --branch "$BRANCH"
             sleep 2
             curl -f http://localhost:3000/api/status || exit 1
-            
-            echo "✅ Function ${{ inputs.function_name }} deployed successfully"
+            echo "✅ Function $FUNCTION_NAME deployed successfully"
+        env:
+          GIT_URL: ${{ inputs.git_url }}
+          BRANCH: ${{ inputs.branch }}
+          FUNCTION_NAME: ${{ inputs.function_name }}
 
       - name: Notify deployment status
-        if: always()
+        if: always() && env.SLACK_WEBHOOK_URL != ''
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
@@ -72,33 +72,3 @@ jobs:
             • Server: ${{ inputs.server_host }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        if: env.SLACK_WEBHOOK_URL != ''
-
----
-# Alternative workflow for automatic deployment when function repos are updated
-name: Auto Deploy Function
-
-on:
-  repository_dispatch:
-    types: [function-updated]
-
-jobs:
-  auto-deploy:
-    name: Auto Deploy Updated Function
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Deploy updated function
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SERVERLESS_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script: |
-            cd /app
-            
-            # Update the function using deployment metadata
-            node scripts/deploy.js --update "${{ github.event.client_payload.function_name }}"
-            
-            echo "✅ Function ${{ github.event.client_payload.function_name }} auto-updated"
