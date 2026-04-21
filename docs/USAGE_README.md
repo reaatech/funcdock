@@ -47,15 +47,15 @@ npm start
 
 Open your browser to `http://localhost:3000/dashboard` to access the web interface.
 
-**Note:** If you haven't set the `PORT` environment variable, the server defaults to port 3003. Set `PORT=3000` to use port 3000.
+**Note:** The server defaults to port 3000. Set `PORT=<number>` to override.
 
 ### 3. Create Your First Function
 
 Use the dashboard or CLI to create a new function:
 
 ```bash
-# Using the CLI
-npm run create-function my-first-function
+# Using the Makefile
+funcdock create my-first-function
 
 # Or use the dashboard's "Deploy" section
 ```
@@ -65,18 +65,23 @@ npm run create-function my-first-function
 ## 🧠 Core Concepts
 
 ### Functions
+
 Functions are the core building blocks - JavaScript files that handle HTTP requests, webhooks, or scheduled tasks.
 
 ### Routes
+
 Each function can expose multiple HTTP endpoints (GET, POST, PUT, DELETE) automatically.
 
 ### Webhooks
+
 Functions can receive webhooks from external services like GitHub, Stripe, or Slack.
 
 ### Cron Jobs
+
 Functions can be scheduled to run automatically at specified intervals.
 
 ### Dashboard
+
 The web interface for managing functions, viewing logs, and monitoring performance.
 
 ---
@@ -103,12 +108,12 @@ Functions receive a context object with request data and return responses:
 export default async function handler(req, res, next) {
   const { method, url, headers, body } = req;
   // You can call next() to pass control to additional middleware
-  
+
   if (method === 'GET') {
     res.json({ message: 'Hello from FuncDock!' });
     return;
   }
-  
+
   if (method === 'POST') {
     res.status(201).json({ received: body });
     return;
@@ -127,11 +132,10 @@ npm install express lodash
 
 ```bash
 # Test locally
-npm run test-function my-function
+NODE_OPTIONS="--experimental-vm-modules" npx jest functions/my-function
 
 # Test specific endpoint
 curl http://localhost:3000/my-function
-# Note: Use the port your server is running on (default 3003, or 3000 if PORT env var is set)
 ```
 
 **📖 Learn More**: See [SETUP_README.md](SETUP_README.md) for detailed development setup.
@@ -166,7 +170,7 @@ export default async function handler(req, res, next) {
   // Main handler logic
   res.json({
     message: `Hello, ${req.user?.name || 'World'}!`,
-    time: new Date().toISOString()
+    time: new Date().toISOString(),
   });
 }
 ```
@@ -211,18 +215,18 @@ export default async function handler(req) {
 ### Deploy via CLI
 
 ```bash
-# Deploy a function
-npm run deploy functions/my-function
+# Deploy a function from local path
+funcdock deploy --local ./functions/my-function --name my-function
 
-# Deploy all functions
-npm run deploy-all
+# Deploy from Git
+funcdock deploy --git https://github.com/user/repo.git --name my-functionmain
 ```
 
 ### Deploy from Git
 
 ```bash
 # Deploy from a Git repository
-npm run deploy-from-git https://github.com/user/repo
+funcdock deploy --git https://github.com/user/repo.git --name my-functionmain
 ```
 
 **📖 Learn More**: See [DEPLOYMENT_README.md](DEPLOYMENT_README.md) for advanced deployment options.
@@ -259,7 +263,7 @@ curl http://localhost:3000/my-function/health
 
 # Check platform status
 curl http://localhost:3000/api/status
-# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
+# Note: Replace 3000 with your actual port (port 3000)
 ```
 
 **📖 Learn More**: See [DASHBOARDS_README.md](DASHBOARDS_README.md) for dashboard features.
@@ -276,21 +280,21 @@ Configure functions to receive webhooks:
 // webhook-handler.js
 export default async function handler(req, res) {
   const { headers, body } = req;
-  
+
   // Handle GitHub webhooks
   if (headers['x-github-event']) {
     const result = await handleGitHubWebhook(body);
     res.json(result);
     return;
   }
-  
+
   // Handle Stripe webhooks
   if (headers['stripe-signature']) {
     const result = await handleStripeWebhook(body);
     res.json(result);
     return;
   }
-  
+
   res.status(400).json({ error: 'Unknown webhook type' });
 }
 ```
@@ -340,16 +344,16 @@ Functions access environment variables via `req.env`:
 ```javascript
 export default async function handler(req, res) {
   const { env } = req;
-  
+
   // Access environment variables
   const dbUrl = env.DATABASE_URL;
   const apiKey = env.API_KEY;
-  
+
   // Use in your function logic
   const response = await fetch('https://api.example.com', {
-    headers: { 'Authorization': `Bearer ${apiKey}` }
+    headers: { Authorization: `Bearer ${apiKey}` },
   });
-  
+
   res.json({ data: await response.json() });
 }
 ```
@@ -357,6 +361,7 @@ export default async function handler(req, res) {
 #### Environment Variable Best Practices
 
 **✅ DO:**
+
 - Store secrets in `.env` files
 - Use descriptive variable names
 - Document required variables in function README
@@ -364,6 +369,7 @@ export default async function handler(req, res) {
 - Keep `.env` files out of Git (add to `.gitignore`)
 
 **❌ DON'T:**
+
 - Hardcode secrets in function code
 - Commit `.env` files to version control
 - Share `.env` files via insecure channels
@@ -376,6 +382,7 @@ See [SETUP_README.md](SETUP_README.md#environment-setup) for platform configurat
 #### Environment Variable Examples
 
 **Database Connection:**
+
 ```bash
 # .env
 DATABASE_URL=postgres://user:pass@localhost:5432/mydb
@@ -384,6 +391,7 @@ DB_TIMEOUT=5000
 ```
 
 **API Keys:**
+
 ```bash
 # .env
 STRIPE_SECRET_KEY=sk_live_...
@@ -392,6 +400,7 @@ SENDGRID_API_KEY=SG....
 ```
 
 **Feature Flags:**
+
 ```bash
 # .env
 ENABLE_CACHE=true
@@ -400,6 +409,7 @@ DEBUG_MODE=false
 ```
 
 **Service URLs:**
+
 ```bash
 # .env
 EXTERNAL_API_URL=https://api.example.com
@@ -417,7 +427,7 @@ export function logger(message) {
 }
 
 // Use in function: functions/my-function/layers.json
-"shared-utils"
+('shared-utils');
 
 // Import in handler: functions/my-function/handler.js
 import { logger } from 'shared-utils';
@@ -433,8 +443,8 @@ export default async function handler(req, res) {
 ### Custom Domains
 
 ```bash
-# Configure custom domain
-npm run set-domain my-function api.myapp.com
+# Custom domains are configured via your reverse proxy (Caddy/Nginx).
+# See Caddyfile for example configuration.
 ```
 
 **📖 Learn More**: See [CRONJOBS_README.md](CRONJOBS_README.md) for cron job configuration.
@@ -529,4 +539,4 @@ npm run set-domain my-function api.myapp.com
 
 ---
 
-**Ready to get started?** Check out the [Setup Guide](SETUP_README.md) to begin building with FuncDock! 
+**Ready to get started?** Check out the [Setup Guide](SETUP_README.md) to begin building with FuncDock!

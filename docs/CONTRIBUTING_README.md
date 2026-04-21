@@ -1,8 +1,13 @@
+> **Note:** This document has been superseded by [CONTRIBUTING.md](../CONTRIBUTING.md) in the repository root. Please refer to that file for the latest contribution guidelines.
+>
+> This copy is retained for historical reference.
+
 # 🚀 FuncDock — Contributing Guide
 
 Thank you for your interest in contributing to FuncDock! This guide will help you get started.
 
 ## Index
+
 - [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
 - [Code Style Guidelines](#code-style-guidelines)
@@ -19,12 +24,15 @@ Thank you for your interest in contributing to FuncDock! This guide will help yo
 ## Getting Started
 
 ### Before You Begin
+
 1. **Check existing issues** - Your idea might already be discussed or in progress
 2. **Discuss major changes** - Open an issue first for significant features
 3. **Read the documentation** - Familiarize yourself with the codebase structure
 
 ### Types of Contributions
+
 We welcome various types of contributions:
+
 - 🐛 **Bug fixes** - Fix issues and improve stability
 - ✨ **New features** - Add functionality to the platform
 - 📚 **Documentation** - Improve guides, examples, and API docs
@@ -37,7 +45,8 @@ We welcome various types of contributions:
 ## Development Setup
 
 ### Prerequisites
-- Node.js 22+ 
+
+- Node.js 22+
 - Git configured with your credentials
 - Docker (optional, for containerized testing)
 - `jq` for JSON processing
@@ -45,18 +54,21 @@ We welcome various types of contributions:
 ### Setup Steps
 
 1. **Fork and clone the repository**
+
    ```bash
    git clone https://github.com/your-username/funcdock.git
    cd funcdock
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    npm run setup
    ```
 
 3. **Start development server**
+
    ```bash
    npm run dev
    # Or with Docker
@@ -73,6 +85,7 @@ We welcome various types of contributions:
 ## Code Style Guidelines
 
 ### General Principles
+
 - **ES Modules** - Use `export default` and `import` (not CommonJS)
 - **Async/Await** - Prefer async/await over promises
 - **Error Handling** - Always handle errors appropriately
@@ -82,6 +95,7 @@ We welcome various types of contributions:
 ### JavaScript Style
 
 **Function Exports:**
+
 ```javascript
 // ✅ Good - ES module export
 export default async function handler(req, res, next) {
@@ -93,6 +107,7 @@ module.exports = async (req, res) => { ... }
 ```
 
 **Async Functions:**
+
 ```javascript
 // ✅ Good - Proper error handling
 export default async function handler(req, res) {
@@ -107,17 +122,20 @@ export default async function handler(req, res) {
 ```
 
 **Code Organization:**
+
 - Keep functions focused and single-purpose
 - Use early returns to reduce nesting
 - Group related functionality together
 - Export only what's necessary
 
 ### File Structure
+
 - Place function handlers in `functions/{function-name}/`
 - Use descriptive file names (`handler.js`, `cron-handler.js`, etc.)
-- Keep test files next to source files (`handler.test.js`)
+- Keep test files next to source files (`handler.test.mjs`)
 
 ### Formatting
+
 - Use consistent indentation (2 spaces)
 - Add trailing commas in multi-line objects/arrays
 - Keep lines under 100 characters when possible
@@ -128,13 +146,16 @@ export default async function handler(req, res) {
 ## Testing Requirements
 
 ### Test Coverage
+
 - **All new features** must include tests
 - **Bug fixes** should include regression tests
 - Aim for **80%+ code coverage** for new code
 - Test both success and error cases
 
 ### Testing Framework
+
 FuncDock uses:
+
 - **Jest** - Test runner and assertions
 - **Nock** - HTTP request mocking
 - **Docker** - Production-parity testing
@@ -142,9 +163,10 @@ FuncDock uses:
 ### Writing Tests
 
 **Test File Structure:**
+
 ```javascript
-// handler.test.js
-import { testHandler, expectStatus, nock } from '../../test/setup.js';
+// handler.test.mjs
+import { testHandler, expectStatus, nock } from '../../test/setup.mjs';
 import handler from './handler.js';
 
 describe('Handler Name', () => {
@@ -152,13 +174,13 @@ describe('Handler Name', () => {
     it('should handle success case', async () => {
       const { res } = await testHandler(handler, {
         method: 'GET',
-        query: { id: '123' }
+        query: { id: '123' },
       });
-      
+
       expectStatus(res, 200);
       expect(res.body).toMatchObject({ success: true });
     });
-    
+
     it('should handle error case', async () => {
       // Test error scenarios
     });
@@ -182,10 +204,11 @@ npm run test:coverage
 npm run test:functions
 
 # Test in Docker (production parity)
-node scripts/test-function-in-docker.js --function=./functions/my-function
+funcdock test my-function --docker
 ```
 
 ### Test Checklist
+
 - [ ] All new code has corresponding tests
 - [ ] Tests pass locally (`npm test`)
 - [ ] Tests pass in Docker environment
@@ -202,6 +225,7 @@ Use descriptive branch names that indicate the type of change:
 **Format:** `{type}/{short-description}`
 
 **Types:**
+
 - `feature/` - New features
 - `fix/` - Bug fixes
 - `docs/` - Documentation updates
@@ -210,6 +234,7 @@ Use descriptive branch names that indicate the type of change:
 - `chore/` - Maintenance tasks
 
 **Examples:**
+
 ```bash
 feature/add-layer-support
 fix/cron-handler-error-handling
@@ -227,6 +252,7 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 **Format:** `{type}({scope}): {description}`
 
 **Types:**
+
 - `feat` - New feature
 - `fix` - Bug fix
 - `docs` - Documentation changes
@@ -237,6 +263,7 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 - `perf` - Performance improvements
 
 **Examples:**
+
 ```
 feat(layers): add support for shared dependencies
 fix(cron): handle missing cron job name gracefully
@@ -246,6 +273,7 @@ refactor(logger): improve structured logging
 ```
 
 **Commit Message Best Practices:**
+
 - Use imperative mood ("add" not "added" or "adds")
 - Keep first line under 72 characters
 - Add detailed description in body if needed
@@ -258,6 +286,7 @@ refactor(logger): improve structured logging
 ### Before Submitting
 
 1. **Update your branch**
+
    ```bash
    git checkout main
    git pull upstream main
@@ -266,6 +295,7 @@ refactor(logger): improve structured logging
    ```
 
 2. **Run tests and linting**
+
    ```bash
    npm test
    npm run test:coverage
@@ -291,9 +321,11 @@ refactor(logger): improve structured logging
 
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Documentation update
@@ -301,18 +333,22 @@ Brief description of changes
 - [ ] Other (please describe)
 
 ## Testing
+
 - [ ] Tests added/updated
 - [ ] All tests pass
 - [ ] Tested in Docker environment
 
 ## Related Issues
+
 Closes #123
 Fixes #456
 
 ## Screenshots (if applicable)
+
 Add screenshots for UI changes
 
 ## Additional Notes
+
 Any additional information for reviewers
 ```
 
@@ -324,6 +360,7 @@ Any additional information for reviewers
 4. **Approval** - Once approved, your PR will be merged
 
 **Responding to Feedback:**
+
 - Be open to suggestions
 - Ask questions if something is unclear
 - Make requested changes promptly
@@ -342,6 +379,7 @@ Any additional information for reviewers
 ### Bug Reports
 
 **Include:**
+
 - Clear description of the issue
 - Steps to reproduce
 - Expected vs actual behavior
@@ -350,36 +388,45 @@ Any additional information for reviewers
 - Minimal reproduction case if possible
 
 **Template:**
+
 ```markdown
 ## Description
+
 Brief description of the bug
 
 ## Steps to Reproduce
+
 1. Step one
 2. Step two
 3. See error
 
 ## Expected Behavior
+
 What should happen
 
 ## Actual Behavior
+
 What actually happens
 
 ## Environment
+
 - Node.js version:
 - OS:
 - FuncDock version:
 
 ## Logs/Errors
+
 Paste relevant logs or error messages
 
 ## Additional Context
+
 Any other relevant information
 ```
 
 ### Feature Requests
 
 **Include:**
+
 - Clear description of the feature
 - Use case and motivation
 - Proposed implementation (if you have ideas)
@@ -392,16 +439,19 @@ Any other relevant information
 ### Our Standards
 
 **Be Respectful:**
+
 - Use welcoming and inclusive language
 - Respect different viewpoints and experiences
 - Accept constructive criticism gracefully
 
 **Be Professional:**
+
 - Focus on what is best for the community
 - Show empathy towards other community members
 - Be patient with newcomers
 
 **Be Constructive:**
+
 - Provide helpful feedback
 - Suggest improvements, not just point out problems
 - Celebrate others' contributions
@@ -431,4 +481,4 @@ By contributing to FuncDock, you agree that your contributions will be licensed 
 - **Issues** - Search or create GitHub issues
 - **Discussions** - Use GitHub Discussions for questions
 
-Thank you for contributing to FuncDock! 🚀 
+Thank you for contributing to FuncDock! 🚀

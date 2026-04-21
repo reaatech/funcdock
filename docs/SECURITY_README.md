@@ -3,6 +3,7 @@
 Security is a top priority for FuncDock. This guide covers security features, best practices, and how to report vulnerabilities.
 
 ## Index
+
 - [Security Features](#security-features)
 - [Security Configuration](#security-configuration)
 - [Best Practices](#best-practices)
@@ -23,11 +24,13 @@ FuncDock includes multiple layers of security to protect your functions and data
 ### Platform-Level Security
 
 **1. Route Conflict Prevention**
+
 - Automatic detection of conflicting route patterns
 - Prevents deployment of routes that would conflict
 - Protects against accidental route overwrites
 
 **2. Security Headers (Helmet.js)**
+
 - Content Security Policy (CSP) configured
 - XSS protection enabled
 - MIME type sniffing prevention
@@ -35,35 +38,43 @@ FuncDock includes multiple layers of security to protect your functions and data
 - HSTS support (when using HTTPS)
 
 **3. Rate Limiting**
+
 - API endpoints protected with rate limiting
 - Default: 100 requests per 15 minutes per IP
 - Configurable limits per endpoint
 - Prevents abuse and DDoS attacks
 
 **4. CORS Protection**
+
 - Configurable Cross-Origin Resource Sharing
 - Default allows all origins (configure for production)
 - Prevents unauthorized cross-origin requests
 
 **5. Function Isolation**
+
 - Functions run in isolated directories
 - No cross-function file access
 - Environment variables are function-specific
 - Prevents function-to-function data leakage
 
 **6. Authentication & Authorization**
+
 - JWT-based authentication for dashboard and API
-- Bcrypt password hashing
+- Bcrypt password hashing (supply `ADMIN_PASSWORD` to hash at startup, or a pre-computed `ADMIN_PASSWORD_HASH`)
+- Dedicated login rate limiter (5 attempts / 15 min per IP)
 - Token-based API access
 - Configurable admin credentials
+- Single-instance in-memory token blacklist and OAuth token store (use Redis for multi-instance deployments)
 
 **7. Webhook Signature Validation**
+
 - GitHub webhook signature verification
 - Stripe webhook signature validation
 - Prevents unauthorized webhook calls
 - Configurable validation per webhook type
 
 **8. Input Validation**
+
 - Express-validator for request validation
 - JSON payload size limits (10MB default)
 - URL-encoded payload limits
@@ -83,7 +94,9 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 
 # Admin Credentials (REQUIRED in production)
 ADMIN_USERNAME=admin
+# Supply either ADMIN_PASSWORD (hashed at startup) or a pre-computed bcrypt hash.
 ADMIN_PASSWORD=your-secure-password
+# ADMIN_PASSWORD_HASH=$2a$10$...
 
 # Server Port
 PORT=3000
@@ -96,6 +109,7 @@ BITBUCKET_CLIENT_SECRET=your_bitbucket_client_secret
 ```
 
 **⚠️ Production Security Checklist:**
+
 - [ ] Change `JWT_SECRET` to a strong, random value
 - [ ] Change `ADMIN_USERNAME` and `ADMIN_PASSWORD`
 - [ ] Use environment variables, never commit secrets
@@ -110,13 +124,14 @@ Rate limiting is configured in `server.js`:
 
 ```javascript
 const limiter = rateLimit({
-  windowMs: 15 * * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // requests per window
-  message: 'Too many requests from this IP'
+  message: 'Too many requests from this IP',
 });
 ```
 
 **To customize:**
+
 - Adjust `windowMs` for time window
 - Adjust `max` for request limit
 - Add per-endpoint limits if needed
@@ -130,10 +145,12 @@ Default CORS allows all origins. For production:
 app.use(cors());
 
 // With:
-app.use(cors({
-  origin: ['https://yourdomain.com', 'https://app.yourdomain.com'],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: ['https://yourdomain.com', 'https://app.yourdomain.com'],
+    credentials: true,
+  })
+);
 ```
 
 ---
@@ -143,6 +160,7 @@ app.use(cors({
 ### Secrets Management
 
 **✅ DO:**
+
 - Use environment variables for all secrets
 - Store secrets in `.env` file (not committed to Git)
 - Use different secrets for dev/staging/production
@@ -150,6 +168,7 @@ app.use(cors({
 - Use secret management services in production (AWS Secrets Manager, HashiCorp Vault, etc.)
 
 **❌ DON'T:**
+
 - Hardcode secrets in code
 - Commit `.env` files to Git
 - Share secrets via insecure channels
@@ -158,6 +177,7 @@ app.use(cors({
 ### Dependency Security
 
 **✅ DO:**
+
 - Keep dependencies up to date
 - Regularly run `npm audit`
 - Review dependency changes before updating
@@ -178,6 +198,7 @@ npm audit --json
 ### Function Security
 
 **✅ DO:**
+
 - Validate all input data
 - Sanitize user input
 - Use parameterized queries (if using databases)
@@ -186,6 +207,7 @@ npm audit --json
 - Implement proper authentication in functions
 
 **❌ DON'T:**
+
 - Trust user input
 - Expose sensitive data in error messages
 - Use `eval()` or similar dangerous functions
@@ -203,15 +225,15 @@ Always validate and sanitize input:
 ```javascript
 export default async function handler(req, res) {
   const { body, query } = req;
-  
+
   // Validate required fields
   if (!body.email || !isValidEmail(body.email)) {
     return res.status(400).json({ error: 'Invalid email' });
   }
-  
+
   // Sanitize input
   const sanitizedEmail = body.email.toLowerCase().trim();
-  
+
   // Process request...
 }
 ```
@@ -244,11 +266,11 @@ Implement authentication for sensitive endpoints:
 ```javascript
 export default async function handler(req, res, next) {
   const token = req.headers['authorization']?.split(' ')[1];
-  
+
   if (!token || !isValidToken(token)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   // Process authenticated request...
 }
 ```
@@ -260,28 +282,31 @@ export default async function handler(req, res, next) {
 ### Git Credentials
 
 **✅ Recommended: Host-based Deployment**
+
 - Uses your existing Git credentials
 - No credentials stored in containers
 - Supports SSH keys (most secure)
 
 ```bash
 # Use host-based deployment
-make deploy-host-git REPO=https://github.com/user/repo.git NAME=my-function
+funcdock deploy --git https://github.com/user/repo.git --name my-function
 ```
 
 **SSH Key Setup:**
+
 ```bash
 # Generate SSH key
 ssh-keygen -t ed25519 -C "your.email@example.com"
 
 # Add to GitHub/Bitbucket
 # Use SSH URLs for deployment
-make deploy-host-git REPO=git@github.com:user/repo.git NAME=my-function
+funcdock deploy --git git@github.com:user/repo.git --name my-function
 ```
 
 ### Container Security
 
 **✅ DO:**
+
 - Use official base images
 - Keep images updated
 - Run containers as non-root user
@@ -292,6 +317,7 @@ make deploy-host-git REPO=git@github.com:user/repo.git NAME=my-function
 ### Network Security
 
 **✅ DO:**
+
 - Use HTTPS/TLS in production
 - Configure firewall rules
 - Limit exposed ports
@@ -317,6 +343,7 @@ yourdomain.com {
 ```
 
 Caddy automatically:
+
 - Obtains SSL certificates (Let's Encrypt)
 - Renews certificates automatically
 - Redirects HTTP to HTTPS
@@ -324,6 +351,7 @@ Caddy automatically:
 ### Firewall Configuration
 
 **Recommended Rules:**
+
 - Allow only necessary ports (80, 443, 22)
 - Block all other incoming connections
 - Use fail2ban for SSH protection
@@ -332,11 +360,13 @@ Caddy automatically:
 ### API Security
 
 **Authentication Required:**
+
 - Dashboard access requires JWT token
 - API endpoints require authentication token
 - WebSocket connections authenticated
 
 **Token Management:**
+
 - Tokens expire (configure JWT expiration)
 - Refresh tokens for long-lived sessions
 - Revoke tokens on logout
@@ -350,6 +380,7 @@ Caddy automatically:
 We take security seriously and appreciate responsible disclosure.
 
 **What to Do:**
+
 1. **Do not** create a public GitHub issue
 2. **Do not** discuss publicly until resolved
 3. Email security details to: **security@funcdock.dev**
@@ -360,6 +391,7 @@ We take security seriously and appreciate responsible disclosure.
    - Suggested fix (if you have one)
 
 **What to Expect:**
+
 - Acknowledgment within 48 hours
 - Regular updates on fix progress
 - Credit in security advisories (if desired)
@@ -374,6 +406,7 @@ We take security seriously and appreciate responsible disclosure.
 **Email:** security@funcdock.dev
 
 **Private GitHub Issue:**
+
 - Create a private security advisory on GitHub
 - Include all relevant details
 - We'll respond promptly
@@ -381,6 +414,7 @@ We take security seriously and appreciate responsible disclosure.
 ### What to Include
 
 **Essential Information:**
+
 - Vulnerability type (XSS, injection, etc.)
 - Affected components/versions
 - Steps to reproduce
@@ -388,6 +422,7 @@ We take security seriously and appreciate responsible disclosure.
 - Suggested remediation
 
 **Optional but Helpful:**
+
 - Proof of concept code
 - Screenshots/videos
 - Suggested fix
@@ -447,6 +482,7 @@ We use the following severity levels:
 ### Q: Is FuncDock secure for production use?
 
 A: FuncDock includes multiple security features, but you must:
+
 - Configure environment variables properly
 - Use HTTPS in production
 - Keep dependencies updated
@@ -455,7 +491,8 @@ A: FuncDock includes multiple security features, but you must:
 
 ### Q: How do I secure the dashboard?
 
-A: 
+A:
+
 - Change default admin credentials
 - Use strong JWT secret
 - Enable authentication
@@ -466,6 +503,7 @@ A:
 ### Q: Are functions isolated from each other?
 
 A: Yes. Functions run in separate directories with:
+
 - Isolated file systems
 - Separate environment variables
 - No cross-function access
@@ -478,13 +516,15 @@ A: FuncDock includes webhook validation for GitHub and Stripe. See example funct
 ### Q: What if I find a security vulnerability?
 
 A: Please report it responsibly:
+
 - Email: security@funcdock.dev
 - Include details and steps to reproduce
 - Allow time for fix before public disclosure
 
 ### Q: How often should I update dependencies?
 
-A: 
+A:
+
 - Check weekly: `npm audit`
 - Update monthly or when vulnerabilities are found
 - Test updates in staging before production
@@ -493,6 +533,7 @@ A:
 ### Q: Can I use FuncDock behind a reverse proxy?
 
 A: Yes. FuncDock works well with:
+
 - Caddy (included in docker-compose)
 - Nginx
 - Apache
@@ -514,4 +555,4 @@ Configure `trust proxy` and ensure proper headers are forwarded.
 
 **Remember:** Security is a shared responsibility. Follow best practices, keep systems updated, and report vulnerabilities responsibly.
 
-For security concerns, contact: **security@funcdock.dev** 
+For security concerns, contact: **security@funcdock.dev**

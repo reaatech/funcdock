@@ -3,6 +3,7 @@
 Welcome to FuncDock! This guide will help you get up and running in minutes.
 
 ## Index
+
 - [Introduction](#introduction)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -16,9 +17,11 @@ Welcome to FuncDock! This guide will help you get up and running in minutes.
 ---
 
 ## Introduction
+
 FuncDock is a serverless platform for Node.js functions, designed for speed, security, and developer happiness.
 
 ## Prerequisites
+
 - Node.js 22+
 - Docker (optional, for containerized deployment)
 - `jq` (for JSON processing in scripts): `brew install jq` (macOS) or `apt-get install jq` (Ubuntu)
@@ -27,6 +30,7 @@ FuncDock is a serverless platform for Node.js functions, designed for speed, sec
 ### Redis Setup
 
 Redis is included in Docker containers and available for your functions to use. It's useful for:
+
 - **Caching** - Store frequently accessed data
 - **Sessions** - Manage user sessions
 - **State Management** - Share state between function invocations
@@ -38,12 +42,14 @@ Redis is included in Docker containers and available for your functions to use. 
 #### Installation
 
 **macOS:**
+
 ```bash
 brew install redis
 brew services start redis
 ```
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt-get update
 sudo apt-get install redis-server
@@ -60,6 +66,7 @@ Download from [redis.io](https://redis.io/download) or use WSL.
 #### Configuration
 
 **Default Connection:**
+
 - **Host:** `localhost` (or `redis` in Docker networks)
 - **Port:** `6379`
 - **No password by default** (configure for production)
@@ -72,7 +79,7 @@ import redis from 'redis';
 
 const client = redis.createClient({
   host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379
+  port: process.env.REDIS_PORT || 6379,
 });
 
 await client.connect();
@@ -83,7 +90,7 @@ export default async function handler(req, res) {
   if (cached) {
     return res.json(JSON.parse(cached));
   }
-  
+
   // Fetch and cache
   const data = await fetchData();
   await client.set('cache-key', JSON.stringify(data), { EX: 3600 }); // 1 hour TTL
@@ -92,6 +99,7 @@ export default async function handler(req, res) {
 ```
 
 **Environment Variables:**
+
 ```bash
 # Optional Redis configuration
 REDIS_HOST=localhost
@@ -100,6 +108,7 @@ REDIS_PASSWORD=your-password  # If password-protected
 ```
 
 **Production Recommendations:**
+
 - Use password authentication
 - Configure Redis persistence
 - Set up Redis replication for high availability
@@ -107,6 +116,7 @@ REDIS_PASSWORD=your-password  # If password-protected
 - Use Redis Sentinel for failover
 
 **Verifying Redis:**
+
 ```bash
 # Test Redis connection
 redis-cli ping
@@ -124,11 +134,13 @@ sudo systemctl status redis-server
 ### Quick Start (Recommended for First-Time Users)
 
 **One command to get started:**
+
 ```bash
 make quickstart
 ```
 
 This command:
+
 1. Sets up directories and configuration
 2. Installs all dependencies
 3. Starts the development server
@@ -138,11 +150,13 @@ This command:
 If you prefer manual setup or need more control:
 
 #### Step 1: Install Dependencies
+
 ```bash
 npm install
 ```
 
 #### Step 2: Setup Platform
+
 ```bash
 npm run setup
 # or
@@ -152,50 +166,58 @@ make setup
 #### Step 3: Start Server
 
 **For Development:**
+
 ```bash
 npm run dev
 # or
 make dev
 ```
+
 - Includes hot reload
 - Watches for file changes
 - Best for active development
 
 **For Production:**
+
 ```bash
 npm start
 # or
 make start
 ```
+
 - No file watching
 - Optimized for production
 - Use with process manager (PM2, systemd, etc.)
 
 ### Installation Methods Comparison
 
-| Method | Use Case | Hot Reload | Best For |
-|--------|----------|------------|----------|
-| `make quickstart` | First-time setup | ✅ Yes | Getting started quickly |
-| `npm run dev` | Development | ✅ Yes | Active development |
-| `npm start` | Production | ❌ No | Production deployment |
-| `make dev` | Development | ✅ Yes | Makefile workflow |
-| `docker-compose up` | Containerized dev | ✅ Yes | Docker-based development |
-| `make production` | Containerized prod | ❌ No | Docker production |
+| Method              | Use Case           | Hot Reload | Best For                 |
+| ------------------- | ------------------ | ---------- | ------------------------ |
+| `make quickstart`   | First-time setup   | ✅ Yes     | Getting started quickly  |
+| `npm run dev`       | Development        | ✅ Yes     | Active development       |
+| `npm start`         | Production         | ❌ No      | Production deployment    |
+| `make dev`          | Development        | ✅ Yes     | Makefile workflow        |
+| `docker-compose up` | Containerized dev  | ✅ Yes     | Docker-based development |
+| `make production`   | Containerized prod | ❌ No      | Docker production        |
 
 ### Using Docker
 
 **Development Environment:**
+
 ```bash
 docker-compose up
 ```
+
 - Includes hot reload
 - Matches production environment
 - Good for testing Docker setup
 
 **Production Environment:**
+
 ```bash
 docker-compose --profile production up
 ```
+
 - Optimized for production
 - Includes Caddy reverse proxy
 - HTTPS enabled
@@ -203,23 +225,26 @@ docker-compose --profile production up
 ### Command Reference
 
 **Setup Commands:**
+
 - `make quickstart` - Complete setup and start (recommended first time)
 - `make setup` - Setup directories and config only
 - `npm run setup` - Same as `make setup`
 - `npm install` - Install dependencies only
 
 **Start Commands:**
+
 - `npm run dev` - Start with hot reload (development)
 - `make dev` - Same as `npm run dev`
 - `npm start` - Start production server
 - `make start` - Same as `npm start`
 
 **When to Use Each:**
+
 - **First time:** `make quickstart`
 - **Daily development:** `npm run dev`
 - **Production:** `npm start` (with process manager)
 - **Docker development:** `docker-compose up`
-- **Docker production:** `docker-compose --profile production up` 
+- **Docker production:** `docker-compose --profile production up`
 
 ## Environment Setup
 
@@ -252,7 +277,7 @@ ADMIN_PASSWORD=your-secure-password-here
 #### Server Configuration
 
 ```bash
-# Server Port (default: 3003)
+# Server Port (default: 3000)
 PORT=3000
 
 # Log Level (default: info)
@@ -266,6 +291,7 @@ NODE_ENV=development  # or production
 #### OAuth Configuration (Optional)
 
 **GitHub OAuth:**
+
 ```bash
 GITHUB_CLIENT_ID=your_github_client_id
 GITHUB_CLIENT_SECRET=your_github_client_secret
@@ -274,6 +300,7 @@ GITHUB_REDIRECT_URI=http://localhost:3000/api/oauth/github/callback
 ```
 
 **Bitbucket OAuth:**
+
 ```bash
 BITBUCKET_CLIENT_ID=your_bitbucket_client_id
 BITBUCKET_CLIENT_SECRET=your_bitbucket_client_secret
@@ -291,23 +318,23 @@ REDIS_PASSWORD=your-redis-password  # If password-protected
 
 ### Environment Variable Reference
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PORT` | No | `3003` | Server port number |
-| `JWT_SECRET` | **Yes** (prod) | `'your-super-secret...'` | Secret for JWT token signing |
-| `ADMIN_USERNAME` | **Yes** (prod) | `'admin'` | Dashboard admin username |
-| `ADMIN_PASSWORD` | **Yes** (prod) | `'admin'` | Dashboard admin password |
-| `LOG_LEVEL` | No | `'info'` | Logging level (error/warn/info/debug) |
-| `NODE_ENV` | No | - | Node environment (development/production) |
-| `GITHUB_CLIENT_ID` | No | - | GitHub OAuth client ID |
-| `GITHUB_CLIENT_SECRET` | No | - | GitHub OAuth client secret |
-| `GITHUB_REDIRECT_URI` | No | `'http://localhost:3003/...'` | GitHub OAuth callback URL |
-| `BITBUCKET_CLIENT_ID` | No | - | Bitbucket OAuth client ID |
-| `BITBUCKET_CLIENT_SECRET` | No | - | Bitbucket OAuth client secret |
-| `BITBUCKET_REDIRECT_URI` | No | `'http://localhost:3003/...'` | Bitbucket OAuth callback URL |
-| `REDIS_HOST` | No | `'localhost'` | Redis server hostname |
-| `REDIS_PORT` | No | `6379` | Redis server port |
-| `REDIS_PASSWORD` | No | - | Redis password (if protected) |
+| Variable                  | Required       | Default                       | Description                               |
+| ------------------------- | -------------- | ----------------------------- | ----------------------------------------- |
+| `PORT`                    | No             | `3000`                        | Server port number                        |
+| `JWT_SECRET`              | **Yes** (prod) | `'your-super-secret...'`      | Secret for JWT token signing              |
+| `ADMIN_USERNAME`          | **Yes** (prod) | `'admin'`                     | Dashboard admin username                  |
+| `ADMIN_PASSWORD`          | **Yes** (prod) | `'admin'`                     | Dashboard admin password                  |
+| `LOG_LEVEL`               | No             | `'info'`                      | Logging level (error/warn/info/debug)     |
+| `NODE_ENV`                | No             | -                             | Node environment (development/production) |
+| `GITHUB_CLIENT_ID`        | No             | -                             | GitHub OAuth client ID                    |
+| `GITHUB_CLIENT_SECRET`    | No             | -                             | GitHub OAuth client secret                |
+| `GITHUB_REDIRECT_URI`     | No             | `'http://localhost:3000/...'` | GitHub OAuth callback URL                 |
+| `BITBUCKET_CLIENT_ID`     | No             | -                             | Bitbucket OAuth client ID                 |
+| `BITBUCKET_CLIENT_SECRET` | No             | -                             | Bitbucket OAuth client secret             |
+| `BITBUCKET_REDIRECT_URI`  | No             | `'http://localhost:3000/...'` | Bitbucket OAuth callback URL              |
+| `REDIS_HOST`              | No             | `'localhost'`                 | Redis server hostname                     |
+| `REDIS_PORT`              | No             | `6379`                        | Redis server port                         |
+| `REDIS_PASSWORD`          | No             | -                             | Redis password (if protected)             |
 
 ### Function-Specific Environment Variables
 
@@ -346,6 +373,7 @@ Before deploying to production:
 ### Loading Environment Variables
 
 Environment variables are automatically loaded from:
+
 1. `.env` file in project root (via `dotenv`)
 2. System environment variables
 3. Function-specific `.env` files
@@ -353,9 +381,10 @@ Environment variables are automatically loaded from:
 **Priority:** System env vars > `.env` file > defaults
 
 ## First Run
+
 - Visit [http://localhost:3000/api/status](http://localhost:3000/api/status) to check platform status.
 - Access the dashboard at [http://localhost:3000/dashboard/](http://localhost:3000/dashboard/)
 
-**Note:** The server defaults to port 3003 if the `PORT` environment variable is not set. Set `PORT=3000` in your environment or `.env` file to use port 3000. Docker Compose and npm scripts use port 3000 by default.
+**Note:** The server defaults to port 3000 if the `PORT` environment variable is not set. Set `PORT=3000` in your environment or `.env` file to use port 3000. Docker Compose and npm scripts use port 3000 by default.
 
-For more help, see [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md). 
+For more help, see [TROUBLESHOOTING_README.md](TROUBLESHOOTING_README.md).

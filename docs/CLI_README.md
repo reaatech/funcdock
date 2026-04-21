@@ -1,215 +1,201 @@
-# 🚀 FuncDock — CLI Guide
+# FuncDock CLI
 
-## Index
-- [Overview](#overview)
-- [Makefile Commands](#makefile-commands)
-- [npm Scripts](#npm-scripts)
-- [CLI Examples](#cli-examples)
-- [Automation Tips](#automation-tips)
+> Unified command-line interface for the FuncDock FaaS platform.
 
 ---
 
-## Overview
-FuncDock provides a rich CLI for development, deployment, and management.
+## Installation
 
-## When to Use Which Command
+The CLI is included with FuncDock. No separate install needed.
 
-### Development vs Production
-
-**Development:**
-- Use `npm run dev` or `make dev` for local development with hot reload
-- Use `make quickstart` for first-time setup
-- Use `npm run test:watch` for test-driven development
-
-**Production:**
-- Use `npm start` or `make start` for production server
-- Use `make production` for Docker-based production deployment
-- Use `make build` to build Docker images
-
-### Deployment Methods
-
-**Choose based on your needs:**
-
-1. **Host-based Git Deployment** (`make deploy-host-git`)
-   - ✅ Private repositories
-   - ✅ Using existing Git credentials
-   - ✅ Most secure option
-   - ✅ No container Git setup needed
-
-2. **Container-based Git Deployment** (`make deploy-git`)
-   - ✅ Public repositories
-   - ✅ CI/CD pipelines
-   - ⚠️ Requires Git credentials in container
-
-3. **Local Deployment** (`make deploy-local`)
-   - ✅ Development and testing
-   - ✅ Quick iteration
-   - ✅ No Git operations
-
-4. **Dashboard OAuth Deployment**
-   - ✅ Browser-based workflow
-   - ✅ No CLI needed
-   - ✅ Visual repository selection
-
-### Command Decision Tree
-
-```
-Starting FuncDock?
-├─ First time? → make quickstart
-├─ Development? → npm run dev or make dev
-└─ Production? → npm start or make production
-
-Deploying Function?
-├─ From private Git repo? → make deploy-host-git
-├─ From public Git repo? → make deploy-git
-├─ From local directory? → make deploy-local
-└─ Via browser? → Use dashboard
-
-Testing?
-├─ All tests? → npm test
-├─ Watch mode? → npm run test:watch
-├─ With coverage? → npm run test:coverage
-└─ In Docker? → node scripts/test-function-in-docker.js
-```
-
-## Makefile Commands
-- `make quickstart` — Setup and start everything
-- `make dev` — Start dev server
-- `make create-function NAME=...` — Create a new function
-- `make deploy-git REPO=... NAME=...` — Deploy from Git
-- `make deploy-local PATH=... NAME=...` — Deploy from local
-- `make list-functions` — List all functions
-- `make update-function NAME=...` — Update a function
-- `make remove-function NAME=...` — Remove a function
-- `make logs` — View logs
-- `make build` — Build Docker image
-- `make production` — Start production
-
-## npm Scripts
-- `npm run setup` — Initial setup
-- `npm run dev` — Start dev server
-- `npm run deploy` — Deploy function
-- `npm run test` — Run all tests
-- `npm run logs` — View logs
-- ...and more
-
-## CLI Examples
 ```bash
-make create-function NAME=api
-make deploy-git REPO=https://github.com/user/api.git NAME=api
-npm run deploy -- --update api
+# Use via npx (recommended)
+npx funcdock --help
+
+# Or install globally
+npm install -g funcdock
+funcdock --help
 ```
 
-## Automation Tips
-- Use Makefile targets in CI/CD pipelines.
-- Combine commands for custom workflows.
-- See [DEPLOYMENT_README.md](DEPLOYMENT_README.md) for more.
+---
 
-## Makefile & npm Scripts
+## Quick Reference
 
-### Create New Function
 ```bash
-# Using Make (recommended)
-make create-function NAME=my-api
-
-# Manual creation
-./scripts/create-function-template.sh my-api
+funcdock <command> [options]
 ```
 
-### Deploy Functions
+| Command                                        | Description                              |
+| ---------------------------------------------- | ---------------------------------------- |
+| `funcdock dev`                                 | Start development server with hot reload |
+| `funcdock start`                               | Start production server                  |
+| `funcdock create <name>`                       | Scaffold a new function                  |
+| `funcdock deploy --git <url> --name <name>`    | Deploy from Git                          |
+| `funcdock deploy --local <path> --name <name>` | Deploy from local path                   |
+| `funcdock update <name>`                       | Update an existing function              |
+| `funcdock remove <name>`                       | Remove a function                        |
+| `funcdock list`                                | List all deployed functions              |
+| `funcdock test [function]`                     | Run Jest tests                           |
+| `funcdock test <function> --docker`            | Test in Docker                           |
+| `funcdock logs`                                | View application logs                    |
+| `funcdock logs --follow`                       | Tail logs in real-time                   |
+| `funcdock status`                              | Check platform status                    |
+| `funcdock setup`                               | Run initial platform setup               |
+| `funcdock reload`                              | Trigger hot reload of all functions      |
 
-#### From Git Repository (Host-based - Recommended)
+Every command supports `--help`:
+
 ```bash
-# Using Make (uses your host Git credentials)
-make deploy-host-git REPO=https://github.com/user/my-function.git NAME=my-function
-
-# Using deployment script (uses your host Git credentials)
-npm run deploy-host -- --git https://github.com/user/my-function.git --name my-function --branch main
+funcdock deploy --help
+funcdock test --help
 ```
 
-#### From Git Repository (Container-based)
+---
+
+## Commands
+
+### `funcdock dev`
+
+Start the FuncDock platform in development mode with file watching and hot reload.
+
 ```bash
-# Using Make (requires Git credentials in container)
-make deploy-git REPO=https://github.com/user/my-function.git NAME=my-function
-
-# Using deployment script (requires Git credentials in container)
-npm run deploy -- --git https://github.com/user/my-function.git --name my-function --branch main
+funcdock dev
 ```
 
-#### From Local Directory
+### `funcdock start`
+
+Start the platform in production mode.
+
 ```bash
-# Using Make  
-make deploy-local PATH=./my-local-function NAME=my-function
-
-# Using deployment script
-npm run deploy -- --local ./my-local-function --name my-function
+funcdock start
 ```
 
-### Update Existing Function
+### `funcdock create <name>`
+
+Scaffold a new function with handler, tests, route config, and package.json.
+
 ```bash
-# Update from original source
-make update-function NAME=my-function
-npm run deploy -- --update my-function
+funcdock create payment-api
+funcdock create user-service
 ```
 
-### Remove Function
+Creates:
+
+- `functions/<name>/handler.js`
+- `functions/<name>/handler.test.mjs`
+- `functions/<name>/route.config.json`
+- `functions/<name>/package.json`
+- `functions/<name>/README.md`
+
+### `funcdock deploy`
+
+Deploy a function from Git, a local directory, or a pull request.
+
+**From Git:**
+
 ```bash
-# Remove deployed function
-make remove-function NAME=my-function
-npm run deploy -- --remove my-function
+funcdock deploy --git https://github.com/user/repo.git --name my-function
+funcdock deploy --git https://github.com/user/repo.git --name my-function --branch develop
 ```
 
-### List Functions
+**From local path:**
+
 ```bash
-# Show all deployed functions
-make list-functions
-npm run deploy -- --list
+funcdock deploy --local ./my-function --name my-function
 ```
 
-### View Logs
+**From a pull request:**
+
 ```bash
-# Application logs
-make logs
-npm run logs
-
-# Error logs only  
-make error-logs
-npm run error-logs
-
-# Cron job logs only (CRON and CRON_ERROR)
-cat logs/functions/my-function.log | jq 'select(.level=="CRON" or .level=="CRON_ERROR")'
+funcdock deploy --pr https://github.com/user/repo --name my-function --pr-number 42
 ```
 
-### Reload Functions
+Deploys run tests before activating. If tests fail, the deployment is aborted.
+
+### `funcdock update <name>`
+
+Update an existing function from its original source.
+
 ```bash
-# Reload all functions
-make reload
-npm run reload
-
-# Reload specific function
-curl -X POST http://localhost:3000/api/reload \
-  -H "Content-Type: application/json" \
-  -d '{"functionName": "my-function"}'
-# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
+funcdock update my-function
+funcdock update my-function --branch feature/new-thing
+funcdock update my-function --commit abc123
 ```
 
-## Make Commands Reference
+### `funcdock remove <name>`
 
-| Command | Description |
-|---------|-------------|
-| `make help` | Show all available commands |
-| `make quickstart` | Complete setup and start |
-| `make dev` | Start development server |
-| `make create-function NAME=x` | Create new function template |
-| `make deploy-git REPO=x NAME=y` | Deploy from Git |
-| `make deploy-local PATH=x NAME=y` | Deploy from local |
-| `make list-functions` | List all functions |
-| `make update-function NAME=x` | Update function |
-| `make remove-function NAME=x` | Remove function |
-| `make test-functions` | Test all functions |
-| `make status` | Check platform status |
-| `make logs` | View application logs |
-| `make build` | Build Docker image |
-| `make production` | Start production environment |
+Remove a deployed function.
 
-*For detailed deployment strategies and workflows, see the [Deployment Guide](DEPLOYMENT_README.md)* 
+```bash
+funcdock remove old-function
+```
+
+### `funcdock list`
+
+List all deployed functions with route counts and deployment metadata.
+
+```bash
+funcdock list
+```
+
+### `funcdock test [function]`
+
+Run Jest tests. Without a function name, runs all tests.
+
+```bash
+funcdock test                          # All tests
+funcdock test hello-world              # Single function
+funcdock test --coverage               # With coverage report
+funcdock test --watch                  # Watch mode
+funcdock test hello-world --docker     # Production-identical Docker test
+```
+
+### `funcdock logs`
+
+View application logs.
+
+```bash
+funcdock logs              # Show current logs
+funcdock logs --follow     # Tail logs (Ctrl+C to stop)
+funcdock logs --error      # Error logs only
+```
+
+### `funcdock status`
+
+Check if the platform is running and healthy.
+
+```bash
+funcdock status
+```
+
+### `funcdock setup`
+
+Run the initial platform setup. Creates directories, generates `.env`, and prepares the workspace.
+
+```bash
+funcdock setup
+```
+
+### `funcdock reload`
+
+Trigger a hot reload of all functions without restarting the server.
+
+```bash
+funcdock reload
+```
+
+---
+
+## Environment
+
+The CLI reads `.env` from the project root for settings like `PORT`. If `.env` is missing, defaults are used (port 3000).
+
+---
+
+## Exit Codes
+
+| Code | Meaning                                 |
+| ---- | --------------------------------------- |
+| `0`  | Success                                 |
+| `1`  | General error (command failed)          |
+| `2`  | Bad usage (missing args, invalid flags) |

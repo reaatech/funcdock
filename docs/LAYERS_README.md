@@ -5,6 +5,7 @@ FuncDock supports AWS Lambda Layer-style shared code functionality, allowing you
 ## Overview
 
 Layers enable you to:
+
 - Share common utilities and helpers across functions
 - Reduce function bundle size by extracting shared dependencies
 - Maintain consistent code across your serverless functions
@@ -49,11 +50,13 @@ Optional configuration file for layer metadata:
 ### Method 1: Manual Creation
 
 1. Create the layer directory structure:
+
    ```bash
    mkdir -p layers/my-layer/nodejs
    ```
 
 2. Add your layer code:
+
    ```javascript
    // layers/my-layer/nodejs/index.js
    export function logger(message) {
@@ -66,6 +69,7 @@ Optional configuration file for layer metadata:
    ```
 
 3. (Optional) Add dependencies:
+
    ```bash
    cd layers/my-layer/nodejs
    npm init -y
@@ -142,6 +146,7 @@ curl -X POST http://localhost:3000/api/layers/deploy/git \
 ```
 
 **Token Management:**
+
 - Tokens expire after 24 hours
 - Store token securely (environment variable, not in code)
 - Re-login if token expires
@@ -177,12 +182,12 @@ import { logger, validateEmail } from 'my-layer';
 
 export default async function handler(req, res) {
   logger('Request received');
-  
+
   const email = req.body.email;
   if (!validateEmail(email)) {
     return res.status(400).json({ error: 'Invalid email' });
   }
-  
+
   res.json({ message: 'Success' });
 }
 ```
@@ -240,7 +245,7 @@ curl -X DELETE http://localhost:3000/api/layers/my-layer \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-**Note:** Replace `localhost:3000` with your actual server URL and port. Default port is 3003 if `PORT` environment variable is not set.
+**Note:** Replace `localhost:3000` with your actual server URL and port. Default port is 3000 if `PORT` environment variable is not set.
 
 **Note:** You cannot delete a layer if any functions are using it.
 
@@ -260,6 +265,7 @@ Layers support hot reloading:
 ### 1. Keep Layers Focused
 
 Create layers for specific purposes:
+
 - `shared-utils` - Common utility functions
 - `database-helpers` - Database connection and query helpers
 - `auth-helpers` - Authentication and authorization utilities
@@ -286,6 +292,7 @@ Use `layer.config.json` to track layer versions:
 ### 4. Test Layer Changes
 
 Before updating a layer:
+
 1. Test the layer changes in isolation
 2. Verify all dependent functions still work
 3. Consider creating a new layer version for breaking changes
@@ -293,6 +300,7 @@ Before updating a layer:
 ### 5. Use Descriptive Names
 
 Choose clear, descriptive layer names:
+
 - ✅ `shared-utils`, `database-helpers`, `auth-middleware`
 - ❌ `layer1`, `stuff`, `common`
 
@@ -360,7 +368,7 @@ import { verifyToken, generateToken } from 'auth-utils';
 
 export default async function handler(req, res) {
   const { method, headers } = req;
-  
+
   if (method === 'POST' && req.path === '/login') {
     // Login logic
     const { username, password } = req.body;
@@ -368,15 +376,15 @@ export default async function handler(req, res) {
     const token = generateToken({ username, role: 'user' });
     return res.json({ token });
   }
-  
+
   // Protected route - verify token
   const token = headers['authorization']?.split(' ')[1];
   const user = verifyToken(token);
-  
+
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   // Use authenticated user
   res.json({ message: `Hello, ${user.username}!` });
 }
@@ -394,6 +402,7 @@ export default async function handler(req, res) {
 ### Example 1: Shared Logger Layer
 
 **Layer Structure:**
+
 ```
 layers/
   logger/
@@ -403,6 +412,7 @@ layers/
 ```
 
 **Layer Code:**
+
 ```javascript
 // layers/logger/nodejs/index.js
 export function log(level, message, meta = {}) {
@@ -420,6 +430,7 @@ export function logInfo(message, meta) {
 ```
 
 **Function Usage:**
+
 ```javascript
 // functions/api-handler/handler.js
 import { logInfo, logError } from 'logger';
@@ -439,6 +450,7 @@ export default async function handler(req, res) {
 ### Example 2: Database Helpers Layer
 
 **Layer with Dependencies:**
+
 ```json
 // layers/db-helpers/nodejs/package.json
 {
@@ -460,7 +472,7 @@ let pool = null;
 export function getPool() {
   if (!pool) {
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL
+      connectionString: process.env.DATABASE_URL,
     });
   }
   return pool;
@@ -473,6 +485,7 @@ export async function query(text, params) {
 ```
 
 **Function Usage:**
+
 ```javascript
 // functions/user-api/handler.js
 import { query } from 'db-helpers';
@@ -491,6 +504,7 @@ A complete, working example demonstrating layer usage is available in the `examp
 - **Function**: `functions/example-layer-function/` - Complete function demonstrating all layer features
 
 **Key Features:**
+
 - Validation utilities (email, phone, required fields, length)
 - Formatting utilities (phone numbers, currency, dates)
 - String utilities (sanitization, slugification, capitalization)
@@ -499,11 +513,13 @@ A complete, working example demonstrating layer usage is available in the `examp
 - Number utilities (clamping, rounding, formatting)
 
 **See the complete example:**
+
 - Function: `functions/example-layer-function/`
 - Documentation: `functions/example-layer-function/README.md`
 - Tests: `functions/example-layer-function/handler.test.mjs`
 
 This example demonstrates best practices for:
+
 - Creating and structuring layers
 - Using layers in functions
 - Testing functions that use layers
@@ -516,6 +532,7 @@ This example demonstrates best practices for:
 **Error:** `Function references layer 'my-layer' which is not loaded`
 
 **Solution:**
+
 1. Verify the layer exists in `layers/my-layer/nodejs/`
 2. Check the layer name in `layers.json` matches exactly
 3. Restart the server to reload layers
@@ -525,6 +542,7 @@ This example demonstrates best practices for:
 **Error:** `Cannot find module 'my-layer'`
 
 **Solution:**
+
 1. Verify `layers.json` exists in your function directory
 2. Check the symlink exists: `ls -la functions/my-function/node_modules/`
 3. Ensure the layer's `nodejs/` directory contains the expected files
@@ -534,6 +552,7 @@ This example demonstrates best practices for:
 **Error:** Dependency version conflicts between layer and function
 
 **Solution:**
+
 1. Use the same dependency versions in both layer and function
 2. Or move conflicting dependencies to the layer only
 3. Check `node_modules` for duplicate packages
@@ -541,6 +560,7 @@ This example demonstrates best practices for:
 ### Hot Reload Not Working
 
 **Solution:**
+
 1. Check file watcher logs for errors
 2. Verify layer files are not in ignored patterns
 3. Manually reload: `POST /api/reload` with function name
@@ -609,6 +629,7 @@ export async function transaction(callback) {
 ```
 
 **Usage in function:**
+
 ```javascript
 // functions/user-api/handler.js
 import { query, transaction } from 'db-connection';
@@ -618,7 +639,7 @@ export default async function handler(req, res) {
     const result = await query('SELECT * FROM users WHERE id = $1', [req.params.id]);
     return res.json(result.rows[0]);
   }
-  
+
   if (req.method === 'POST') {
     await transaction(async (client) => {
       await client.query('INSERT INTO users ...');
@@ -642,15 +663,15 @@ export class StripeClient {
     this.apiKey = apiKey;
     this.baseUrl = 'https://api.stripe.com/v1';
   }
-  
+
   async createCustomer(email) {
     const response = await fetch(`${this.baseUrl}/customers`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: `email=${encodeURIComponent(email)}`
+      body: `email=${encodeURIComponent(email)}`,
     });
     return response.json();
   }
@@ -661,20 +682,20 @@ export class SendGridClient {
     this.apiKey = apiKey;
     this.baseUrl = 'https://api.sendgrid.com/v3';
   }
-  
+
   async sendEmail(to, subject, content) {
     const response = await fetch(`${this.baseUrl}/mail/send`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: to }] }],
         from: { email: 'noreply@example.com' },
         subject,
-        content: [{ type: 'text/plain', value: content }]
-      })
+        content: [{ type: 'text/plain', value: content }],
+      }),
     });
     return response.json();
   }
@@ -682,6 +703,7 @@ export class SendGridClient {
 ```
 
 **Usage:**
+
 ```javascript
 // functions/payment/handler.js
 import { StripeClient } from 'api-clients';
@@ -696,10 +718,12 @@ export default async function handler(req, res) {
 ## API Reference
 
 ### GET /api/layers
+
 List all layers
 
 **Authentication:** Required  
 **Response:**
+
 ```json
 {
   "layers": [
@@ -713,10 +737,12 @@ List all layers
 ```
 
 ### GET /api/layers/:name
+
 Get layer details
 
 **Authentication:** Required  
 **Response:**
+
 ```json
 {
   "name": "my-layer",
@@ -728,25 +754,30 @@ Get layer details
 ```
 
 ### GET /api/layers/:name/files
+
 List layer files
 
 **Authentication:** Required
 
 ### POST /api/layers/deploy/local
+
 Deploy layer from uploaded files
 
 **Authentication:** Required  
 **Content-Type:** `multipart/form-data`  
 **Body:**
+
 - `name` (string): Layer name
 - `files` (file[]): Layer files to upload
 
 ### POST /api/layers/deploy/git
+
 Deploy layer from Git repository
 
 **Authentication:** Required  
 **Content-Type:** `application/json`  
 **Body:**
+
 ```json
 {
   "name": "my-layer",
@@ -756,14 +787,15 @@ Deploy layer from Git repository
 ```
 
 ### PUT /api/layers/:name
+
 Update layer files
 
 **Authentication:** Required
 
 ### DELETE /api/layers/:name
+
 Delete layer (fails if functions are using it)
 
 **Authentication:** Required
 
 **Note:** All API endpoints require authentication. See [Authentication](#authentication) section for obtaining tokens.
-

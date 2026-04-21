@@ -48,12 +48,15 @@ The FuncDock dashboard is your **command center** for managing, monitoring, and 
 ## 🌐 Dashboard Access
 
 ### Local Development
+
 ```
 http://localhost:3000/dashboard/
 ```
-**Note:** The server defaults to port 3003 if the `PORT` environment variable is not set. Set `PORT=3000` to use port 3000.
+
+**Note:** The server defaults to port 3000 if the `PORT` environment variable is not set. Set `PORT=3000` to use port 3000.
 
 ### Production
+
 ```
 https://your-domain.com/dashboard/
 ```
@@ -63,10 +66,12 @@ https://your-domain.com/dashboard/
 FuncDock uses JWT-based authentication for dashboard and API access.
 
 **Default Credentials (Development):**
+
 - **Username:** `admin`
 - **Password:** `admin`
 
 **⚠️ Important:** Change these credentials in production by setting environment variables:
+
 ```bash
 ADMIN_USERNAME=your-secure-username
 ADMIN_PASSWORD=your-secure-password
@@ -74,6 +79,7 @@ JWT_SECRET=your-super-secret-jwt-key
 ```
 
 **Login Flow:**
+
 1. Navigate to dashboard login page
 2. Enter username and password
 3. Receive JWT token (stored in browser localStorage)
@@ -101,6 +107,7 @@ curl http://localhost:3000/api/status \
 ```
 
 **Token Management:**
+
 - Tokens are stored in browser localStorage (dashboard)
 - Tokens expire after 24 hours
 - Logout clears token from localStorage
@@ -115,16 +122,17 @@ The main dashboard provides an **overview** of your entire FuncDock platform.
 
 ### Dashboard Stats
 
-| Metric | Description | Icon |
-|--------|-------------|------|
-| **Total Functions** | Number of deployed functions | 📦 |
-| **Running Functions** | Functions currently active | ✅ |
-| **Errors** | Functions with issues | ❌ |
-| **Uptime** | System uptime in hours | ⏰ |
+| Metric                | Description                  | Icon |
+| --------------------- | ---------------------------- | ---- |
+| **Total Functions**   | Number of deployed functions | 📦   |
+| **Running Functions** | Functions currently active   | ✅   |
+| **Errors**            | Functions with issues        | ❌   |
+| **Uptime**            | System uptime in hours       | ⏰   |
 
 ### Real-Time Updates
 
 The dashboard updates **automatically** via WebSocket connections:
+
 - Function status changes
 - New log entries
 - Performance metrics
@@ -132,14 +140,14 @@ The dashboard updates **automatically** via WebSocket connections:
 
 ### Function Overview Table
 
-| Column | Description |
-|--------|-------------|
-| **Name** | Function identifier and link to details |
-| **Status** | Running, Error, or Stopped with color coding |
-| **Routes** | Number of registered routes |
-| **Cron Jobs** | Number of scheduled tasks |
-| **Last Updated** | Timestamp of last modification |
-| **Actions** | Quick access to test, edit, or delete |
+| Column           | Description                                  |
+| ---------------- | -------------------------------------------- |
+| **Name**         | Function identifier and link to details      |
+| **Status**       | Running, Error, or Stopped with color coding |
+| **Routes**       | Number of registered routes                  |
+| **Cron Jobs**    | Number of scheduled tasks                    |
+| **Last Updated** | Timestamp of last modification               |
+| **Actions**      | Quick access to test, edit, or delete        |
 
 ---
 
@@ -150,6 +158,7 @@ The dashboard updates **automatically** via WebSocket connections:
 Access detailed function information by clicking on any function name.
 
 #### Overview Tab
+
 - **Function Status**: Real-time status with visual indicators
 - **Base URL**: Copyable endpoint URL
 - **Route Configuration**: All registered routes and methods
@@ -157,6 +166,7 @@ Access detailed function information by clicking on any function name.
 - **File Structure**: Complete file tree with file sizes
 
 #### Testing Tab
+
 Test your functions directly from the dashboard:
 
 ```javascript
@@ -177,6 +187,7 @@ Test your functions directly from the dashboard:
 ```
 
 **Test Features:**
+
 - Multiple HTTP methods (GET, POST, PUT, DELETE, OPTIONS)
 - Request body with JSON validation
 - Custom headers
@@ -184,16 +195,20 @@ Test your functions directly from the dashboard:
 - Error handling and debugging
 
 #### Logs Tab
+
 Function-specific logs with advanced filtering:
+
 - **Log Levels**: ERROR, WARN, INFO, DEBUG
 - **Time Range**: Last hour, day, week, or custom
 - **Search**: Full-text search across log messages
 - **Export**: Download logs as CSV or JSON
 
 #### Cron Jobs Tab
+
 Manage scheduled tasks for the function:
 
 **Cron Job Configuration:**
+
 ```json
 {
   "name": "daily-backup",
@@ -205,6 +220,7 @@ Manage scheduled tasks for the function:
 ```
 
 **Features:**
+
 - Visual cron expression builder
 - Timezone selection
 - Handler file specification
@@ -212,9 +228,11 @@ Manage scheduled tasks for the function:
 - Enable/disable individual jobs
 
 #### Files Tab
+
 Browse and manage function files:
 
 **File Operations:**
+
 - **View**: Read file contents with syntax highlighting
 - **Edit**: In-browser code editing with auto-save
 - **Download**: Export individual files
@@ -222,6 +240,7 @@ Browse and manage function files:
 - **Delete**: Remove files (with confirmation)
 
 **Supported File Types:**
+
 - JavaScript (.js)
 - JSON (.json)
 - Markdown (.md)
@@ -238,16 +257,17 @@ Access comprehensive logging at `http://localhost:3000/dashboard/logs` (or your 
 
 #### Log Filters
 
-| Filter | Options | Description |
-|--------|---------|-------------|
-| **Function** | All functions or specific function | Filter by function name |
-| **Log Level** | ERROR, WARN, INFO, DEBUG, ALL | Filter by severity |
-| **Search** | Free text | Search within log messages |
-| **Time Range** | Last 100, 500, 1000 logs | Limit log entries |
+| Filter         | Options                            | Description                |
+| -------------- | ---------------------------------- | -------------------------- |
+| **Function**   | All functions or specific function | Filter by function name    |
+| **Log Level**  | ERROR, WARN, INFO, DEBUG, ALL      | Filter by severity         |
+| **Search**     | Free text                          | Search within log messages |
+| **Time Range** | Last 100, 500, 1000 logs           | Limit log entries          |
 
 #### Log Display
 
 Each log entry shows:
+
 - **Timestamp**: ISO format with timezone
 - **Level**: Color-coded severity indicator
 - **Function**: Source function name
@@ -263,15 +283,15 @@ Each log entry shows:
 
 #### Log Levels
 
-| Level        | Color | Description                | Use Case                        |
-|--------------|-------|----------------------------|---------------------------------|
-| ERROR        | 🔴 Red | Critical errors            | Function failures, crashes      |
-| WARN         | 🟡 Yellow | Warning messages         | Deprecated features, issues     |
-| INFO         | 🔵 Blue | Information               | Function calls, status updates  |
-| DEBUG        | ⚪ Gray | Debug information         | Development debugging           |
-| ACCESS       | 🟢 Green | HTTP access logs         | HTTP requests to functions      |
-| CRON         | 🟢 Green | Cron job events          | Cron job started/completed      |
-| CRON_ERROR   | 🔴 Red | Cron job errors           | Cron job failures or warnings   |
+| Level      | Color     | Description       | Use Case                       |
+| ---------- | --------- | ----------------- | ------------------------------ |
+| ERROR      | 🔴 Red    | Critical errors   | Function failures, crashes     |
+| WARN       | 🟡 Yellow | Warning messages  | Deprecated features, issues    |
+| INFO       | 🔵 Blue   | Information       | Function calls, status updates |
+| DEBUG      | ⚪ Gray   | Debug information | Development debugging          |
+| ACCESS     | 🟢 Green  | HTTP access logs  | HTTP requests to functions     |
+| CRON       | 🟢 Green  | Cron job events   | Cron job started/completed     |
+| CRON_ERROR | 🔴 Red    | Cron job errors   | Cron job failures or warnings  |
 
 > **Note:** Filtering by "CRON" in the dashboard will show both CRON and CRON_ERROR logs.
 
@@ -286,12 +306,14 @@ Access deployment at `http://localhost:3000/dashboard/deploy` (or your configure
 #### Method 1: File Upload
 
 **Step 1: Select Files**
+
 - Upload `handler.js` (main function file)
 - Upload `route.config.json` (routing configuration)
 - Upload `package.json` (dependencies)
 - Upload `cron.json` (scheduled tasks, optional)
 
 **Step 2: Configure Function**
+
 ```json
 {
   "name": "my-function",
@@ -301,6 +323,7 @@ Access deployment at `http://localhost:3000/dashboard/deploy` (or your configure
 ```
 
 **Step 3: Deploy**
+
 - Automatic dependency installation
 - Route registration
 - Cron job setup
@@ -309,16 +332,19 @@ Access deployment at `http://localhost:3000/dashboard/deploy` (or your configure
 #### Method 2: Git Integration
 
 **Step 1: Repository Configuration**
+
 - **Repository URL**: HTTPS or SSH Git URL
 - **Branch**: Default branch (main/master)
 - **Commit**: Specific commit hash (optional)
 
 **Step 2: Function Detection**
+
 - Automatic function name detection
 - File structure validation
 - Configuration file parsing
 
 **Step 3: Deployment**
+
 - Git clone and checkout
 - Dependency installation
 - Function registration
@@ -327,6 +353,7 @@ Access deployment at `http://localhost:3000/dashboard/deploy` (or your configure
 ### Deployment Status
 
 **Real-time deployment feedback:**
+
 - File upload progress
 - Dependency installation status
 - Route registration confirmation
@@ -341,28 +368,26 @@ Access deployment at `http://localhost:3000/dashboard/deploy` (or your configure
 Access settings at `http://localhost:3000/dashboard/settings` (or your configured port)
 
 #### General Configuration
+
 - **Platform Name**: Customize dashboard title
-- **Theme**: Light/Dark mode toggle
-- **Language**: Internationalization settings
 - **Timezone**: Default timezone for logs and cron jobs
 
 #### Security Settings
-- **Authentication**: Enable/disable login requirement
+
 - **CORS**: Configure cross-origin resource sharing
 - **Rate Limiting**: Set request rate limits
-- **Webhook Validation**: Configure webhook security
 
 #### Performance Settings
+
 - **Log Retention**: Configure log storage duration
-- **Metrics Collection**: Enable/disable performance metrics
-- **Cache Settings**: Configure function caching
-- **Memory Limits**: Set function memory constraints
+- **Cache TTL**: Function response cache time-to-live
+- **Compression**: Enable/disable response compression
+- **Request Timeout**: Maximum request duration
 
 #### Integration Settings
-- **Git Providers**: Configure GitHub, GitLab, Bitbucket
-- **CI/CD**: Set up automated deployment pipelines
-- **Monitoring**: Configure external monitoring tools
-- **Alerts**: Set up notification systems
+
+- **Git Providers**: Configure GitHub and Bitbucket OAuth
+- **Alerts**: Slack webhook for alert notifications
 
 ---
 
@@ -371,12 +396,14 @@ Access settings at `http://localhost:3000/dashboard/settings` (or your configure
 ### Hot Reload Management
 
 **Automatic Hot Reload:**
+
 - File changes trigger instant reloads
 - No container restarts required
 - Zero downtime deployments
 - Route updates in milliseconds
 
 **Manual Hot Reload:**
+
 - Force reload specific functions
 - Reload all functions
 - Reload with dependency updates
@@ -384,6 +411,7 @@ Access settings at `http://localhost:3000/dashboard/settings` (or your configure
 ### Route Conflict Detection
 
 **Automatic Detection:**
+
 - Identifies conflicting route patterns
 - Prevents deployment of conflicting routes
 - Suggests alternative route paths
@@ -392,12 +420,14 @@ Access settings at `http://localhost:3000/dashboard/settings` (or your configure
 ### Performance Monitoring
 
 **Real-time Metrics:**
+
 - Request count and response times
 - Memory usage and CPU utilization
 - Error rates and success percentages
 - Function execution duration
 
 **Historical Data:**
+
 - Performance trends over time
 - Peak usage identification
 - Bottleneck detection
@@ -406,12 +436,14 @@ Access settings at `http://localhost:3000/dashboard/settings` (or your configure
 ### Webhook Management
 
 **Webhook Configuration:**
+
 - GitHub webhook validation
 - Slack integration setup
 - Stripe webhook handling
 - Custom webhook endpoints
 
 **Webhook Testing:**
+
 - Send test payloads
 - Validate webhook signatures
 - Monitor webhook delivery
@@ -424,28 +456,32 @@ Access settings at `http://localhost:3000/dashboard/settings` (or your configure
 ### Common Issues
 
 #### Dashboard Not Loading
+
 ```bash
 # Check if FuncDock is running
 curl http://localhost:3000/api/status
-# Note: Replace 3000 with your actual port (default 3003 if PORT env var is not set)
+# Note: Replace 3000 with your actual port (port 3000)
 
 # Restart the server
 npm run dev
 ```
 
 #### Functions Not Appearing
+
 1. Check function deployment status
 2. Verify route configuration
 3. Review function logs for errors
 4. Ensure dependencies are installed
 
 #### Logs Not Updating
+
 1. Verify WebSocket connection
 2. Check browser console for errors
 3. Refresh the dashboard
 4. Restart the FuncDock server
 
 #### Deployment Failures
+
 1. Check file permissions
 2. Verify Git repository access
 3. Review dependency conflicts
@@ -454,6 +490,7 @@ npm run dev
 ### Debug Mode
 
 Enable debug mode for detailed troubleshooting:
+
 ```bash
 # Set debug environment variable
 DEBUG=funcdock:* npm run dev
@@ -471,6 +508,7 @@ FuncDock supports OAuth-based deployment from GitHub and Bitbucket, allowing you
 ### Overview
 
 OAuth deployment provides:
+
 - **No Git credentials needed** - Authenticate via OAuth
 - **Repository selection** - Browse and select repos from your account
 - **Secure token management** - Tokens stored securely per user
@@ -577,12 +615,14 @@ npm run dev
 **Important:** The callback URL must match exactly what you configured in your OAuth app.
 
 **Development:**
+
 ```
 http://localhost:3000/api/oauth/github/callback
 http://localhost:3000/api/oauth/bitbucket/callback
 ```
 
 **Production:**
+
 ```
 https://yourdomain.com/api/oauth/github/callback
 https://yourdomain.com/api/oauth/bitbucket/callback
@@ -595,6 +635,7 @@ https://yourdomain.com/api/oauth/bitbucket/callback
 **Problem:** Callback URL doesn't match OAuth app configuration
 
 **Solution:**
+
 1. Verify callback URL in OAuth app matches environment variable
 2. Check for trailing slashes
 3. Ensure protocol matches (http vs https)
@@ -605,6 +646,7 @@ https://yourdomain.com/api/oauth/bitbucket/callback
 **Problem:** Client ID is incorrect or app was deleted
 
 **Solution:**
+
 1. Verify `GITHUB_CLIENT_ID` or `BITBUCKET_CLIENT_ID` is correct
 2. Check OAuth app still exists in GitHub/Bitbucket
 3. Regenerate client secret if needed
@@ -614,6 +656,7 @@ https://yourdomain.com/api/oauth/bitbucket/callback
 **Problem:** User didn't authorize or revoked access
 
 **Solution:**
+
 1. User must authorize FuncDock in GitHub/Bitbucket
 2. Check OAuth app permissions
 3. Re-authorize if access was revoked
@@ -623,6 +666,7 @@ https://yourdomain.com/api/oauth/bitbucket/callback
 **Problem:** OAuth token doesn't have required permissions
 
 **Solution:**
+
 1. Check OAuth app permissions in GitHub/Bitbucket
 2. Ensure "Repositories: Read" permission is granted
 3. Re-authorize with correct permissions
@@ -630,6 +674,7 @@ https://yourdomain.com/api/oauth/bitbucket/callback
 ### Security Best Practices
 
 **✅ DO:**
+
 - Use HTTPS in production
 - Keep client secrets secure (never commit to Git)
 - Use environment variables for credentials
@@ -638,6 +683,7 @@ https://yourdomain.com/api/oauth/bitbucket/callback
 - Use separate OAuth apps for dev/staging/production
 
 **❌ DON'T:**
+
 - Commit OAuth credentials to Git
 - Share client secrets
 - Use overly permissive OAuth scopes
