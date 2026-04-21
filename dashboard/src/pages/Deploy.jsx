@@ -1,129 +1,129 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { functionsApi, layersApi, githubApi, bitbucketApi } from '../utils/api'
-import { Upload, GitBranch, File, Folder, X, Package } from 'lucide-react'
-import LoadingSpinner from '../components/LoadingSpinner'
-import toast from 'react-hot-toast'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { functionsApi, layersApi, githubApi, bitbucketApi } from '../utils/api';
+import { Upload, GitBranch, File, Folder, X, Package } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 const Deploy = () => {
-  const [deployType, setDeployType] = useState('function') // 'function' or 'layer'
-  const [deployMethod, setDeployMethod] = useState('local')
-  const [functionName, setFunctionName] = useState('')
-  const [layerName, setLayerName] = useState('')
-  const [files, setFiles] = useState([])
-  const [gitRepo, setGitRepo] = useState('')
-  const [gitBranch, setGitBranch] = useState('main')
-  const [gitCommit, setGitCommit] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [githubConnected, setGithubConnected] = useState(false)
-  const [bitbucketConnected, setBitbucketConnected] = useState(false)
-  const [githubRepos, setGithubRepos] = useState([])
-  const [bitbucketRepos, setBitbucketRepos] = useState([])
-  const [selectedGithubRepo, setSelectedGithubRepo] = useState('')
-  const [selectedBitbucketRepo, setSelectedBitbucketRepo] = useState('')
-  const navigate = useNavigate()
+  const [deployType, setDeployType] = useState('function'); // 'function' or 'layer'
+  const [deployMethod, setDeployMethod] = useState('local');
+  const [functionName, setFunctionName] = useState('');
+  const [layerName, setLayerName] = useState('');
+  const [files, setFiles] = useState([]);
+  const [gitRepo, setGitRepo] = useState('');
+  const [gitBranch, setGitBranch] = useState('main');
+  const [gitCommit, setGitCommit] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [bitbucketConnected, setBitbucketConnected] = useState(false);
+  const [githubRepos, setGithubRepos] = useState([]);
+  const [bitbucketRepos, setBitbucketRepos] = useState([]);
+  const [selectedGithubRepo, setSelectedGithubRepo] = useState('');
+  const [selectedBitbucketRepo, setSelectedBitbucketRepo] = useState('');
+  const navigate = useNavigate();
 
   const handleFileSelect = (event) => {
-    const selectedFiles = Array.from(event.target.files)
-    setFiles(selectedFiles)
-  }
+    const selectedFiles = Array.from(event.target.files);
+    setFiles(selectedFiles);
+  };
 
   const removeFile = (index) => {
-    setFiles(files.filter((_, i) => i !== index))
-  }
+    setFiles(files.filter((_, i) => i !== index));
+  };
 
   const handleDeploy = async (e) => {
-    e.preventDefault()
-    
-    const name = deployType === 'function' ? functionName : layerName
-    
+    e.preventDefault();
+
+    const name = deployType === 'function' ? functionName : layerName;
+
     if (!name.trim()) {
-      toast.error(`${deployType === 'function' ? 'Function' : 'Layer'} name is required`)
-      return
+      toast.error(`${deployType === 'function' ? 'Function' : 'Layer'} name is required`);
+      return;
     }
 
     if (deployMethod === 'local' && files.length === 0) {
-      toast.error('Please select at least one file')
-      return
+      toast.error('Please select at least one file');
+      return;
     }
 
     if (deployMethod === 'git' && !gitRepo.trim()) {
-      toast.error('Git repository URL is required')
-      return
+      toast.error('Git repository URL is required');
+      return;
     }
 
     if (deployMethod === 'github' && !selectedGithubRepo) {
-      toast.error('Please select a GitHub repository')
-      return
+      toast.error('Please select a GitHub repository');
+      return;
     }
 
     if (deployMethod === 'bitbucket' && !selectedBitbucketRepo) {
-      toast.error('Please select a Bitbucket repository')
-      return
+      toast.error('Please select a Bitbucket repository');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       if (deployType === 'function') {
         // Deploy function
         if (deployMethod === 'local') {
-          await functionsApi.deployFromLocal(name, files)
-          toast.success('Function deployed successfully!')
+          await functionsApi.deployFromLocal(name, files);
+          toast.success('Function deployed successfully!');
         } else if (deployMethod === 'git') {
-          await functionsApi.deployFromGit(name, gitRepo, gitBranch, gitCommit)
-          toast.success('Function deployed from Git successfully!')
+          await functionsApi.deployFromGit(name, gitRepo, gitBranch, gitCommit);
+          toast.success('Function deployed from Git successfully!');
         } else if (deployMethod === 'github') {
-          const repoUrl = `https://github.com/${selectedGithubRepo}.git`
-          await functionsApi.deployFromGit(name, repoUrl, 'main', '')
-          toast.success('Function deployed from GitHub successfully!')
+          const repoUrl = `https://github.com/${selectedGithubRepo}.git`;
+          await functionsApi.deployFromGit(name, repoUrl, 'main', '');
+          toast.success('Function deployed from GitHub successfully!');
         } else if (deployMethod === 'bitbucket') {
-          const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`
-          await functionsApi.deployFromGit(name, repoUrl, 'main', '')
-          toast.success('Function deployed from Bitbucket successfully!')
+          const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`;
+          await functionsApi.deployFromGit(name, repoUrl, 'main', '');
+          toast.success('Function deployed from Bitbucket successfully!');
         }
-        navigate('/functions')
+        navigate('/functions');
       } else {
         // Deploy layer
         if (deployMethod === 'local') {
-          await layersApi.deployFromLocal(name, files)
-          toast.success('Layer deployed successfully!')
+          await layersApi.deployFromLocal(name, files);
+          toast.success('Layer deployed successfully!');
         } else if (deployMethod === 'git') {
-          await layersApi.deployFromGit(name, gitRepo, gitBranch, gitCommit)
-          toast.success('Layer deployed from Git successfully!')
+          await layersApi.deployFromGit(name, gitRepo, gitBranch, gitCommit);
+          toast.success('Layer deployed from Git successfully!');
         } else if (deployMethod === 'github') {
-          const repoUrl = `https://github.com/${selectedGithubRepo}.git`
-          await layersApi.deployFromGit(name, repoUrl, 'main', '')
-          toast.success('Layer deployed from GitHub successfully!')
+          const repoUrl = `https://github.com/${selectedGithubRepo}.git`;
+          await layersApi.deployFromGit(name, repoUrl, 'main', '');
+          toast.success('Layer deployed from GitHub successfully!');
         } else if (deployMethod === 'bitbucket') {
-          const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`
-          await layersApi.deployFromGit(name, repoUrl, 'main', '')
-          toast.success('Layer deployed from Bitbucket successfully!')
+          const repoUrl = `https://bitbucket.org/${selectedBitbucketRepo}.git`;
+          await layersApi.deployFromGit(name, repoUrl, 'main', '');
+          toast.success('Layer deployed from Bitbucket successfully!');
         }
-        navigate('/layers')
+        navigate('/layers');
       }
     } catch (error) {
-      console.error('Deployment failed:', error)
-      toast.error(error.response?.data?.message || 'Deployment failed')
+      console.error('Deployment failed:', error);
+      toast.error(error.response?.data?.message || 'Deployment failed');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (window.location.search.includes('github=success')) {
-      setGithubConnected(true)
+      setGithubConnected(true);
       githubApi.getGithubRepos().then(({ data }) => {
-        setGithubRepos(data)
-      })
+        setGithubRepos(data);
+      });
     }
     if (window.location.search.includes('bitbucket=success')) {
-      setBitbucketConnected(true)
+      setBitbucketConnected(true);
       bitbucketApi.getBitbucketRepos().then(({ data }) => {
-        setBitbucketRepos(data)
-      })
+        setBitbucketRepos(data);
+      });
     }
-  }, [])
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -140,10 +140,10 @@ const Deploy = () => {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => {
-              setDeployType('function')
-              setFunctionName('')
-              setLayerName('')
-              setFiles([])
+              setDeployType('function');
+              setFunctionName('');
+              setLayerName('');
+              setFiles([]);
             }}
             className={`inline-flex items-center justify-center py-2 px-1 border-b-2 font-medium text-sm ${
               deployType === 'function'
@@ -156,10 +156,10 @@ const Deploy = () => {
           </button>
           <button
             onClick={() => {
-              setDeployType('layer')
-              setFunctionName('')
-              setLayerName('')
-              setFiles([])
+              setDeployType('layer');
+              setFunctionName('');
+              setLayerName('');
+              setFiles([]);
             }}
             className={`inline-flex items-center justify-center py-2 px-1 border-b-2 font-medium text-sm ${
               deployType === 'layer'
@@ -227,7 +227,10 @@ const Deploy = () => {
       <form onSubmit={handleDeploy} className="space-y-6">
         {/* Name Input */}
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             {deployType === 'function' ? 'Function' : 'Layer'} Name
           </label>
           {deployType === 'function' ? (
@@ -252,7 +255,7 @@ const Deploy = () => {
             />
           )}
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {deployType === 'function' 
+            {deployType === 'function'
               ? 'This will be the URL path for your function (e.g., /my-function)'
               : 'The name of your layer (e.g., my-layer)'}
           </p>
@@ -268,7 +271,10 @@ const Deploy = () => {
               <div className="text-center">
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="mt-4">
-                  <label htmlFor="file-upload" className="btn-primary cursor-pointer inline-flex items-center justify-center whitespace-nowrap">
+                  <label
+                    htmlFor="file-upload"
+                    className="btn-primary cursor-pointer inline-flex items-center justify-center whitespace-nowrap"
+                  >
                     <File className="h-4 w-4 mr-2" />
                     Select Files
                   </label>
@@ -282,7 +288,7 @@ const Deploy = () => {
                   />
                 </div>
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  {deployType === 'function' 
+                  {deployType === 'function'
                     ? 'Upload handler.js, route.config.json, package.json, and other function files'
                     : 'Upload layer files (will be placed in nodejs/ directory)'}
                 </p>
@@ -297,7 +303,10 @@ const Deploy = () => {
                 </h4>
                 <div className="space-y-2">
                   {files.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                    >
                       <div className="flex items-center">
                         <File className="h-4 w-4 text-gray-400 mr-2" />
                         <span className="text-sm text-gray-900 dark:text-white">{file.name}</span>
@@ -324,7 +333,10 @@ const Deploy = () => {
         {deployMethod === 'git' && (
           <div className="space-y-4">
             <div>
-              <label htmlFor="gitRepo" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label
+                htmlFor="gitRepo"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 Repository URL
               </label>
               <input
@@ -340,7 +352,10 @@ const Deploy = () => {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="gitBranch" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label
+                  htmlFor="gitBranch"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
                   Branch
                 </label>
                 <input
@@ -354,7 +369,10 @@ const Deploy = () => {
               </div>
 
               <div>
-                <label htmlFor="gitCommit" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label
+                  htmlFor="gitCommit"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
                   Commit (optional)
                 </label>
                 <input
@@ -396,11 +414,13 @@ const Deploy = () => {
                 <select
                   className="input mt-1"
                   value={selectedGithubRepo}
-                  onChange={e => setSelectedGithubRepo(e.target.value)}
+                  onChange={(e) => setSelectedGithubRepo(e.target.value)}
                 >
                   <option value="">-- Select a repository --</option>
-                  {githubRepos.map(repo => (
-                    <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
+                  {githubRepos.map((repo) => (
+                    <option key={repo.id} value={repo.full_name}>
+                      {repo.full_name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -434,11 +454,13 @@ const Deploy = () => {
                 <select
                   className="input mt-1"
                   value={selectedBitbucketRepo}
-                  onChange={e => setSelectedBitbucketRepo(e.target.value)}
+                  onChange={(e) => setSelectedBitbucketRepo(e.target.value)}
                 >
                   <option value="">-- Select a repository --</option>
-                  {bitbucketRepos.map(repo => (
-                    <option key={repo.uuid} value={repo.full_name}>{repo.full_name}</option>
+                  {bitbucketRepos.map((repo) => (
+                    <option key={repo.uuid} value={repo.full_name}>
+                      {repo.full_name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -448,11 +470,7 @@ const Deploy = () => {
 
         {/* Deploy Button */}
         <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={() => navigate('/functions')}
-            className="btn-secondary"
-          >
+          <button type="button" onClick={() => navigate('/functions')} className="btn-secondary">
             Cancel
           </button>
           <button
@@ -475,7 +493,7 @@ const Deploy = () => {
         </div>
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default Deploy 
+export default Deploy;

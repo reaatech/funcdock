@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react'
-import { useSocket } from '../contexts/SocketContext'
-import { systemApi, functionsApi } from '../utils/api'
-import { 
-  FileText, 
-  Filter, 
-  Download, 
-  RefreshCw, 
-  Play, 
+import React, { useState, useEffect } from 'react';
+import { useSocket } from '../contexts/SocketContext';
+import { systemApi, functionsApi } from '../utils/api';
+import {
+  FileText,
+  Filter,
+  Download,
+  RefreshCw,
+  Play,
   Pause,
   Search,
   Clock,
@@ -14,198 +14,203 @@ import {
   Info,
   XCircle,
   ChevronRight,
-  ChevronDown
-} from 'lucide-react'
-import LoadingSpinner from '../components/LoadingSpinner'
-import toast from 'react-hot-toast'
+  ChevronDown,
+} from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 const Logs = () => {
-  const [logs, setLogs] = useState([])
-  const [functions, setFunctions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [selectedFunction, setSelectedFunction] = useState('all')
-  const [logLevel, setLogLevel] = useState('all')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [isLive, setIsLive] = useState(false)
-  const [limit, setLimit] = useState(100)
-  const [expandedLogs, setExpandedLogs] = useState(new Set())
-  const { on } = useSocket()
+  const [logs, setLogs] = useState([]);
+  const [functions, setFunctions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFunction, setSelectedFunction] = useState('all');
+  const [logLevel, setLogLevel] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLive, setIsLive] = useState(false);
+  const [limit, setLimit] = useState(100);
+  const [expandedLogs, setExpandedLogs] = useState(new Set());
+  const { on, off } = useSocket();
 
   useEffect(() => {
-    fetchLogs()
-    fetchFunctions()
+    fetchLogs();
+    fetchFunctions();
+
+    const handleLogNew = (log) => {
+      if (isLive) {
+        setLogs((prev) => [log, ...prev.slice(0, limit - 1)]);
+      }
+    };
 
     // Listen for real-time log updates
-    on('log:new', (log) => {
-      if (isLive) {
-        setLogs(prev => [log, ...prev.slice(0, limit - 1)])
-      }
-    })
+    on('log:new', handleLogNew);
 
     return () => {
-      // Cleanup socket listeners
-    }
-  }, [on, isLive, limit])
+      off('log:new', handleLogNew);
+    };
+  }, [on, off, isLive, limit]);
 
   const fetchLogs = async () => {
     try {
-      const response = await systemApi.getLogs(limit)
+      const response = await systemApi.getLogs(limit);
       // Parse each log line as JSON if possible
-      const rawLogs = response.data.logs || []
-      const parsedLogs = rawLogs.map(line => {
-        if (typeof line === 'object' && line !== null) return line
+      const rawLogs = response.data.logs || [];
+      const parsedLogs = rawLogs.map((line) => {
+        if (typeof line === 'object' && line !== null) return line;
         try {
-          return JSON.parse(line)
+          return JSON.parse(line);
         } catch {
-          return { message: line, level: 'INFO', timestamp: '', function: '', isPlain: true }
+          return { message: line, level: 'INFO', timestamp: '', function: '', isPlain: true };
         }
-      })
-      setLogs(parsedLogs)
+      });
+      setLogs(parsedLogs);
     } catch (error) {
-      console.error('Failed to fetch logs:', error)
-      toast.error('Failed to load logs')
+      console.error('Failed to fetch logs:', error);
+      toast.error('Failed to load logs');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchFunctions = async () => {
     try {
-      const response = await functionsApi.getFunctions()
-      setFunctions(response.data.functions || [])
+      const response = await functionsApi.getFunctions();
+      setFunctions(response.data.functions || []);
     } catch (error) {
-      console.error('Failed to fetch functions:', error)
+      console.error('Failed to fetch functions:', error);
     }
-  }
+  };
 
   const handleExportLogs = () => {
-    const filteredLogs = getFilteredLogs()
+    const filteredLogs = getFilteredLogs();
     const csvContent = [
       'Timestamp,Level,Function,Message',
-      ...filteredLogs.map(log => {
-        const timestamp = log.timestamp || ''
-        const level = log.level || 'INFO'
-        const func = log.function || 'system'
-        const message = (log.message || '').replace(/"/g, '""')
-        return `"${timestamp}","${level}","${func}","${message}"`
-      })
-    ].join('\n')
+      ...filteredLogs.map((log) => {
+        const timestamp = log.timestamp || '';
+        const level = log.level || 'INFO';
+        const func = log.function || 'system';
+        const message = (log.message || '')
+          .replace(/"/g, '""')
+          .replace(/\n/g, ' ')
+          .replace(/\r/g, '');
+        return `"${timestamp}","${level}","${func}","${message}"`;
+      }),
+    ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `funcdock-logs-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `funcdock-logs-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   const getFilteredLogs = () => {
-    return logs.filter(log => {
+    return logs.filter((log) => {
       // Filter by function
       if (selectedFunction !== 'all' && log.function !== selectedFunction) {
-        return false
+        return false;
       }
-      
+
       // Filter by log level
       if (logLevel === 'CRON') {
         return log.level === 'CRON' || log.level === 'CRON_ERROR';
       } else if (logLevel !== 'all' && log.level !== logLevel) {
-        return false
+        return false;
       }
-      
+
       // Filter by search term
       if (searchTerm && !(log.message || '').toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false
+        return false;
       }
-      
-      return true
-    })
-  }
+
+      return true;
+    });
+  };
 
   const getLogLevelIcon = (level) => {
     switch (level) {
       case 'ERROR':
-        return <XCircle className="h-4 w-4 text-red-500" />
+        return <XCircle className="h-4 w-4 text-red-500" />;
       case 'WARN':
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
       case 'INFO':
-        return <Info className="h-4 w-4 text-blue-500" />
+        return <Info className="h-4 w-4 text-blue-500" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-500" />
+        return <Clock className="h-4 w-4 text-gray-500" />;
     }
-  }
+  };
 
   const getLogLevelColor = (level) => {
     switch (level) {
       case 'ERROR':
       case 'CRON_ERROR':
-        return 'text-red-600 bg-red-50 dark:bg-red-900/20'
+        return 'text-red-600 bg-red-50 dark:bg-red-900/20';
       case 'WARN':
-        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
+        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20';
       case 'INFO':
-        return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+        return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20';
       default:
-        return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20'
+        return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20';
     }
-  }
+  };
 
   const toggleLogExpansion = (index) => {
-    const newExpanded = new Set(expandedLogs)
+    const newExpanded = new Set(expandedLogs);
     if (newExpanded.has(index)) {
-      newExpanded.delete(index)
+      newExpanded.delete(index);
     } else {
-      newExpanded.add(index)
+      newExpanded.add(index);
     }
-    setExpandedLogs(newExpanded)
-  }
+    setExpandedLogs(newExpanded);
+  };
 
   const formatLogData = (log) => {
     // If it's a plain string or simple message, return as is
     if (log.isPlain || typeof log === 'string') {
-      return log.message || log
+      return log.message || log;
     }
-    
+
     // Check if this is a string that was converted to an object with numeric keys
     // This happens when a string is passed as the second parameter to logger
     if (log.message && typeof log.message === 'string') {
-      const { message, timestamp, level, function: funcName, ...otherData } = log
-      
+      const { message, timestamp, level, function: funcName, ...otherData } = log;
+
       // Check if otherData looks like a string split into numeric keys
-      const numericKeys = Object.keys(otherData).filter(key => !isNaN(parseInt(key)))
+      const numericKeys = Object.keys(otherData).filter((key) => !isNaN(parseInt(key)));
       if (numericKeys.length > 0 && numericKeys.length === Object.keys(otherData).length) {
         // This is likely a string that was converted to an object
-        const reconstructedString = Object.values(otherData).join('')
+        const reconstructedString = Object.values(otherData).join('');
         return {
           message: `${message} ${reconstructedString}`,
-          data: null // No additional data to expand
-        }
+          data: null, // No additional data to expand
+        };
       }
-      
+
       // Normal case: has other properties
       if (Object.keys(otherData).length > 0) {
         return {
           message,
-          data: otherData
-        }
+          data: otherData,
+        };
       }
     }
-    
+
     // If it's a complex object without a message, show the whole object
     return {
       message: 'Log data',
-      data: log
-    }
-  }
+      data: log,
+    };
+  };
 
-  const filteredLogs = getFilteredLogs()
+  const filteredLogs = getFilteredLogs();
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" />
       </div>
-    )
+    );
   }
 
   return (
@@ -214,9 +219,7 @@ const Logs = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Logs</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            System and function logs
-          </p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">System and function logs</p>
         </div>
         <div className="flex space-x-2">
           <button
@@ -359,7 +362,9 @@ const Logs = () => {
           {filteredLogs.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No logs found</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                No logs found
+              </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Try adjusting your filters or search terms.
               </p>
@@ -367,10 +372,13 @@ const Logs = () => {
           ) : (
             <div className="space-y-2">
               {filteredLogs.map((log, index) => {
-                const formattedLog = formatLogData(log)
-                const isExpanded = expandedLogs.has(index)
-                const hasExpandableData = typeof formattedLog === 'object' && formattedLog.data && formattedLog.data !== null
-                
+                const formattedLog = formatLogData(log);
+                const isExpanded = expandedLogs.has(index);
+                const hasExpandableData =
+                  typeof formattedLog === 'object' &&
+                  formattedLog.data &&
+                  formattedLog.data !== null;
+
                 return (
                   <div
                     key={index}
@@ -378,8 +386,8 @@ const Logs = () => {
                       log.level === 'ERROR' || log.level === 'CRON_ERROR'
                         ? 'border-red-200 bg-red-50 dark:bg-red-900/10'
                         : log.level === 'WARN'
-                        ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10'
-                        : 'border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700'
+                          ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10'
+                          : 'border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700'
                     }`}
                   >
                     <div
@@ -410,10 +418,9 @@ const Logs = () => {
                               )}
                             </div>
                             <div className="mt-1 text-sm font-mono break-words">
-                              {typeof formattedLog === 'string' 
-                                ? formattedLog 
-                                : formattedLog.message || 'No message'
-                              }
+                              {typeof formattedLog === 'string'
+                                ? formattedLog
+                                : formattedLog.message || 'No message'}
                             </div>
                           </div>
                         </div>
@@ -428,7 +435,7 @@ const Logs = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     {isExpanded && hasExpandableData && (
                       <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
                         <div className="p-3">
@@ -442,7 +449,7 @@ const Logs = () => {
                       </div>
                     )}
                   </div>
-                )
+                );
               })}
             </div>
           )}
@@ -466,7 +473,7 @@ const Logs = () => {
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Errors</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {logs.filter(log => log.level === 'ERROR').length}
+                {logs.filter((log) => log.level === 'ERROR').length}
               </p>
             </div>
           </div>
@@ -477,7 +484,7 @@ const Logs = () => {
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Warnings</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {logs.filter(log => log.level === 'WARN').length}
+                {logs.filter((log) => log.level === 'WARN').length}
               </p>
             </div>
           </div>
@@ -488,7 +495,7 @@ const Logs = () => {
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Info</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {logs.filter(log => log.level === 'INFO').length}
+                {logs.filter((log) => log.level === 'INFO').length}
               </p>
             </div>
           </div>
@@ -509,12 +516,16 @@ const Logs = () => {
             </thead>
             <tbody>
               {filteredLogs.map((log, idx) => {
-                const formattedLog = formatLogData(log)
-                const hasExpandableData = typeof formattedLog === 'object' && formattedLog.data && formattedLog.data !== null
-                const displayMessage = typeof formattedLog === 'string' 
-                  ? formattedLog 
-                  : formattedLog.message || 'No message'
-                
+                const formattedLog = formatLogData(log);
+                const hasExpandableData =
+                  typeof formattedLog === 'object' &&
+                  formattedLog.data &&
+                  formattedLog.data !== null;
+                const displayMessage =
+                  typeof formattedLog === 'string'
+                    ? formattedLog
+                    : formattedLog.message || 'No message';
+
                 return (
                   <tr key={idx} className={getLogLevelColor(log.level)}>
                     <td className="font-mono px-2 py-1">{log.timestamp || ''}</td>
@@ -522,9 +533,7 @@ const Logs = () => {
                     <td className="font-mono px-2 py-1">{log.function || ''}</td>
                     <td className="font-mono px-2 py-1">
                       <div className="flex items-center space-x-2">
-                        <span className="truncate max-w-xs">
-                          {displayMessage}
-                        </span>
+                        <span className="truncate max-w-xs">{displayMessage}</span>
                         {hasExpandableData && (
                           <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20 px-1 py-0.5 rounded">
                             +data
@@ -533,14 +542,14 @@ const Logs = () => {
                       </div>
                     </td>
                   </tr>
-                )
+                );
               })}
             </tbody>
           </table>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Logs 
+export default Logs;

@@ -1,110 +1,115 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useSocket } from '../contexts/SocketContext'
-import { functionsApi, systemApi } from '../utils/api'
-import { 
-  Code, 
-  Activity, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle, 
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useSocket } from '../contexts/SocketContext';
+import { functionsApi, systemApi } from '../utils/api';
+import {
+  Code,
+  Activity,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
   XCircle,
   ArrowUpRight,
   ArrowDownRight,
-  Upload
-} from 'lucide-react'
-import LoadingSpinner from '../components/LoadingSpinner'
+  Upload,
+} from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Dashboard = () => {
-  const [functions, setFunctions] = useState([])
-  const [systemStatus, setSystemStatus] = useState(null)
-  const [recentLogs, setRecentLogs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const { on } = useSocket()
+  const [functions, setFunctions] = useState([]);
+  const [systemStatus, setSystemStatus] = useState(null);
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { on, off } = useSocket();
 
   useEffect(() => {
-    fetchData()
+    fetchData();
 
-    // Listen for real-time updates
-    on('function:loaded', (data) => {
-      setFunctions(prev => {
-        const existing = prev.find(f => f.name === data.name)
+    const handleFunctionLoaded = (data) => {
+      setFunctions((prev) => {
+        const existing = prev.find((f) => f.name === data.name);
         if (existing) {
-          return prev.map(f => f.name === data.name ? { ...f, ...data } : f)
+          return prev.map((f) => (f.name === data.name ? { ...f, ...data } : f));
         }
-        return [...prev, data]
-      })
-    })
+        return [...prev, data];
+      });
+    };
 
-    on('function:unloaded', (data) => {
-      setFunctions(prev => prev.filter(f => f.name !== data.name))
-    })
+    const handleFunctionUnloaded = (data) => {
+      setFunctions((prev) => prev.filter((f) => f.name !== data.name));
+    };
 
-    on('function:updated', (data) => {
-      setFunctions(prev => 
-        prev.map(f => f.name === data.name ? { ...f, ...data } : f)
-      )
-    })
+    const handleFunctionUpdated = (data) => {
+      setFunctions((prev) => prev.map((f) => (f.name === data.name ? { ...f, ...data } : f)));
+    };
 
-    on('log:new', (log) => {
-      setRecentLogs(prev => [log, ...prev.slice(0, 9)])
-    })
+    const handleNewLog = (log) => {
+      setRecentLogs((prev) => [log, ...prev.slice(0, 9)]);
+    };
+
+    on('function:loaded', handleFunctionLoaded);
+    on('function:unloaded', handleFunctionUnloaded);
+    on('function:updated', handleFunctionUpdated);
+    on('log:new', handleNewLog);
 
     return () => {
-      // Cleanup socket listeners
-    }
-  }, [on])
+      off('function:loaded', handleFunctionLoaded);
+      off('function:unloaded', handleFunctionUnloaded);
+      off('function:updated', handleFunctionUpdated);
+      off('log:new', handleNewLog);
+    };
+  }, [on, off]);
 
   const fetchData = async () => {
     try {
       const [functionsRes, statusRes, logsRes] = await Promise.all([
         functionsApi.getFunctions(),
         systemApi.getStatus(),
-        systemApi.getLogs(10)
-      ])
-      
-      setFunctions(functionsRes.data.functions || [])
-      setSystemStatus(statusRes.data)
-      setRecentLogs(logsRes.data.logs || [])
+        systemApi.getLogs(10),
+      ]);
+
+      setFunctions(functionsRes.data.functions || []);
+      setSystemStatus(statusRes.data);
+      setRecentLogs(logsRes.data.logs || []);
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error)
+      console.error('Failed to fetch dashboard data:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'running':
-        return 'text-success-600'
+        return 'text-success-600';
       case 'error':
-        return 'text-danger-600'
+        return 'text-danger-600';
       case 'stopped':
-        return 'text-warning-600'
+        return 'text-warning-600';
       default:
-        return 'text-gray-600'
+        return 'text-gray-600';
     }
-  }
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'running':
-        return <CheckCircle className="h-5 w-5 text-success-600" />
+        return <CheckCircle className="h-5 w-5 text-success-600" />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-danger-600" />
+        return <XCircle className="h-5 w-5 text-danger-600" />;
       case 'stopped':
-        return <AlertTriangle className="h-5 w-5 text-warning-600" />
+        return <AlertTriangle className="h-5 w-5 text-warning-600" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-600" />
+        return <Clock className="h-5 w-5 text-gray-600" />;
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" text="Loading dashboard..." />
       </div>
-    )
+    );
   }
 
   return (
@@ -148,7 +153,7 @@ const Dashboard = () => {
                   Running Functions
                 </dt>
                 <dd className="text-lg font-medium text-gray-900 dark:text-white">
-                  {functions.filter(f => f.status === 'running').length}
+                  {functions.filter((f) => f.status === 'running').length}
                 </dd>
               </dl>
             </div>
@@ -166,7 +171,7 @@ const Dashboard = () => {
                   Errors
                 </dt>
                 <dd className="text-lg font-medium text-gray-900 dark:text-white">
-                  {functions.filter(f => f.status === 'error').length}
+                  {functions.filter((f) => f.status === 'error').length}
                 </dd>
               </dl>
             </div>
@@ -199,27 +204,23 @@ const Dashboard = () => {
             <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
               Functions
             </h3>
-            <Link
-              to="/functions"
-              className="btn-primary text-sm"
-            >
+            <Link to="/functions" className="btn-primary text-sm">
               View All
             </Link>
           </div>
-          
+
           {functions.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                 <Code className="h-10 w-10 text-gray-400" />
               </div>
-              <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No functions yet</h3>
+              <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                No functions yet
+              </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
                 Deploy your first function to get started
               </p>
-              <Link
-                to="/deploy"
-                className="btn-primary text-sm inline-flex items-center"
-              >
+              <Link to="/deploy" className="btn-primary text-sm inline-flex items-center">
                 <Upload className="h-4 w-4 mr-2" />
                 Deploy Function
               </Link>
@@ -242,25 +243,36 @@ const Dashboard = () => {
                             </p>
                             {func.routes && func.routes.length > 0 && (
                               <div className="flex flex-wrap gap-1">
-                                {Array.from(new Set(func.routes.map(route => route.method))).slice(0, 2).map((method) => (
-                                  <span 
-                                    key={method} 
-                                    className={`badge text-xs ${
-                                      method === 'GET' ? 'badge-success' :
-                                      method === 'POST' ? 'badge-primary' :
-                                      method === 'PUT' ? 'badge-warning' :
-                                      method === 'DELETE' ? 'badge-danger' :
-                                      method === 'PATCH' ? 'badge-info' :
-                                      method === 'OPTIONS' ? 'badge-secondary' :
-                                      'badge-info'
-                                    }`}
-                                  >
-                                    {method}
-                                  </span>
-                                ))}
-                                {Array.from(new Set(func.routes.map(route => route.method))).length > 2 && (
+                                {Array.from(new Set(func.routes.map((route) => route.method)))
+                                  .slice(0, 2)
+                                  .map((method) => (
+                                    <span
+                                      key={method}
+                                      className={`badge text-xs ${
+                                        method === 'GET'
+                                          ? 'badge-success'
+                                          : method === 'POST'
+                                            ? 'badge-primary'
+                                            : method === 'PUT'
+                                              ? 'badge-warning'
+                                              : method === 'DELETE'
+                                                ? 'badge-danger'
+                                                : method === 'PATCH'
+                                                  ? 'badge-info'
+                                                  : method === 'OPTIONS'
+                                                    ? 'badge-secondary'
+                                                    : 'badge-info'
+                                      }`}
+                                    >
+                                      {method}
+                                    </span>
+                                  ))}
+                                {Array.from(new Set(func.routes.map((route) => route.method)))
+                                  .length > 2 && (
                                   <span className="text-xs text-gray-400 dark:text-gray-500">
-                                    +{Array.from(new Set(func.routes.map(route => route.method))).length - 2}
+                                    +
+                                    {Array.from(new Set(func.routes.map((route) => route.method)))
+                                      .length - 2}
                                   </span>
                                 )}
                               </div>
@@ -294,13 +306,15 @@ const Dashboard = () => {
           <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">
             Recent Activity
           </h3>
-          
+
           {recentLogs.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                 <Clock className="h-10 w-10 text-gray-400" />
               </div>
-              <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">No recent activity</h3>
+              <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                No recent activity
+              </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Activity will appear here as your functions are executed and logs are generated.
               </p>
@@ -345,7 +359,7 @@ const Dashboard = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Dashboard 
+export default Dashboard;

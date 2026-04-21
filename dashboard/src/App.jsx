@@ -1,27 +1,28 @@
-import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from './contexts/AuthContext'
-import Layout from './components/Layout'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Functions from './pages/Functions'
-import FunctionDetail from './pages/FunctionDetail'
-import Layers from './pages/Layers'
-import LayerDetail from './pages/LayerDetail'
-import Deploy from './pages/Deploy'
-import Logs from './pages/Logs'
-import Settings from './pages/Settings'
-import LoadingSpinner from './components/LoadingSpinner'
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import Layout from './components/Layout';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Functions from './pages/Functions';
+import FunctionDetail from './pages/FunctionDetail';
+import Layers from './pages/Layers';
+import LayerDetail from './pages/LayerDetail';
+import Deploy from './pages/Deploy';
+import Logs from './pages/Logs';
+import Settings from './pages/Settings';
+import MCP from './pages/MCP';
+import LoadingSpinner from './components/LoadingSpinner';
 
 function App() {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="xl" text="Initializing FuncDock..." />
       </div>
-    )
+    );
   }
 
   if (!isAuthenticated) {
@@ -30,7 +31,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    )
+    );
   }
 
   return (
@@ -44,11 +45,12 @@ function App() {
         <Route path="/layers/:name" element={<LayerDetail />} />
         <Route path="/deploy" element={<Deploy />} />
         <Route path="/logs" element={<Logs />} />
+        <Route path="/mcp" element={<MCP />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
-  )
+  );
 }
 
-export default App 
+export default App;

@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { useSocket } from '../contexts/SocketContext'
-import { functionsApi } from '../utils/api'
-import { 
-  Code, 
-  Play, 
-  Trash2, 
-  Settings, 
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { useSocket } from '../contexts/SocketContext';
+import { functionsApi } from '../utils/api';
+import {
+  Code,
+  Play,
+  Trash2,
+  Settings,
   Eye,
   Clock,
   CheckCircle,
@@ -15,114 +15,120 @@ import {
   Upload,
   ExternalLink,
   List as ListIcon,
-  LayoutGrid
-} from 'lucide-react'
-import LoadingSpinner, { SkeletonLoader } from '../components/LoadingSpinner'
-import toast from 'react-hot-toast'
+  LayoutGrid,
+} from 'lucide-react';
+import LoadingSpinner, { SkeletonLoader } from '../components/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 24;
 
 const Functions = () => {
-  const [functions, setFunctions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const { on } = useSocket()
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [viewMode, setViewMode] = useState('card') // 'card' or 'list'
+  const [functions, setFunctions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { on, off } = useSocket();
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState('card'); // 'card' or 'list'
 
   useEffect(() => {
-    fetchFunctions()
+    fetchFunctions();
 
     // Listen for real-time updates
-    on('function:loaded', (data) => {
-      setFunctions(prev => {
-        const existing = prev.find(f => f.name === data.name)
+    const handleFunctionLoaded = (data) => {
+      setFunctions((prev) => {
+        const existing = prev.find((f) => f.name === data.name);
         if (existing) {
-          return prev.map(f => f.name === data.name ? { ...f, ...data } : f)
+          return prev.map((f) => (f.name === data.name ? { ...f, ...data } : f));
         }
-        return [...prev, data]
-      })
-    })
+        return [...prev, data];
+      });
+    };
 
-    on('function:unloaded', (data) => {
-      setFunctions(prev => prev.filter(f => f.name !== data.name))
-    })
+    const handleFunctionUnloaded = (data) => {
+      setFunctions((prev) => prev.filter((f) => f.name !== data.name));
+    };
 
-    on('function:updated', (data) => {
-      setFunctions(prev => 
-        prev.map(f => f.name === data.name ? { ...f, ...data } : f)
-      )
-    })
+    const handleFunctionUpdated = (data) => {
+      setFunctions((prev) => prev.map((f) => (f.name === data.name ? { ...f, ...data } : f)));
+    };
+
+    on('function:loaded', handleFunctionLoaded);
+    on('function:unloaded', handleFunctionUnloaded);
+    on('function:updated', handleFunctionUpdated);
 
     return () => {
-      // Cleanup socket listeners
-    }
-  }, [on])
+      off('function:loaded', handleFunctionLoaded);
+      off('function:unloaded', handleFunctionUnloaded);
+      off('function:updated', handleFunctionUpdated);
+    };
+  }, [on, off]);
 
   const fetchFunctions = async () => {
     try {
-      const response = await functionsApi.getFunctions()
-      setFunctions(response.data.functions || [])
+      const response = await functionsApi.getFunctions();
+      setFunctions(response.data.functions || []);
     } catch (error) {
-      console.error('Failed to fetch functions:', error)
-      toast.error('Failed to load functions')
+      console.error('Failed to fetch functions:', error);
+      toast.error('Failed to load functions');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeleteFunction = async (name) => {
     if (!confirm(`Are you sure you want to delete the function "${name}"?`)) {
-      return
+      return;
     }
 
     try {
-      await functionsApi.deleteFunction(name)
-      toast.success(`Function "${name}" deleted successfully`)
+      await functionsApi.deleteFunction(name);
+      toast.success(`Function "${name}" deleted successfully`);
     } catch (error) {
-      console.error('Failed to delete function:', error)
-      toast.error('Failed to delete function')
+      console.error('Failed to delete function:', error);
+      toast.error('Failed to delete function');
     }
-  }
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'running':
-        return <CheckCircle className="h-5 w-5 text-success-600" />
+        return <CheckCircle className="h-5 w-5 text-success-600" />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-danger-600" />
+        return <XCircle className="h-5 w-5 text-danger-600" />;
       case 'stopped':
-        return <AlertTriangle className="h-5 w-5 text-warning-600" />
+        return <AlertTriangle className="h-5 w-5 text-warning-600" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-600" />
+        return <Clock className="h-5 w-5 text-gray-600" />;
     }
-  }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'running':
-        return 'badge-success'
+        return 'badge-success';
       case 'error':
-        return 'badge-danger'
+        return 'badge-danger';
       case 'stopped':
-        return 'badge-warning'
+        return 'badge-warning';
       default:
-        return 'badge-info'
+        return 'badge-info';
     }
-  }
+  };
 
   // Memoized, sorted, filtered functions
   const filteredFunctions = useMemo(() => {
     return functions
-      .filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [functions, search])
+      .filter((f) => f.name.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [functions, search]);
 
-  const totalPages = Math.ceil(filteredFunctions.length / PAGE_SIZE)
-  const paginatedFunctions = filteredFunctions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.ceil(filteredFunctions.length / PAGE_SIZE);
+  const paginatedFunctions = filteredFunctions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset to page 1 if search changes
-  useEffect(() => { setPage(1) }, [search])
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   if (loading) {
     return (
@@ -144,7 +150,7 @@ const Functions = () => {
           <SkeletonLoader type="card" count={6} />
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -157,10 +163,7 @@ const Functions = () => {
             Manage your serverless functions
           </p>
         </div>
-        <Link
-          to="/deploy"
-          className="btn-primary"
-        >
+        <Link to="/deploy" className="btn-primary">
           Deploy Function
         </Link>
       </div>
@@ -170,7 +173,7 @@ const Functions = () => {
         <input
           type="text"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search functions..."
           className="input w-64"
         />
@@ -205,15 +208,15 @@ const Functions = () => {
           <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
             <Code className="h-12 w-12 text-gray-400" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No functions deployed yet</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            No functions deployed yet
+          </h3>
           <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-md mx-auto">
-            Get started by deploying your first serverless function. You can deploy from local files or directly from a Git repository.
+            Get started by deploying your first serverless function. You can deploy from local files
+            or directly from a Git repository.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to="/deploy"
-              className="btn-primary inline-flex items-center"
-            >
+            <Link to="/deploy" className="btn-primary inline-flex items-center">
               <Upload className="h-4 w-4 mr-2" />
               Deploy Your First Function
             </Link>
@@ -242,9 +245,7 @@ const Functions = () => {
                           {func.name}
                         </h3>
                       </div>
-                      <span className={`badge ${getStatusColor(func.status)}`}>
-                        {func.status}
-                      </span>
+                      <span className={`badge ${getStatusColor(func.status)}`}>{func.status}</span>
                     </div>
 
                     <div className="space-y-3 mb-6">
@@ -256,25 +257,36 @@ const Functions = () => {
                           </span>
                           {func.routes && func.routes.length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                              {Array.from(new Set(func.routes.map(route => route.method))).slice(0, 3).map((method) => (
-                                <span 
-                                  key={method} 
-                                  className={`badge text-xs ${
-                                    method === 'GET' ? 'badge-success' :
-                                    method === 'POST' ? 'badge-primary' :
-                                    method === 'PUT' ? 'badge-warning' :
-                                    method === 'DELETE' ? 'badge-danger' :
-                                    method === 'PATCH' ? 'badge-info' :
-                                    method === 'OPTIONS' ? 'badge-secondary' :
-                                    'badge-info'
-                                  }`}
-                                >
-                                  {method}
-                                </span>
-                              ))}
-                              {Array.from(new Set(func.routes.map(route => route.method))).length > 3 && (
+                              {Array.from(new Set(func.routes.map((route) => route.method)))
+                                .slice(0, 3)
+                                .map((method) => (
+                                  <span
+                                    key={method}
+                                    className={`badge text-xs ${
+                                      method === 'GET'
+                                        ? 'badge-success'
+                                        : method === 'POST'
+                                          ? 'badge-primary'
+                                          : method === 'PUT'
+                                            ? 'badge-warning'
+                                            : method === 'DELETE'
+                                              ? 'badge-danger'
+                                              : method === 'PATCH'
+                                                ? 'badge-info'
+                                                : method === 'OPTIONS'
+                                                  ? 'badge-secondary'
+                                                  : 'badge-info'
+                                    }`}
+                                  >
+                                    {method}
+                                  </span>
+                                ))}
+                              {Array.from(new Set(func.routes.map((route) => route.method)))
+                                .length > 3 && (
                                 <span className="text-xs text-gray-400 dark:text-gray-500">
-                                  +{Array.from(new Set(func.routes.map(route => route.method))).length - 3}
+                                  +
+                                  {Array.from(new Set(func.routes.map((route) => route.method)))
+                                    .length - 3}
                                 </span>
                               )}
                             </div>
@@ -290,7 +302,9 @@ const Functions = () => {
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500 dark:text-gray-400">Last Deployed:</span>
                         <span className="text-gray-900 dark:text-white font-medium">
-                          {func.lastDeployed ? new Date(func.lastDeployed).toLocaleDateString() : 'N/A'}
+                          {func.lastDeployed
+                            ? new Date(func.lastDeployed).toLocaleDateString()
+                            : 'N/A'}
                         </span>
                       </div>
                     </div>
@@ -319,12 +333,24 @@ const Functions = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                 <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Routes</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cron Jobs</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Deployed</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Routes
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Cron Jobs
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Last Deployed
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -334,16 +360,16 @@ const Functions = () => {
                         {func.name}
                       </td>
                       <td className="px-4 py-2">
-                        <span className={`badge ${getStatusColor(func.status)}`}>{func.status}</span>
+                        <span className={`badge ${getStatusColor(func.status)}`}>
+                          {func.status}
+                        </span>
                       </td>
+                      <td className="px-4 py-2">{func.routes?.length || 0}</td>
+                      <td className="px-4 py-2">{func.cronJobs || 0}</td>
                       <td className="px-4 py-2">
-                        {func.routes?.length || 0}
-                      </td>
-                      <td className="px-4 py-2">
-                        {func.cronJobs || 0}
-                      </td>
-                      <td className="px-4 py-2">
-                        {func.lastDeployed ? new Date(func.lastDeployed).toLocaleDateString() : 'N/A'}
+                        {func.lastDeployed
+                          ? new Date(func.lastDeployed).toLocaleDateString()
+                          : 'N/A'}
                       </td>
                       <td className="px-4 py-2 text-right">
                         <Link
@@ -398,7 +424,7 @@ const Functions = () => {
         </>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Functions 
+export default Functions;

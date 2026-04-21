@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { useSocket } from '../contexts/SocketContext'
-import { layersApi } from '../utils/api'
-import { 
-  Layers as LayersIcon, 
-  Trash2, 
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { useSocket } from '../contexts/SocketContext';
+import { layersApi } from '../utils/api';
+import {
+  Layers as LayersIcon,
+  Trash2,
   Eye,
   CheckCircle,
   XCircle,
@@ -13,108 +13,113 @@ import {
   Package,
   Users,
   List as ListIcon,
-  LayoutGrid
-} from 'lucide-react'
-import LoadingSpinner from '../components/LoadingSpinner'
-import toast from 'react-hot-toast'
+  LayoutGrid,
+} from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 24;
 
 const Layers = () => {
-  const [layers, setLayers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const { on } = useSocket()
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [viewMode, setViewMode] = useState('card') // 'card' or 'list'
+  const [layers, setLayers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { on, off } = useSocket();
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState('card'); // 'card' or 'list'
 
   useEffect(() => {
-    fetchLayers()
+    fetchLayers();
 
     // Listen for real-time updates
-    on('layer:deployed', (data) => {
-      setLayers(prev => {
-        const existing = prev.find(l => l.name === data.name)
+    const handleLayerDeployed = (data) => {
+      setLayers((prev) => {
+        const existing = prev.find((l) => l.name === data.name);
         if (existing) {
-          return prev.map(l => l.name === data.name ? { ...l, ...data } : l)
+          return prev.map((l) => (l.name === data.name ? { ...l, ...data } : l));
         }
-        return [...prev, data]
-      })
-      fetchLayers() // Refresh to get full details
-    })
+        return [...prev, data];
+      });
+      fetchLayers();
+    };
 
-    on('layer:updated', (data) => {
-      setLayers(prev => 
-        prev.map(l => l.name === data.name ? { ...l, ...data } : l)
-      )
-      fetchLayers() // Refresh to get full details
-    })
+    const handleLayerUpdated = (data) => {
+      setLayers((prev) => prev.map((l) => (l.name === data.name ? { ...l, ...data } : l)));
+      fetchLayers();
+    };
 
-    on('layer:deleted', (data) => {
-      setLayers(prev => prev.filter(l => l.name !== data.name))
-      toast.success(`Layer "${data.name}" was deleted`)
-    })
+    const handleLayerDeleted = (data) => {
+      setLayers((prev) => prev.filter((l) => l.name !== data.name));
+      toast.success(`Layer "${data.name}" was deleted`);
+    };
+
+    on('layer:deployed', handleLayerDeployed);
+    on('layer:updated', handleLayerUpdated);
+    on('layer:deleted', handleLayerDeleted);
 
     return () => {
-      // Cleanup socket listeners
-    }
-  }, [on])
+      off('layer:deployed', handleLayerDeployed);
+      off('layer:updated', handleLayerUpdated);
+      off('layer:deleted', handleLayerDeleted);
+    };
+  }, [on, off]);
 
   const fetchLayers = async () => {
     try {
-      const response = await layersApi.getLayers()
-      setLayers(response.data.layers || [])
+      const response = await layersApi.getLayers();
+      setLayers(response.data.layers || []);
     } catch (error) {
-      console.error('Failed to fetch layers:', error)
-      toast.error('Failed to load layers')
+      console.error('Failed to fetch layers:', error);
+      toast.error('Failed to load layers');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeleteLayer = async (name) => {
     if (!confirm(`Are you sure you want to delete the layer "${name}"?`)) {
-      return
+      return;
     }
 
     try {
-      await layersApi.deleteLayer(name)
-      toast.success(`Layer "${name}" deleted successfully`)
+      await layersApi.deleteLayer(name);
+      toast.success(`Layer "${name}" deleted successfully`);
     } catch (error) {
-      console.error('Failed to delete layer:', error)
-      const errorMsg = error.response?.data?.message || 'Failed to delete layer'
-      toast.error(errorMsg)
+      console.error('Failed to delete layer:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to delete layer';
+      toast.error(errorMsg);
     }
-  }
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'loaded':
-        return <CheckCircle className="h-5 w-5 text-success-600" />
+        return <CheckCircle className="h-5 w-5 text-success-600" />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-danger-600" />
+        return <XCircle className="h-5 w-5 text-danger-600" />;
       default:
-        return <AlertTriangle className="h-5 w-5 text-warning-600" />
+        return <AlertTriangle className="h-5 w-5 text-warning-600" />;
     }
-  }
+  };
 
   const filteredLayers = useMemo(() => {
-    if (!search) return layers
-    const searchLower = search.toLowerCase()
-    return layers.filter(layer => 
-      layer.name.toLowerCase().includes(searchLower) ||
-      (layer.description && layer.description.toLowerCase().includes(searchLower))
-    )
-  }, [layers, search])
+    if (!search) return layers;
+    const searchLower = search.toLowerCase();
+    return layers.filter(
+      (layer) =>
+        layer.name.toLowerCase().includes(searchLower) ||
+        (layer.description && layer.description.toLowerCase().includes(searchLower))
+    );
+  }, [layers, search]);
 
-  const totalPages = Math.ceil(filteredLayers.length / PAGE_SIZE)
+  const totalPages = Math.ceil(filteredLayers.length / PAGE_SIZE);
   const paginatedLayers = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE
-    return filteredLayers.slice(start, start + PAGE_SIZE)
-  }, [filteredLayers, page])
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredLayers.slice(start, start + PAGE_SIZE);
+  }, [filteredLayers, page]);
 
   if (loading) {
-    return <LoadingSpinner />
+    return <LoadingSpinner />;
   }
 
   return (
@@ -129,10 +134,7 @@ const Layers = () => {
             Manage shared code layers for your functions
           </p>
         </div>
-        <Link
-          to="/deploy?type=layer"
-          className="btn-primary inline-flex items-center"
-        >
+        <Link to="/deploy?type=layer" className="btn-primary inline-flex items-center">
           <Upload className="h-5 w-5 mr-2" />
           Deploy Layer
         </Link>
@@ -194,10 +196,7 @@ const Layers = () => {
                   </h3>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Link
-                    to={`/layers/${layer.name}`}
-                    className="btn-secondary btn-sm"
-                  >
+                  <Link to={`/layers/${layer.name}`} className="btn-secondary btn-sm">
                     <Eye className="h-4 w-4" />
                   </Link>
                   <button
@@ -208,13 +207,11 @@ const Layers = () => {
                   </button>
                 </div>
               </div>
-              
+
               {layer.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  {layer.description}
-                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{layer.description}</p>
               )}
-              
+
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center text-gray-600 dark:text-gray-400">
                   <Package className="h-4 w-4 mr-1" />
@@ -257,7 +254,9 @@ const Layers = () => {
                     {layer.name}
                   </td>
                   <td className="px-4 py-2">
-                    <span className={`badge ${layer.status === 'loaded' ? 'badge-success' : 'badge-warning'}`}>
+                    <span
+                      className={`badge ${layer.status === 'loaded' ? 'badge-success' : 'badge-warning'}`}
+                    >
                       {layer.status}
                     </span>
                   </td>
@@ -293,7 +292,7 @@ const Layers = () => {
       {totalPages > 1 && (
         <div className="flex items-center justify-center mt-6 space-x-2">
           <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
             className="btn-secondary"
           >
@@ -303,7 +302,7 @@ const Layers = () => {
             Page {page} of {totalPages}
           </span>
           <button
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             className="btn-secondary"
           >
@@ -312,8 +311,7 @@ const Layers = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Layers
-
+export default Layers;
