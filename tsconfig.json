@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "*": ["types/*", "node_modules/*"]
+    }
+  },
+  "include": ["types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "functions", "dashboard", "public"]
+}

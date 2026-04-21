@@ -1,0 +1,8 @@
+{
+  "base": "/ts-example",
+  "handler": "handler.ts",
+  "routes": [
+    { "path": "/", "methods": ["GET", "POST"] },
+    { "path": "/greet/:name", "handler": "greet.ts", "methods": ["GET"] }
+  ]
+}
