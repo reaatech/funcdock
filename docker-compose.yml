@@ -8,13 +8,17 @@ services:
     volumes:
       - ./functions:/app/functions
       - ./logs:/app/logs
-      - ./utils:/app/utils
     environment:
       - NODE_ENV=development
       - LOG_LEVEL=debug
       - PORT=3000
-      # Add Slack webhook URL for alerts (optional)
-      # - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required (min 16 chars); set it in .env}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required; set it in .env}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required (min 8 chars) unless ADMIN_PASSWORD_HASH is set; see .env.example}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH:-}
+      - DEPLOY_API_KEY=${DEPLOY_API_KEY:-}
+      - MCP_API_KEY=${MCP_API_KEY:-}
+      - MCP_HTTP_HOST=${MCP_HTTP_HOST:-127.0.0.1}
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
