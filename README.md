@@ -1,364 +1,421 @@
-# 🚀 FuncDock — The Ultimate Node.js FaaS Platform
+# FuncDock
 
-## 📚 Documentation Index
+<p align="center">
+  <strong>Serverless Functions + MCP Tools in a Single Container</strong>
+</p>
 
-- [SETUP](docs/SETUP_README.md)
-- [USAGE](docs/USAGE_README.md)
-- [DEPLOYMENT](docs/DEPLOYMENT_README.md)
-- [CLI](docs/CLI_README.md)
-- [CRON JOBS](docs/CRONJOBS_README.md)
-- [DASHBOARDS](docs/DASHBOARDS_README.md)
-- [TESTING](docs/TESTING_README.md)
-- [TROUBLESHOOTING](docs/TROUBLESHOOTING_README.md)
-- [SECURITY](docs/SECURITY_README.md)
-- [ARCHITECTURE](ARCHITECTURE.md) — System design and component interactions
-- [AGENTS](AGENTS.md) — Development conventions for AI coding agents
-- [CONTRIBUTING](CONTRIBUTING.md) — How to contribute
+<p align="center">
+  <a href="https://github.com/reaatech/funcdock/releases"><img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version 2.0.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D22.0.0-339933?logo=nodedotjs" alt="Node.js 22+">
+  <img src="https://img.shields.io/badge/docker-supported-2496ED?logo=docker" alt="Docker">
+  <img src="https://img.shields.io/badge/ESM-only-FFCA28" alt="ESM Only">
+</p>
 
----
-
-> **The first serverless platform with INSTANT hot reload, CI/CD deployments, per-route handlers, real-time dashboards, and production-grade testing — all your functions in one blazing-fast container.**
+<p align="center">
+  Run dozens of Node.js functions with <strong>zero cold starts</strong>, <strong>hot reload</strong>, and <strong>automatic MCP tool exposure</strong>.
+</p>
 
 ---
 
-## 🔥 The FaaS Problem Everyone Faces
+## What is FuncDock?
 
-**Sound familiar?**
+FuncDock is a self-hosted Function-as-a-Service (FaaS) platform that runs multiple Node.js functions inside a single Docker container. It gives you the ergonomics of serverless — per-function routing, environment isolation, and independent deployments — without the cold starts, vendor lock-in, or per-request billing of cloud functions.
 
-- 😩 Change one line → wait 5 minutes for cold deployment
-- 🐌 Different dev/prod environments = endless debugging nightmares
-- 💸 Pay per function, per container, per lambda invocation
-- 🌪️ Functions scattered across 20+ services = management chaos
-- 📊 Zero visibility into what's actually happening in production
-- 🧪 Testing serverless functions locally = impossible
-- 🔄 Route changes require full redeployment cycles
+Every function route is automatically exposed as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) tool, making FuncDock an ideal backend for AI agents and LLM-powered applications.
 
-**There had to be a revolutionary solution...**
+Built for teams who want:
 
----
-
-## 🤯 FuncDock: The Serverless Game Changer
-
-We didn't just build another FaaS platform — we **reimagined serverless development** from the ground up:
-
-### ⚡️ **INSTANT Hot Reload** — Industry's First
-
-Deploy your code and see it live in **milliseconds**. No container restarts, no downtime, no waiting. Git push → CI/CD deploys → functions hot reload instantly in production. Or deploy manually via CLI/dashboard and watch changes go live immediately. This changes everything about serverless deployment.
-
-### 🎯 **Per-Route Handlers** — Revolutionary Architecture
-
-Unlike every other platform, each route can have its own handler file. `/api` uses `api.js`, `/webhook` uses `webhook.js`, `/users/:id` uses `users.js`. Maximum code organization, zero complexity.
-
-### 🎛️ **Live Real-Time Dashboard** — Complete Visibility
-
-Watch your functions breathe with streaming logs, live metrics, route health monitoring, and cron job execution. Finally see what's happening in your serverless world in real-time.
-
-### 🏠 **All Functions, One Container** — Cost Revolution
-
-Why manage 50 containers when one lightning-fast container can run everything? **80% cost reduction** with zero architectural complexity.
-
-### 🧪 **Production-Grade Testing** — With Docker Parity
-
-Jest + Nock testing that runs in identical Docker environments. Test locally, deploy with confidence. No more "works on my machine" disasters.
-
-### 🎛️ **Middleware Support** — Handlers can use Express-style middleware by calling next().
+- **Predictable infrastructure** — one container, many functions, no orchestration magic
+- **Developer velocity** — file-watch hot reload, TypeScript without a build step, a built-in React dashboard
+- **AI-ready APIs** — your functions become MCP tools that any compatible client can discover and invoke
+- **Observability out of the box** — OpenTelemetry tracing, structured logs, per-function metrics, and Slack alerts
 
 ---
 
-## 🚀 Why Developers Are Obsessed
+## Features
 
-- **⚡ INSTANT HOT RELOAD** — Deploy → changes live in milliseconds (no other platform has this)
-- **🚀 CI/CD READY** — Git push → test → deploy → hot reload in production with zero downtime
-- **🎯 PER-ROUTE HANDLERS** — `/api` → `api.js`, `/users` → `users.js` (revolutionary organization)
-- **👁️ REAL-TIME EVERYTHING** — Live logs, metrics, cron monitoring, route health
-- **💡 ZERO CONFIG MAGIC** — Drop functions in, start coding, deploy anywhere
-- **🐳 PERFECT DEV-PROD PARITY** — Same Docker environment locally and production
-- **⏰ SMART CRON JOBS** — Per-function scheduling with timezone support and hot reload
-- **🧪 PRODUCTION TESTING** — Jest + Nock in Docker containers matching production
-- **🔒 ENTERPRISE READY** — Route conflict prevention, webhook validation, security headers
-- **💰 MASSIVE COST SAVINGS** — One container to rule them all
-- **🎨 PURE DEVELOPER JOY** — From idea to production in under 60 seconds
+|     | Feature               | Description                                                                                  |
+| --- | --------------------- | -------------------------------------------------------------------------------------------- |
+| ⚡  | **Zero Cold Starts**  | All functions run in one Node.js process. No container spin-up, no latency spikes.           |
+| 🔥  | **Hot Reload**        | Edit a file. Save. The function reloads in milliseconds. No server restart.                  |
+| 🤖  | **MCP Server**        | Every route auto-exposes as an MCP tool. LLMs can discover and call your functions natively. |
+| 📊  | **React Dashboard**   | Real-time function monitoring, logs, metrics, env editing, and deployment UI.                |
+| 🧪  | **Built-in Testing**  | Jest with ESM support. Test locally or in a production-identical Docker container.           |
+| 🔐  | **Security First**    | httpOnly cookies, rate limiting, Helmet, input validation, and token blacklisting.           |
+| 📦  | **Shared Layers**     | Lambda-style code sharing. One symlinked layer, many functions. Change once, reload all.     |
+| 📝  | **TypeScript Native** | Write `.ts` handlers. `tsx` compiles on the fly. No build step required.                     |
+| 🔍  | **OpenTelemetry**     | Distributed tracing with automatic span wrapping on every function invocation.               |
+| 🚀  | **Multi-deployment**  | Deploy from Git, local path, dashboard upload, PR, or CI/CD with an API key.                 |
 
 ---
 
-## ⚡️ Experience the Magic
+## Quick Start
 
-### 1. Write a Function (Pure Simplicity)
+### 1. Clone & Configure
 
-```js
-// functions/hello-world/handler.js
-export default async function handler(req, res, next) {
-  const { logger, env, method, query } = req;
-  logger.info('Hello handler called', { method, env: !!env });
+```bash
+git clone https://github.com/reaatech/funcdock.git
+cd funcdock
+cp .env.example .env
+# Edit .env and set JWT_SECRET, ADMIN_USERNAME, and ADMIN_PASSWORD
+```
+
+### 2. Install & Start
+
+```bash
+npm install
+npm run dev
+```
+
+The dev server starts on `http://localhost:3000` with file watching enabled.
+
+### 3. Create a Function
+
+```bash
+npx funcdock create my-api
+```
+
+This scaffolds:
+
+```
+functions/my-api/
+├── handler.js
+├── handler.test.mjs
+├── route.config.json
+├── package.json
+└── README.md
+```
+
+### 4. Test It
+
+```bash
+curl http://localhost:3000/my-api/
+# → { "message": "Hello from my-api!" }
+```
+
+### 5. Open the Dashboard
+
+Visit `http://localhost:3000/dashboard`, log in with your admin credentials, and manage functions in real time.
+
+---
+
+## Architecture
+
+FuncDock avoids Express router stack bloat by using a **custom Map-based dispatcher**. Instead of registering routes with `app.use()` (which leaks middleware on every hot reload), a single middleware looks up handlers in a `Map` keyed by `"METHOD /path"`.
+
+```
+HTTP Request
+    │
+    ▼
+Express middleware (helmet, cors, json)
+    │
+    ▼
+functionDispatcherMiddleware ──→ Map lookup: "GET /my-api/"
+    │                              Inject: logger, env, functionName
+    ▼                           Wrap in OpenTelemetry span
+Handler executes
+    │
+    ▼
+Response + structured access log
+```
+
+This gives **O(1) route lookup** and **zero Express stack pollution** across unlimited reloads.
+
+For the full design doc, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+---
+
+## Function Development
+
+### Handler Pattern
+
+Functions are plain ES modules that export a default async handler:
+
+```javascript
+// functions/my-api/handler.js
+export default async function handler(req, res) {
+  const { logger, env, method, query, body } = req;
+
+  logger.info(`Received ${method}`, { query });
+
   res.json({
-    message: `Hello, ${query.name || 'World'}!`,
-    env: env.MY_SECRET,
-    time: new Date().toISOString(),
+    message: 'Hello from my-api',
+    envHasKey: !!env.API_KEY,
   });
-  // Call next() if you want to pass control to additional middleware
 }
 ```
 
-### 2. Configure Advanced Routing
+### Route Configuration
 
 ```json
-// functions/hello-world/route.config.json
+// functions/my-api/route.config.json
 {
-  "base": "/hello-world",
+  "base": "/my-api",
   "handler": "handler.js",
   "routes": [
-    { "path": "/", "methods": ["GET"] },
-    { "path": "/api", "handler": "api.js", "methods": ["POST"] },
-    { "path": "/webhook", "handler": "webhook.js", "methods": ["POST"] },
-    { "path": "/users/:id", "handler": "users.js", "methods": ["GET", "PUT"] }
+    { "path": "/", "methods": ["GET", "POST"] },
+    { "path": "/:id", "methods": ["GET", "PUT", "DELETE"] }
   ]
 }
 ```
 
-### 3. Add Intelligent Cron Jobs
+### Environment Variables
+
+Add a `.env` file inside your function directory:
+
+```bash
+# functions/my-api/.env
+API_KEY=sk-123456
+DATABASE_URL=postgres://localhost/mydb
+```
+
+Access them via `req.env` in your handler.
+
+### Cron Jobs
 
 ```json
-// functions/hello-world/cron.json
+// functions/my-api/cron.json
 {
   "jobs": [
     {
-      "name": "daily-backup",
-      "schedule": "0 2 * * *",
+      "name": "daily-report",
+      "schedule": "0 9 * * *",
       "handler": "cron-handler.js",
-      "timezone": "UTC",
-      "description": "Daily backup at 2 AM UTC"
+      "description": "Generate daily report at 9am"
     }
   ]
 }
 ```
 
-```js
-// functions/hello-world/cron-handler.js
-// Cron handlers only use req and logger (no res). Throw errors with a code and log with logger.log('CRON_ERROR', ...)
-export default async function handler(req) {
-  const { logger, cronJob, schedule } = req;
-  logger.log('CRON', `Cron job started: ${cronJob}`, { cronJob, schedule });
-  try {
-    if (!cronJob) {
-      const err = new Error('Missing cron job name');
-      err.code = 'MISSING_CRON_JOB';
-      logger.log('CRON_ERROR', err.message, { code: err.code, cronJob, schedule });
-      throw err;
-    }
-    // Simulate work
-    await doWork(cronJob);
-    logger.log('CRON', `Cron job completed: ${cronJob}`, { cronJob, schedule });
-    return { success: true };
-  } catch (error) {
-    // Already logged above, but you can log here as well if needed
-    throw error;
-  }
+### Shared Layers
+
+Create a layer in `layers/shared-utils/` with a `nodejs/` directory. Reference it from your function:
+
+```json
+// functions/my-api/layers.json
+"shared-utils"
+```
+
+The layer is symlinked into `node_modules/shared-utils` automatically.
+
+### TypeScript
+
+Write `.ts` handlers directly. No build step.
+
+```typescript
+// functions/my-api/handler.ts
+import type { Request, Response } from 'express';
+
+export default async function handler(req: Request, res: Response) {
+  res.json({ ok: true });
 }
 ```
 
-### 4. Production-Grade Testing
+---
 
-```js
-// functions/hello-world/handler.test.mjs
-import { testHandler, expectStatus } from '../../test/setup.mjs';
-import handler from './handler.js';
+## MCP Server
 
-describe('Hello World Handler', () => {
-  it('should return successful response', async () => {
-    const { res } = await testHandler(handler, {
-      method: 'GET',
-      query: { name: 'FuncDock' },
-    });
+FuncDock ships with a built-in MCP server that exposes **every loaded function route as an MCP tool**.
 
-    expectStatus(res, 200);
-    expect(res.body.message).toBe('Hello, FuncDock!');
-  });
-});
-```
+- **Enable it:** `MCP_ENABLED=true` (default)
+- **HTTP transport:** port `3001` (configurable via `MCP_HTTP_PORT`)
+- **Stdio transport:** supported for local MCP clients
+- **Tool naming:** `{functionName}__{route_path}__{method}`
+
+Example tool name: `hello-world__greet__get`
+
+### Securing MCP HTTP
+
+By default, MCP HTTP binds to `127.0.0.1` only. To expose externally, set `MCP_API_KEY`:
 
 ```bash
-# Test in production-identical Docker environment
-node scripts/test-function-in-docker.js --function=./functions/hello-world
+MCP_HTTP_HOST=0.0.0.0
+MCP_API_KEY=your-strong-random-key
 ```
 
-### 5. Experience Hot Reload Magic ✨
+Clients must send `Authorization: Bearer <MCP_API_KEY>`.
 
-**Deploy any way. Changes go live instantly.**
+---
 
-- **CI/CD Pipeline**: Git push → automated tests → deploy → hot reload in production (zero downtime)
-- **Manual CLI**: `make deploy-git` → functions reload instantly
-- **Dashboard Deploy**: Upload via UI → see changes live immediately
-- **Local Development**: File changes trigger automatic reload
+## Dashboard
 
-No builds, no container restarts, no downtime. Routes, handlers, cron jobs, dependencies — everything hot reloads in milliseconds.
+The React 19 + Vite dashboard provides real-time management:
 
-### 6. Deploy Like a Pro (Zero Downtime)
+- **Functions** — list, status, route counts, layer associations
+- **Logs** — per-function structured logs with filtering
+- **Metrics** — invocation counts, error rates, response times
+- **Deploy** — upload files, connect GitHub/Bitbucket repos, deploy from PRs
+- **Cron Jobs** — view schedules, last run status
+- **MCP Status** — connected transports, exposed tools
+- **Settings** — dark/light mode, environment editor
+
+Real-time updates are pushed via Socket.IO. Screenshots are in [`screenshots/`](screenshots/).
+
+---
+
+## CLI Reference
+
+The `funcdock` CLI replaces Makefile-driven workflows:
+
+| Command                                        | Description                              |
+| ---------------------------------------------- | ---------------------------------------- |
+| `funcdock dev`                                 | Start development server with hot reload |
+| `funcdock start`                               | Start production server                  |
+| `funcdock create <name>`                       | Scaffold a new function                  |
+| `funcdock deploy --git <url> --name <name>`    | Deploy from Git                          |
+| `funcdock deploy --local <path> --name <name>` | Deploy from local path                   |
+| `funcdock update <name>`                       | Update an existing function              |
+| `funcdock remove <name>`                       | Remove a function                        |
+| `funcdock list`                                | List all deployed functions              |
+| `funcdock test [function]`                     | Run Jest tests                           |
+| `funcdock logs`                                | View application logs                    |
+| `funcdock status`                              | Check platform health                    |
+| `funcdock reload`                              | Hot reload all functions                 |
+
+Every command supports `--help`. See [`docs/CLI_README.md`](docs/CLI_README.md) for full details.
+
+---
+
+## Docker
+
+### Development
 
 ```bash
-# Git-based deployments (perfect for CI/CD)
-funcdock deploy --git https://github.com/user/my-function.git --name my-function
-
-# CI/CD Pipeline Integration
-# Add this to your .github/workflows/deploy.yml:
-# - name: Deploy to FuncDock
-#   run: funcdock deploy --git ${{ github.repository }} --name my-function
-
-# Local deployment (instant hot reload)
-funcdock deploy --local ./my-function --name my-function
-
-# Create new functions
-funcdock create payment-processor
-
-# Update existing functions (zero downtime)
-funcdock update my-function
-
-# Test in production-identical environment before deploy
-funcdock test my-function --docker
-
-# Watch everything happen in real-time
-funcdock logs --follow
+docker-compose up
 ```
 
-### 7. Monitor Everything Live
+Mounts `functions/` and `logs/` as volumes. Redis is bundled inside the container.
 
-Your **real-time dashboard** at `http://localhost:3000/dashboard/` shows:
-
-- 📊 Live function performance metrics
-- 📝 Streaming logs from all functions and routes
-- 🔄 Route health and response times
-- ⏰ Cron job execution history and status
-- 🚨 Real-time alerts and error tracking
-- 🎛️ Function management and controls
-
-![Dashboard Screenshot](screenshots/dashboard.jpg)
-
-![Dashboard Screenshot](screenshots/functions.jpg)
-
-![Dashboard Screenshot](screenshots/function-overview.jpg)
-
-![Dashboard Screenshot](screenshots/function-logs.jpg)
-
-More screenshots available in the [screenshots](screenshots/) directory.
-
----
-
-## 🏁 Get Started in 60 Seconds
+### Production
 
 ```bash
-# 1. Install the future
-npm install
-funcdock setup
-
-# 2. Launch into orbit
-funcdock dev
-# OR with Docker
-funcdock setup && npm install && funcdock dev
-
-# 3. Open the magic
-# Dashboard: http://localhost:3000/dashboard/
-# Status: http://localhost:3000/api/status
-
-# 4. Start building impossible things
-funcdock create my-awesome-api
+docker-compose --profile production up --build -d
 ```
 
-**Prerequisites**: Node.js 22+, Docker (optional), `jq` (`brew install jq`)
+Includes a Caddy reverse proxy with automatic HTTPS.
+
+### Manual
+
+```bash
+docker build -t funcdock .
+docker run -p 3000:3000 -v $(pwd)/functions:/app/functions funcdock
+```
+
+The image is based on `node:22-slim` and includes Git and Redis.
 
 ---
 
-## 🎯 Perfect For Every Developer
+## Configuration
 
-- **🚀 Startups** — Build fast, iterate faster, scale effortlessly
-- **🏢 Enterprise** — Reduce infrastructure costs by 80%, increase velocity by 10x
-- **👨‍💻 Solo Developers** — Focus on code, not DevOps complexity
-- **🎓 Learning** — Best-in-class developer experience for serverless
-- **🔄 Microservices** — All the benefits, none of the container management overhead
-- **🧪 Testing Teams** — Production-identical testing environments
+### Required
 
----
+| Variable         | Description                                 |
+| ---------------- | ------------------------------------------- |
+| `JWT_SECRET`     | Min 16 chars. Used to sign session tokens.  |
+| `ADMIN_USERNAME` | Dashboard login username.                   |
+| `ADMIN_PASSWORD` | Min 8 chars. Hashed with bcrypt at startup. |
 
-## 💎 What Makes FuncDock Legendary
+### Optional
 
-**This isn't evolution — it's revolution:**
+| Variable                         | Default             | Description                                  |
+| -------------------------------- | ------------------- | -------------------------------------------- |
+| `PORT`                           | `3000`              | HTTP server port.                            |
+| `NODE_ENV`                       | `development`       | `development` or `production`.               |
+| `LOG_LEVEL`                      | `info`              | `debug`, `info`, `warn`, `error`, `alert`.   |
+| `MCP_ENABLED`                    | `true`              | Start the MCP server.                        |
+| `MCP_HTTP_PORT`                  | `3001`              | MCP HTTP transport port.                     |
+| `MCP_HTTP_HOST`                  | `127.0.0.1`         | Bind address for MCP HTTP.                   |
+| `MCP_API_KEY`                    | —                   | Bearer token required if exposed externally. |
+| `DEPLOY_API_KEY`                 | —                   | CI/CD key that bypasses JWT auth.            |
+| `GITHUB_CLIENT_ID` / `SECRET`    | —                   | OAuth for GitHub repo integration.           |
+| `BITBUCKET_CLIENT_ID` / `SECRET` | —                   | OAuth for Bitbucket repo integration.        |
+| `SLACK_WEBHOOK_URL`              | —                   | Alert notifications channel.                 |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`    | —                   | OpenTelemetry collector URL.                 |
+| `CORS_ORIGIN`                    | `*`                 | Comma-separated allowed origins.             |
+| `REDIS_PASSWORD`                 | `funcdock_internal` | Redis auth (Docker).                         |
 
-### 🏆 **Industry Firsts**
-
-- **Hot reload for serverless** (seriously, no one else has this)
-- **Per-route handlers** in a unified function
-- **Real-time serverless dashboard** with live streaming
-- **Production-identical Docker testing** for FaaS
-
-### 🧠 **Intelligent Features**
-
-- **Zero-downtime deployments** with instant hot reload in production
-- **CI/CD integration** — use Makefile targets in any pipeline (GitHub Actions, GitLab, Jenkins)
-- **Pre-deployment testing** with production-identical Docker environments
-- **Automatic route conflict detection** prevents deployment disasters
-- **Smart dependency management** with hot reload
-- **Intelligent logging** with structured output and real-time streaming
-- **Advanced cron scheduling** with timezone support and error handling
-
-### ⚡ **Performance Revolution**
-
-- **Single container architecture** = lightning-fast performance
-- **Memory-efficient function loading** with intelligent caching
-- **Zero cold starts** — functions are always warm and ready
-
-### 🎨 **Developer Experience**
-
-- **Built by developers** who were tired of serverless complexity
-- **Zero configuration** — works perfectly out of the box
-- **Comprehensive tooling** — CLI, Make commands, npm scripts
-- **Extensive documentation** — everything you need to succeed
+See [`.env.example`](.env.example) for the full template.
 
 ---
 
-## 🌟 Join the Serverless Revolution
+## Testing
 
-**The serverless world was broken. FuncDock fixed it.**
+```bash
+# All tests
+npm test
 
-Thousands of developers have discovered the joy of instant deployments, real-time monitoring, and zero-friction development. No more waiting for builds. No more deployment anxiety. No more scattered functions.
+# With coverage
+npm run test:coverage
 
-**Experience the future of serverless development:**
+# Single function
+npm test -- functions/hello-world
 
-### **👉 [GET STARTED NOW](docs/SETUP_README.md) 👈**
+# Production-identical Docker test
+funcdock test hello-world --docker
+```
 
----
-
-## 📖 Master Every Feature
-
-**Comprehensive guides for every aspect:**
-
-[**SETUP**](docs/SETUP_README.md) — Get running in minutes | [**USAGE**](docs/USAGE_README.md) — Master function development | [**DEPLOYMENT**](docs/DEPLOYMENT_README.md) — Host, Git, and local deployments
-
-[**CLI**](docs/CLI_README.md) — Command-line mastery | [**CRON JOBS**](docs/CRONJOBS_README.md) — Scheduled task perfection | [**DASHBOARDS**](docs/DASHBOARDS_README.md) — Real-time monitoring
-
-[**TESTING**](docs/TESTING_README.md) — Production-grade testing | [**TROUBLESHOOTING**](docs/TROUBLESHOOTING_README.md) — Solve any issue | [**SECURITY**](docs/SECURITY_README.md) — Enterprise security
-
-[**ARCHITECTURE**](ARCHITECTURE.md) — System design | [**AGENTS**](AGENTS.md) — Agent conventions | [**CONTRIBUTING**](CONTRIBUTING.md) — Join the community
+Tests use Jest with `--experimental-vm-modules` and ESM. Helper utilities are in [`test/setup.mjs`](test/setup.mjs).
 
 ---
 
-## 🚀 Built Different
+## Security
 
-**Key Differentiators:**
+- **Authentication:** JWT via httpOnly cookie (`funcdock-token`) or `Authorization: Bearer` header. Dual support for SPAs and API clients.
+- **Rate Limiting:** 100 requests per 15 minutes on `/api/`. Login endpoint limited to 5 attempts.
+- **Input Validation:** Strict regex validators for Git URLs, branch names, commit SHAs, function names, and file paths.
+- **Headers:** Helmet with CSP. CORS configured per environment. Compression enabled.
+- **Logout:** Token blacklist with automatic TTL cleanup. Ready for Redis-backed multi-instance deployments.
+- **Secrets:** Per-function `.env` files. No secrets in `localStorage`.
 
-- ⚡ **Instant hot reload** (deploy → live in milliseconds, industry first)
-- 🚀 **CI/CD native** (GitHub Actions, GitLab, Jenkins ready)
-- 🎯 **Per-route handlers** (revolutionary organization)
-- 🎛️ **Real-time dashboard** (complete visibility)
-- 🐳 **Perfect dev-prod parity** (Docker everywhere)
-- 🧪 **Production testing** (Jest + Nock + Docker)
-- 💰 **Single container** (massive cost savings)
-- 🔒 **Enterprise security** (route conflicts, webhooks, CORS)
-- 📊 **Advanced monitoring** (logs, metrics, cron jobs)
+See [`docs/SECURITY_README.md`](docs/SECURITY_README.md) for hardening guides.
 
 ---
 
-⭐ **Star this repo if FuncDock revolutionized your serverless experience!** ⭐
+## Documentation
 
-_Built with ❤️ by developers who believe serverless should be joyful, not painful._
+| Doc                                                                | What you'll learn                               |
+| ------------------------------------------------------------------ | ----------------------------------------------- |
+| [`docs/SETUP_README.md`](docs/SETUP_README.md)                     | Full installation, Redis setup, first run       |
+| [`docs/DEPLOYMENT_README.md`](docs/DEPLOYMENT_README.md)           | Git, local, dashboard, PR, and CI/CD deployment |
+| [`docs/CLI_README.md`](docs/CLI_README.md)                         | Complete CLI command reference                  |
+| [`docs/DASHBOARDS_README.md`](docs/DASHBOARDS_README.md)           | Dashboard features and navigation               |
+| [`docs/CRONJOBS_README.md`](docs/CRONJOBS_README.md)               | Scheduled jobs and cron patterns                |
+| [`docs/LAYERS_README.md`](docs/LAYERS_README.md)                   | Creating and managing shared layers             |
+| [`docs/TESTING_README.md`](docs/TESTING_README.md)                 | Test patterns, coverage, Docker tests           |
+| [`docs/SECURITY_README.md`](docs/SECURITY_README.md)               | Auth, rate limiting, secrets management         |
+| [`docs/TROUBLESHOOTING_README.md`](docs/TROUBLESHOOTING_README.md) | Common issues and fixes                         |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | System design, data flow, key decisions         |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)                               | How to contribute                               |
 
-## Commercial Support
+---
 
-FuncDock is developed and maintained by [REAA Technologies](https://reaatech.com). Commercial and enterprise support, consulting, and custom development are available. If your organization needs advanced features, SLAs, or expert help, please contact REAA Technologies via their website.
+## Screenshots
+
+| Dashboard                               | Deploy                                           | Function Logs                          |
+| --------------------------------------- | ------------------------------------------------ | -------------------------------------- |
+| ![Dashboard](screenshots/dashboard.jpg) | ![Deploy](screenshots/deploy-connect-github.jpg) | ![Logs](screenshots/function-logs.jpg) |
+
+| Metrics                                      | Cron Jobs                              | Environment                          |
+| -------------------------------------------- | -------------------------------------- | ------------------------------------ |
+| ![Metrics](screenshots/function-metrics.jpg) | ![Cron](screenshots/function-cron.jpg) | ![Env](screenshots/function-env.jpg) |
+
+More in [`screenshots/`](screenshots/).
+
+---
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for version history and migration notes.
+
+---
+
+## Contributing
+
+Contributions are welcome. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and run `npm test` before opening a PR.
+
+---
+
+## License
+
+MIT © [REAA Technologies](https://github.com/reaatech)
