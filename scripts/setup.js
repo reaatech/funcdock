@@ -17,7 +17,7 @@ const colors = {
   blue: '\x1b[34m',
   yellow: '\x1b[33m',
   red: '\x1b[31m',
-  reset: '\x1b[0m'
+  reset: '\x1b[0m',
 };
 
 function log(message, color = 'reset') {
@@ -67,7 +67,7 @@ async function setup() {
       { path: path.join(projectRoot, 'logs'), desc: 'Logs directory' },
       { path: path.join(projectRoot, 'utils'), desc: 'Utils directory' },
       { path: path.join(projectRoot, 'scripts'), desc: 'Scripts directory' },
-      { path: path.join(projectRoot, 'ssl'), desc: 'SSL certificates directory' }
+      { path: path.join(projectRoot, 'ssl'), desc: 'SSL certificates directory' },
     ];
 
     for (const dir of directories) {
@@ -77,12 +77,20 @@ async function setup() {
     // Create .env file if it doesn't exist
     const envPath = path.join(projectRoot, '.env');
     if (!(await checkFileExists(envPath))) {
+      const crypto = await import('crypto');
+      const jwtSecret = crypto.randomBytes(32).toString('hex');
+      const adminPassword = crypto.randomBytes(16).toString('hex');
       const envContent = `# FuncDock Platform Configuration
 
 # Server Configuration
 PORT=3000
 NODE_ENV=development
 LOG_LEVEL=info
+
+# Authentication (REQUIRED - change these in production!)
+JWT_SECRET=${jwtSecret}
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=${adminPassword}
 
 # Webhook Secrets (optional)
 # GITHUB_WEBHOOK_SECRET=your_github_webhook_secret
@@ -312,7 +320,6 @@ MIT
     log('5. Test the sample functions:', 'yellow');
     log('   - GET http://localhost:3000/hello-world/', 'yellow');
     log('   - POST http://localhost:3000/webhook-handler/github', 'yellow');
-
   } catch (error) {
     log(`\n❌ Setup failed: ${error.message}`, 'red');
     process.exit(1);
@@ -320,4 +327,7 @@ MIT
 }
 
 // Run setup
-setup();
+setup().catch((err) => {
+  console.error('Setup failed:', err.message);
+  process.exit(1);
+});

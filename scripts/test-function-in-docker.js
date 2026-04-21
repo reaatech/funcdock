@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const { execSync, spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { execSync, spawn } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -18,7 +18,9 @@ for (let i = 0; i < args.length; i++) {
 }
 
 if (!functionPath) {
-  console.error('Usage: node scripts/test-function-in-docker.js --function=./functions/your-func [--route=/route]');
+  console.error(
+    'Usage: node scripts/test-function-in-docker.js --function=./functions/your-func [--route=/route]'
+  );
   process.exit(1);
 }
 
@@ -29,41 +31,50 @@ if (!fs.existsSync(absFunctionPath)) {
 }
 
 const imageName = 'funcdock-test-env';
-const containerName = `funcdock-test-${Date.now()}`;
+const _containerName = `funcdock-test-${Date.now()}`;
 
 // Build the Docker image if needed
 console.log('Building test Docker image (if needed)...');
 try {
   execSync(`docker build -f Dockerfile.test -t ${imageName} .`, { stdio: 'inherit' });
-} catch (err) {
+} catch {
   console.error('Failed to build Docker image.');
   process.exit(1);
 }
 
 // Determine the Jest command
-let jestCmd = 'npx jest';
+let jestCmd = 'NODE_OPTIONS="--experimental-vm-modules" npx jest';
 if (route) {
   // Try to find a test file matching the route (e.g., greet.test.js for /greet)
   const routeName = route.replace(/^\//, '').replace(/\//g, '-');
-  const testFile = fs.readdirSync(absFunctionPath).find(f => f === `${routeName}.test.js`);
+  const testFile = fs
+    .readdirSync(absFunctionPath)
+    .find((f) => f === `${routeName}.test.js` || f === `${routeName}.test.mjs`);
   if (testFile) {
     jestCmd += ` ${testFile}`;
   } else {
-    console.warn(`No test file found for route: ${route} (expected: ${routeName}.test.js)`);
+    console.warn(
+      `No test file found for route: ${route} (expected: ${routeName}.test.js or ${routeName}.test.mjs)`
+    );
   }
 }
 
 // Run the container and execute Jest
 console.log(`\nRunning tests in Docker container for function: ${functionPath}`);
 const dockerArgs = [
-  'run', '--rm',
-  '-v', `${absFunctionPath}:/app/function`,
-  '-w', '/app/function',
+  'run',
+  '--rm',
+  '-v',
+  `${absFunctionPath}:/app/function`,
+  '-w',
+  '/app/function',
   imageName,
-  'sh', '-c', `redis-server --daemonize yes && ${jestCmd}`
+  'sh',
+  '-c',
+  `redis-server --daemonize yes && ${jestCmd}`,
 ];
 
 const child = spawn('docker', dockerArgs, { stdio: 'inherit' });
-child.on('exit', code => {
+child.on('exit', (code) => {
   process.exit(code);
-}); 
+});

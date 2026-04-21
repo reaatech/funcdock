@@ -7,23 +7,22 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { validateFunctionDeployment } from '../utils/test-runner.js';
 import { safeDeploy } from '../utils/deployment-backup.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.dirname(__dirname);
 const functionsDir = path.join(projectRoot, 'functions');
+const tempDir = path.join(projectRoot, '.temp-deploy');
 
 const colors = {
   green: '\x1b[32m',
   blue: '\x1b[34m',
   yellow: '\x1b[33m',
   red: '\x1b[31m',
-  reset: '\x1b[0m'
+  reset: '\x1b[0m',
 };
 
 function log(message, color = 'reset') {
@@ -56,13 +55,26 @@ function showUsage() {
   log('  --help            Show this help message', 'blue');
 
   log('\nExamples:', 'yellow');
-  log('  npm run deploy -- --git https://github.com/user/my-function.git --name my-function', 'blue');
-  log('  npm run deploy -- --pr https://github.com/user/my-function.git --name my-function --pr-number 123', 'blue');
+  log(
+    '  npm run deploy -- --git https://github.com/user/my-function.git --name my-function',
+    'blue'
+  );
+  log(
+    '  npm run deploy -- --pr https://github.com/user/my-function.git --name my-function --pr-number 123',
+    'blue'
+  );
   log('  npm run deploy -- --local ./local-function --name local-func', 'blue');
   log('  npm run deploy -- --update my-function', 'blue');
   log('  npm run deploy -- --update my-function --branch feature/new-feature', 'blue');
   log('  npm run deploy -- --update my-function --commit abc123def', 'blue');
   log('  npm run deploy -- --remove old-function', 'blue');
+}
+
+const FUNCTION_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
+
+function validateFunctionName(name) {
+  if (!name || typeof name !== 'string') return false;
+  return FUNCTION_NAME_REGEX.test(name) && name.length <= 100;
 }
 
 async function parseArgs() {
@@ -113,8 +125,41 @@ async function parseArgs() {
   return options;
 }
 
+function spawnAsync(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      ...options,
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (data) => {
+      stdout += data;
+    });
+    child.stderr.on('data', (data) => {
+      stderr += data;
+    });
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        const error = new Error(stderr.trim() || `Command failed with exit code ${code}`);
+        error.code = code;
+        error.stderr = stderr;
+        reject(error);
+      }
+    });
+
+    child.on('error', reject);
+  });
+}
+
 async function validateFunction(functionPath) {
-  const requiredFiles = ['handler.js', 'route.config.json', 'package.json'];
+  const requiredFiles = ['route.config.json', 'package.json'];
   const missing = [];
 
   for (const file of requiredFiles) {
@@ -125,22 +170,37 @@ async function validateFunction(functionPath) {
     }
   }
 
+  // Allow either handler.js or handler.ts
+  const hasJsHandler = await fs
+    .access(path.join(functionPath, 'handler.js'))
+    .then(() => true)
+    .catch(() => false);
+  const hasTsHandler = await fs
+    .access(path.join(functionPath, 'handler.ts'))
+    .then(() => true)
+    .catch(() => false);
+  if (!hasJsHandler && !hasTsHandler) {
+    missing.push('handler.js (or handler.ts)');
+  }
+
   return missing;
 }
 
 async function checkGitCredentials(gitUrl) {
   try {
     log(`🔍 Checking Git credentials for: ${gitUrl}`, 'blue');
-    
-    // Test if we can access the repository without authentication
-    await execAsync(`git ls-remote --exit-code ${gitUrl}`, { timeout: 10000 });
+
+    await spawnAsync('git', ['ls-remote', '--exit-code', gitUrl], { timeout: 10000 });
     log(`✅ Git credentials verified - repository is accessible`, 'green');
     return true;
   } catch (error) {
     if (error.code === 128) {
       log(`❌ Git credentials required for: ${gitUrl}`, 'red');
       log(`💡 Solutions:`, 'yellow');
-      log(`   1. Use host-based deployment: make deploy-host-git REPO=${gitUrl} NAME=<function-name>`, 'blue');
+      log(
+        `   1. Use host-based deployment: make deploy-host-git REPO=${gitUrl} NAME=<function-name>`,
+        'blue'
+      );
       log(`   2. Configure Git credentials: git config --global credential.helper store`, 'blue');
       log(`   3. Use SSH keys: ssh-keygen -t ed25519 -C "your.email@example.com"`, 'blue');
       log(`   4. Use SSH URL: git@github.com:user/repo.git`, 'blue');
@@ -163,7 +223,6 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
     log(`🌿 Using branch: ${branch}`, 'yellow');
   }
 
-  // Check Git credentials before attempting to clone
   const hasCredentials = await checkGitCredentials(gitUrl);
   if (!hasCredentials) {
     log(`💡 Tip: Use 'make deploy-host-git' to use your host Git credentials instead`, 'yellow');
@@ -172,9 +231,7 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
 
   const functionPath = path.join(functionsDir, functionName);
 
-  // Define the deployment function
   const deploymentFunction = async () => {
-    // Remove existing function if it exists
     try {
       await fs.rm(functionPath, { recursive: true, force: true });
       log(`🗑️  Removed existing function: ${functionName}`, 'yellow');
@@ -182,59 +239,51 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
       // Function doesn't exist, that's fine
     }
 
-    // Clone the repository
     log(`📥 Cloning repository...`, 'blue');
-    await execAsync(`git clone --branch ${branch} ${gitUrl} ${functionPath}`);
+    await spawnAsync('git', ['clone', '--branch', branch, gitUrl, functionPath]);
 
-    // Checkout specific commit if provided
     if (commit) {
       log(`🔍 Checking out commit: ${commit}`, 'blue');
-      await execAsync(`cd ${functionPath} && git checkout ${commit}`);
+      await spawnAsync('git', ['checkout', commit], { cwd: functionPath });
     }
 
-    // Get current commit hash for metadata
-    const { stdout: currentCommit } = await execAsync(`cd ${functionPath} && git rev-parse HEAD`);
+    const { stdout: currentCommit } = await spawnAsync('git', ['rev-parse', 'HEAD'], {
+      cwd: functionPath,
+    });
     const commitHash = currentCommit.trim();
 
-    // Validate function structure
     const missing = await validateFunction(functionPath);
     if (missing.length > 0) {
       throw new Error(`Missing required files: ${missing.join(', ')}`);
     }
 
-    // Install dependencies
     log(`📦 Installing dependencies...`, 'blue');
-    await execAsync('npm install', { cwd: functionPath });
+    await spawnAsync('npm', ['install'], { cwd: functionPath });
 
-    // Store deployment metadata
     const metadata = {
       source: 'git',
       gitUrl,
       branch,
       commit: commitHash,
       deployedAt: new Date().toISOString(),
-      deployedBy: process.env.USER || 'unknown'
+      deployedBy: process.env.USER || 'unknown',
     };
 
     await fs.writeFile(
       path.join(functionPath, '.deployment.json'),
       JSON.stringify(metadata, null, 2)
     );
-
-    // Trigger reload
-    await reloadFunction(functionName);
   };
 
-  // Define the validation function
   const validationFunction = async () => {
     return await validateFunctionDeployment(functionPath, functionName);
   };
 
-  // Execute safe deployment
   const result = await safeDeploy(functionName, deploymentFunction, validationFunction);
 
   if (result.success) {
     log(`✅ Successfully deployed function: ${functionName}`, 'green');
+    await reloadFunction(functionName);
   } else {
     log(`❌ Deployment failed and was rolled back: ${result.error}`, 'red');
     log(`🚨 ALERT: Function ${functionName} deployment failed due to test failures!`, 'red');
@@ -249,7 +298,6 @@ async function deployFromGit(gitUrl, functionName, branch = 'main', commit = nul
 async function deployFromPullRequest(gitUrl, functionName, prNumber) {
   log(`🔄 Deploying function "${functionName}" from Pull Request #${prNumber}`, 'blue');
 
-  // Check Git credentials before attempting to clone
   const hasCredentials = await checkGitCredentials(gitUrl);
   if (!hasCredentials) {
     log(`💡 Tip: Use 'make deploy-host-git' to use your host Git credentials instead`, 'yellow');
@@ -257,52 +305,49 @@ async function deployFromPullRequest(gitUrl, functionName, prNumber) {
   }
 
   const functionPath = path.join(functionsDir, functionName);
+  const tempFunctionPath = path.join(tempDir, functionName);
 
-  try {
-    // Remove existing function if it exists
+  const deploymentFunction = async () => {
     try {
-      await fs.rm(functionPath, { recursive: true, force: true });
-      log(`🗑️  Removed existing function: ${functionName}`, 'yellow');
+      await fs.rm(tempFunctionPath, { recursive: true, force: true });
     } catch {
-      // Function doesn't exist, that's fine
+      // Doesn't exist
     }
 
-    // Clone the repository
-    log(`📥 Cloning repository...`, 'blue');
-    await execAsync(`git clone ${gitUrl} ${functionPath}`);
+    log(`📥 Cloning repository to temp directory...`, 'blue');
+    await spawnAsync('git', ['clone', gitUrl, tempFunctionPath]);
 
-    // Fetch the pull request
     log(`📥 Fetching pull request #${prNumber}...`, 'blue');
-    await execAsync(`cd ${functionPath} && git fetch origin pull/${prNumber}/head:pr-${prNumber}`);
+    await spawnAsync('git', ['fetch', 'origin', `pull/${prNumber}/head:pr-${prNumber}`], {
+      cwd: tempFunctionPath,
+    });
 
-    // Checkout the pull request branch
     log(`🔍 Checking out pull request branch...`, 'blue');
-    await execAsync(`cd ${functionPath} && git checkout pr-${prNumber}`);
+    await spawnAsync('git', ['checkout', `pr-${prNumber}`], { cwd: tempFunctionPath });
 
-    // Get current commit hash for metadata
-    const { stdout: currentCommit } = await execAsync(`cd ${functionPath} && git rev-parse HEAD`);
+    const { stdout: currentCommit } = await spawnAsync('git', ['rev-parse', 'HEAD'], {
+      cwd: tempFunctionPath,
+    });
     const commitHash = currentCommit.trim();
 
-    // Get PR title for metadata
     let prTitle = `PR #${prNumber}`;
     try {
-      const { stdout: prInfo } = await execAsync(`cd ${functionPath} && git log --oneline -1`);
+      const { stdout: prInfo } = await spawnAsync('git', ['log', '--oneline', '-1'], {
+        cwd: tempFunctionPath,
+      });
       prTitle = prInfo.trim();
     } catch {
-      // Ignore if we can't get PR title
+      // Ignore
     }
 
-    // Validate function structure
-    const missing = await validateFunction(functionPath);
+    const missing = await validateFunction(tempFunctionPath);
     if (missing.length > 0) {
       throw new Error(`Missing required files: ${missing.join(', ')}`);
     }
 
-    // Install dependencies
     log(`📦 Installing dependencies...`, 'blue');
-    await execAsync('npm install', { cwd: functionPath });
+    await spawnAsync('npm', ['install'], { cwd: tempFunctionPath });
 
-    // Store deployment metadata
     const metadata = {
       source: 'pull-request',
       gitUrl,
@@ -310,30 +355,38 @@ async function deployFromPullRequest(gitUrl, functionName, prNumber) {
       prTitle,
       commit: commitHash,
       deployedAt: new Date().toISOString(),
-      deployedBy: process.env.USER || 'unknown'
+      deployedBy: process.env.USER || 'unknown',
     };
+
+    log(`📁 Copying function from temp to target...`, 'blue');
+    await fs.cp(tempFunctionPath, functionPath, { recursive: true, force: true });
 
     await fs.writeFile(
       path.join(functionPath, '.deployment.json'),
       JSON.stringify(metadata, null, 2)
     );
+  };
 
-    log(`✅ Successfully deployed function: ${functionName} from PR #${prNumber}`, 'green');
+  const validationFunction = async () => {
+    return await validateFunctionDeployment(functionPath, functionName);
+  };
 
-    // Trigger reload
-    await reloadFunction(functionName);
+  const result = await safeDeploy(functionName, deploymentFunction, validationFunction);
 
-  } catch (error) {
-    log(`❌ Failed to deploy function: ${error.message}`, 'red');
-
-    // Clean up on failure
+  try {
+    if (result.success) {
+      log(`✅ Successfully deployed function: ${functionName} from PR #${prNumber}`, 'green');
+      await reloadFunction(functionName);
+    } else {
+      log(`❌ Deployment failed and was rolled back: ${result.error}`, 'red');
+      throw new Error(result.error);
+    }
+  } finally {
     try {
-      await fs.rm(functionPath, { recursive: true, force: true });
+      await fs.rm(tempFunctionPath, { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors
     }
-
-    throw error;
   }
 }
 
@@ -343,18 +396,14 @@ async function deployFromLocal(localPath, functionName) {
   const functionPath = path.join(functionsDir, functionName);
   const absoluteLocalPath = path.resolve(localPath);
 
-  // Define the deployment function
   const deploymentFunction = async () => {
-    // Validate source exists
     await fs.access(absoluteLocalPath);
 
-    // Validate function structure
     const missing = await validateFunction(absoluteLocalPath);
     if (missing.length > 0) {
       throw new Error(`Missing required files in source: ${missing.join(', ')}`);
     }
 
-    // Remove existing function if it exists
     try {
       await fs.rm(functionPath, { recursive: true, force: true });
       log(`🗑️  Removed existing function: ${functionName}`, 'yellow');
@@ -362,41 +411,34 @@ async function deployFromLocal(localPath, functionName) {
       // Function doesn't exist, that's fine
     }
 
-    // Copy files
     log(`📁 Copying files...`, 'blue');
-    await execAsync(`cp -r "${absoluteLocalPath}" "${functionPath}"`);
+    await fs.cp(absoluteLocalPath, functionPath, { recursive: true, force: true });
 
-    // Install dependencies
     log(`📦 Installing dependencies...`, 'blue');
-    await execAsync('npm install', { cwd: functionPath });
+    await spawnAsync('npm', ['install'], { cwd: functionPath });
 
-    // Store deployment metadata
     const metadata = {
       source: 'local',
       localPath: absoluteLocalPath,
       deployedAt: new Date().toISOString(),
-      deployedBy: process.env.USER || 'unknown'
+      deployedBy: process.env.USER || 'unknown',
     };
 
     await fs.writeFile(
       path.join(functionPath, '.deployment.json'),
       JSON.stringify(metadata, null, 2)
     );
-
-    // Trigger reload
-    await reloadFunction(functionName);
   };
 
-  // Define the validation function
   const validationFunction = async () => {
     return await validateFunctionDeployment(functionPath, functionName);
   };
 
-  // Execute safe deployment
   const result = await safeDeploy(functionName, deploymentFunction, validationFunction);
 
   if (result.success) {
     log(`✅ Successfully deployed function: ${functionName}`, 'green');
+    await reloadFunction(functionName);
   } else {
     log(`❌ Deployment failed: ${result.error}`, 'red');
     throw new Error(result.error);
@@ -410,34 +452,29 @@ async function updateFunction(functionName, options = {}) {
   const metadataPath = path.join(functionPath, '.deployment.json');
 
   try {
-    // Check if function exists
     await fs.access(functionPath);
 
-    // Read deployment metadata
     const metadataContent = await fs.readFile(metadataPath, 'utf-8');
     const metadata = JSON.parse(metadataContent);
 
     if (metadata.source === 'git' || metadata.source === 'pull-request') {
-      // Update from Git
       const { gitUrl, branch = 'main' } = metadata;
-      
-      // Use provided branch/commit or fall back to original
+
       const targetBranch = options.branch || branch;
       const targetCommit = options.commit || null;
-      
+
       if (targetCommit) {
         log(`📌 Updating to specific commit: ${targetCommit}`, 'yellow');
       } else if (options.branch && options.branch !== branch) {
         log(`🌿 Switching from branch ${branch} to ${targetBranch}`, 'yellow');
       }
-      
+
       await deployFromGit(gitUrl, functionName, targetBranch, targetCommit);
     } else if (metadata.source === 'local') {
       log(`⚠️  Cannot auto-update local function. Use --local to redeploy.`, 'yellow');
     } else {
       throw new Error('Unknown deployment source');
     }
-
   } catch (error) {
     if (error.code === 'ENOENT') {
       log(`❌ Function "${functionName}" not found`, 'red');
@@ -457,9 +494,7 @@ async function removeFunction(functionName) {
     await fs.rm(functionPath, { recursive: true, force: true });
     log(`✅ Successfully removed function: ${functionName}`, 'green');
 
-    // Trigger reload to unregister routes
     await reloadFunction();
-
   } catch (error) {
     log(`❌ Failed to remove function: ${error.message}`, 'red');
     throw error;
@@ -493,7 +528,6 @@ async function listFunctions() {
         // No metadata file
       }
 
-      // Read route config
       let routes = [];
       try {
         const configPath = path.join(functionPath, 'route.config.json');
@@ -525,7 +559,6 @@ async function listFunctions() {
         log(`   Local Path: ${metadata.localPath}`, 'blue');
       }
     }
-
   } catch (error) {
     log(`❌ Failed to list functions: ${error.message}`, 'red');
     throw error;
@@ -534,12 +567,26 @@ async function listFunctions() {
 
 async function reloadFunction(functionName = null) {
   try {
-    const reloadUrl = 'http://localhost:3000/api/reload';
+    const port = process.env.PORT || '3000';
+    const protocol = process.env.FUNCDOCK_SSL === 'true' ? 'https' : 'http';
+    const reloadUrl = `${protocol}://localhost:${port}/api/reload`;
     const body = functionName ? JSON.stringify({ functionName }) : '{}';
 
-    const { stdout } = await execAsync(`curl -s -X POST -H "Content-Type: application/json" -d '${body}' ${reloadUrl}`);
+    const headers = {
+      'Content-Type': 'application/json',
+    };
 
-    const response = JSON.parse(stdout);
+    if (process.env.DEPLOY_API_KEY) {
+      headers['x-deploy-api-key'] = process.env.DEPLOY_API_KEY;
+    }
+
+    const res = await fetch(reloadUrl, {
+      method: 'POST',
+      headers,
+      body,
+    });
+
+    const response = await res.json();
     if (response.success) {
       const message = functionName
         ? `Reloaded function: ${functionName}`
@@ -563,14 +610,23 @@ async function main() {
   }
 
   try {
-    // Ensure functions directory exists
     await fs.mkdir(functionsDir, { recursive: true });
 
     if (options.list) {
       await listFunctions();
     } else if (options.remove) {
+      if (!validateFunctionName(options.remove)) {
+        throw new Error(
+          'Invalid function name. Use only alphanumeric characters, hyphens, and underscores.'
+        );
+      }
       await removeFunction(options.remove);
     } else if (options.update) {
+      if (!validateFunctionName(options.update)) {
+        throw new Error(
+          'Invalid function name. Use only alphanumeric characters, hyphens, and underscores.'
+        );
+      }
       const updateOptions = {};
       if (options.branch) updateOptions.branch = options.branch;
       if (options.commit) updateOptions.commit = options.commit;
@@ -579,27 +635,45 @@ async function main() {
       if (!options.name) {
         throw new Error('Function name is required when deploying from Git');
       }
+      if (!validateFunctionName(options.name)) {
+        throw new Error(
+          'Invalid function name. Use only alphanumeric characters, hyphens, and underscores.'
+        );
+      }
       await deployFromGit(options.git, options.name, options.branch, options.commit);
     } else if (options.pr) {
       if (!options.name || !options.prNumber) {
-        throw new Error('Function name and pull request number are required when deploying from a pull request');
+        throw new Error(
+          'Function name and pull request number are required when deploying from a pull request'
+        );
+      }
+      if (!validateFunctionName(options.name)) {
+        throw new Error(
+          'Invalid function name. Use only alphanumeric characters, hyphens, and underscores.'
+        );
       }
       await deployFromPullRequest(options.pr, options.name, options.prNumber);
     } else if (options.local) {
       if (!options.name) {
         throw new Error('Function name is required when deploying from local');
       }
+      if (!validateFunctionName(options.name)) {
+        throw new Error(
+          'Invalid function name. Use only alphanumeric characters, hyphens, and underscores.'
+        );
+      }
       await deployFromLocal(options.local, options.name);
     } else {
       log('❌ Invalid options. Use --help for usage information.', 'red');
       process.exit(1);
     }
-
   } catch (error) {
     log(`\n❌ Deployment failed: ${error.message}`, 'red');
     process.exit(1);
   }
 }
 
-// Run the deployment script
-main();
+main().catch((err) => {
+  log(`Unhandled error: ${err.message}`, 'red');
+  process.exit(1);
+});
