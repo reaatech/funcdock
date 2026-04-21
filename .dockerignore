@@ -1,48 +1,51 @@
 # Dependencies
 node_modules
 */node_modules
-npm-debug.log*
 
-# Logs
-logs/
-*.log
-
-# Environment files
+# Environment variables
 .env
 .env.*
+!.env.example
+
+# Logs
+logs
+*.log
 
 # Git
 .git
 .gitignore
 
-# Development files
-.vscode/
-.idea/
-*.swp
-*.swo
+# IDE
+.idea
+.vscode
 
-# Documentation
-README.md
-docs/
-
-# CI/CD
-.github/
-.gitlab-ci.yml
-
-# Docker
-Dockerfile
-.dockerignore
-docker-compose*.yml
-
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
+# Test and coverage
+coverage
+.nyc_output
+*.test.js
+*.test.mjs
+*.spec.js
+*.spec.mjs
+
+# Build artifacts
+dist
+build
+*.tgz
+
 # Temporary files
-tmp/
-temp/
+tmp
+temp
 *.tmp
 
-# Coverage
-coverage/
-.nyc_output/
+# Deployment backups
+backup
+backups
+.deployment-backups
+
+# Local development
+.local
+.dev

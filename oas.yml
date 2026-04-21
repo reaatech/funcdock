@@ -3,10 +3,10 @@ info:
   title: FuncDock API
   description: |
     The Ultimate Node.js FaaS Platform API
-    
+
     FuncDock is a revolutionary serverless platform with instant hot reload, CI/CD deployments, 
     per-route handlers, real-time dashboards, and production-grade testing.
-    
+
     ## Features
     - ⚡ Instant hot reload - Deploy code and see it live in milliseconds
     - 🎯 Per-route handlers - Each route can have its own handler file
@@ -67,26 +67,26 @@ components:
         message:
           type: string
           description: Error message
-          example: "Function not found"
+          example: 'Function not found'
         error:
           type: string
           description: Detailed error information
-          example: "ENOENT: no such file or directory"
+          example: 'ENOENT: no such file or directory'
         timestamp:
           type: string
           format: date-time
           description: Timestamp when the error occurred
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
 
     User:
       type: object
       properties:
         username:
           type: string
-          example: "admin"
+          example: 'admin'
         role:
           type: string
-          example: "admin"
+          example: 'admin'
 
     LoginRequest:
       type: object
@@ -97,12 +97,12 @@ components:
         username:
           type: string
           description: Admin username
-          example: "admin"
+          example: 'admin'
         password:
           type: string
           format: password
           description: Admin password
-          example: "admin"
+          example: 'admin'
 
     LoginResponse:
       type: object
@@ -110,7 +110,7 @@ components:
         token:
           type: string
           description: JWT authentication token
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjA5ODc2NDAwLCJleHAiOjE2MDk5NjI4MDB9.example"
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjA5ODc2NDAwLCJleHAiOjE2MDk5NjI4MDB9.example'
         user:
           $ref: '#/components/schemas/User'
 
@@ -120,15 +120,15 @@ components:
         method:
           type: string
           enum: [GET, POST, PUT, DELETE, PATCH, OPTIONS]
-          example: "GET"
+          example: 'GET'
         path:
           type: string
           description: Full route path including base
-          example: "/hello-world/greet"
+          example: '/hello-world/greet'
         handler:
           type: string
           description: Handler file name
-          example: "greet.js"
+          example: 'greet.js'
 
     CronJob:
       type: object
@@ -140,25 +140,25 @@ components:
         name:
           type: string
           description: Unique name for the cron job
-          example: "daily-greeting"
+          example: 'daily-greeting'
         schedule:
           type: string
           description: Cron schedule expression
-          example: "0 9 * * *"
+          example: '0 9 * * *'
           pattern: '^[0-9*,\\-/\\s]+$'
         handler:
           type: string
           description: Handler file path relative to function directory
-          example: "cron-handler.js"
+          example: 'cron-handler.js'
         timezone:
           type: string
           description: Timezone for the cron job
-          default: "UTC"
-          example: "UTC"
+          default: 'UTC'
+          example: 'UTC'
         description:
           type: string
           description: Human-readable description of the cron job
-          example: "Sends a daily greeting every day at 9:00 AM UTC"
+          example: 'Sends a daily greeting every day at 9:00 AM UTC'
 
     CronJobsConfig:
       type: object
@@ -176,12 +176,12 @@ components:
         name:
           type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
         status:
           type: string
           enum: [running, error, stopped]
           description: Function status
-          example: "running"
+          example: 'running'
         routes:
           type: array
           items:
@@ -194,20 +194,20 @@ components:
           type: string
           format: date-time
           description: Last deployment timestamp
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
         path:
           type: string
           description: File system path to function directory
-          example: "/app/functions/hello-world"
+          example: '/app/functions/hello-world'
         baseUrl:
           type: string
           description: Base URL prefix for function routes
-          example: "/hello-world"
+          example: '/hello-world'
         layerName:
           type: string
           nullable: true
           description: Associated layer name
-          example: "common-utils"
+          example: 'common-utils'
         layerError:
           type: string
           nullable: true
@@ -239,31 +239,31 @@ components:
         name:
           type: string
           description: Layer name
-          example: "common-utils"
+          example: 'common-utils'
         version:
           type: string
           description: Layer version
-          example: "1.0.0"
+          example: '1.0.0'
         description:
           type: string
           description: Layer description
-          example: "Common utility functions and dependencies"
+          example: 'Common utility functions and dependencies'
         status:
           type: string
           enum: [loaded, error]
           description: Layer status
-          example: "loaded"
+          example: 'loaded'
         loadedAt:
           type: string
           format: date-time
           description: When the layer was loaded
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
         functionsUsing:
           type: array
           items:
             type: string
           description: List of function names using this layer
-          example: ["hello-world", "webhook-handler"]
+          example: ['hello-world', 'webhook-handler']
 
     LayerDetail:
       allOf:
@@ -273,11 +273,11 @@ components:
             path:
               type: string
               description: File system path to layer directory
-              example: "/app/layers/common-utils"
+              example: '/app/layers/common-utils'
             nodejsPath:
               type: string
               description: Path to nodejs directory within layer
-              example: "/app/layers/common-utils/nodejs"
+              example: '/app/layers/common-utils/nodejs'
             config:
               type: object
               description: Layer configuration from layer.json
@@ -297,16 +297,16 @@ components:
         name:
           type: string
           description: File or directory name
-          example: "handler.js"
+          example: 'handler.js'
         path:
           type: string
           description: Relative path from function/layer root
-          example: "handler.js"
+          example: 'handler.js'
         type:
           type: string
           enum: [file, directory]
           description: Node type
-          example: "file"
+          example: 'file'
         size:
           type: integer
           description: File size in bytes (only for files)
@@ -340,29 +340,29 @@ components:
           type: string
           format: date-time
           description: Log entry timestamp
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
         message:
           type: string
           description: Log message
-          example: "Function handler called"
+          example: 'Function handler called'
         level:
           type: string
           enum: [INFO, ERROR, WARN, ACCESS, CRON, CRON_ERROR]
           description: Log level
-          example: "INFO"
+          example: 'INFO'
         function:
           type: string
           nullable: true
           description: Function name (if function-specific log)
-          example: "hello-world"
+          example: 'hello-world'
         method:
           type: string
           description: HTTP method (for ACCESS logs)
-          example: "GET"
+          example: 'GET'
         path:
           type: string
           description: Request path (for ACCESS logs)
-          example: "/hello-world/greet"
+          example: '/hello-world/greet'
         statusCode:
           type: integer
           description: HTTP status code (for ACCESS logs)
@@ -374,11 +374,11 @@ components:
         ip:
           type: string
           description: Client IP address (for ACCESS logs)
-          example: "192.168.1.1"
+          example: '192.168.1.1'
         userAgent:
           type: string
           description: User agent string (for ACCESS logs)
-          example: "Mozilla/5.0..."
+          example: 'Mozilla/5.0...'
 
     LogResponse:
       type: object
@@ -393,7 +393,7 @@ components:
       properties:
         name:
           type: string
-          example: "hello-world"
+          example: 'hello-world'
         invocations:
           type: integer
           description: Total number of function invocations
@@ -411,7 +411,7 @@ components:
           format: date-time
           nullable: true
           description: Timestamp of last invocation
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
         routes:
           type: array
           items:
@@ -463,7 +463,7 @@ components:
           type: string
           format: date-time
           description: Metrics timestamp
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
 
     SystemStatus:
       type: object
@@ -471,7 +471,7 @@ components:
         status:
           type: string
           enum: [running, stopped]
-          example: "running"
+          example: 'running'
         uptime:
           type: number
           description: System uptime in seconds
@@ -532,7 +532,7 @@ components:
         timestamp:
           type: string
           format: date-time
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
 
     HealthCheck:
       type: object
@@ -540,11 +540,11 @@ components:
         status:
           type: string
           enum: [healthy, unhealthy]
-          example: "healthy"
+          example: 'healthy'
         timestamp:
           type: string
           format: date-time
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
         functions:
           type: integer
           description: Number of loaded functions
@@ -556,7 +556,7 @@ components:
         functionName:
           type: string
           description: Specific function name to reload (optional, reloads all if omitted)
-          example: "hello-world"
+          example: 'hello-world'
 
     ReloadResponse:
       type: object
@@ -566,7 +566,7 @@ components:
           example: true
         message:
           type: string
-          example: "Function hello-world reloaded successfully"
+          example: 'Function hello-world reloaded successfully'
         functionsLoaded:
           type: integer
           description: Number of functions loaded (only for full reload)
@@ -574,7 +574,7 @@ components:
         timestamp:
           type: string
           format: date-time
-          example: "2024-01-15T10:30:00.000Z"
+          example: '2024-01-15T10:30:00.000Z'
 
     DeployLocalRequest:
       type: object
@@ -585,7 +585,7 @@ components:
         name:
           type: string
           description: Function or layer name
-          example: "hello-world"
+          example: 'hello-world'
         files:
           type: array
           items:
@@ -602,46 +602,46 @@ components:
         name:
           type: string
           description: Function or layer name
-          example: "hello-world"
+          example: 'hello-world'
         repo:
           type: string
           format: uri
           description: Git repository URL
-          example: "https://github.com/user/repo.git"
+          example: 'https://github.com/user/repo.git'
         branch:
           type: string
           description: Git branch name
-          default: "main"
-          example: "main"
+          default: 'main'
+          example: 'main'
         commit:
           type: string
           description: Specific commit hash (optional)
-          example: "abc123def456"
+          example: 'abc123def456'
 
     DeployResponse:
       type: object
       properties:
         message:
           type: string
-          example: "Function deployed successfully"
+          example: 'Function deployed successfully'
         function:
           type: object
           properties:
             name:
               type: string
-              example: "hello-world"
+              example: 'hello-world'
             status:
               type: string
-              example: "running"
+              example: 'running'
         layer:
           type: object
           properties:
             name:
               type: string
-              example: "common-utils"
+              example: 'common-utils'
             status:
               type: string
-              example: "loaded"
+              example: 'loaded'
 
     TestFunctionRequest:
       type: object
@@ -649,26 +649,26 @@ components:
         method:
           type: string
           enum: [GET, POST, PUT, DELETE, PATCH, OPTIONS]
-          default: "GET"
-          example: "GET"
+          default: 'GET'
+          example: 'GET'
         path:
           type: string
-          default: "/"
+          default: '/'
           description: Route path to test
-          example: "/greet"
+          example: '/greet'
         data:
           type: object
           description: Request body data
           additionalProperties: true
           example:
-            name: "World"
+            name: 'World'
         headers:
           type: object
           description: Additional request headers
           additionalProperties:
             type: string
           example:
-            "Content-Type": "application/json"
+            'Content-Type': 'application/json'
 
     TestFunctionResponse:
       type: object
@@ -684,7 +684,7 @@ components:
           description: Function response body
           additionalProperties: true
           example:
-            message: "Hello, World!"
+            message: 'Hello, World!'
         headers:
           type: object
           description: Response headers
@@ -704,8 +704,8 @@ components:
           additionalProperties:
             type: string
           example:
-            API_KEY: "secret-key-123"
-            DATABASE_URL: "postgresql://localhost:5432/mydb"
+            API_KEY: 'secret-key-123'
+            DATABASE_URL: 'postgresql://localhost:5432/mydb'
 
     LayerAssociationRequest:
       type: object
@@ -715,7 +715,7 @@ components:
         layer:
           type: string
           description: Layer name to associate
-          example: "common-utils"
+          example: 'common-utils'
 
     LayerAssociationResponse:
       type: object
@@ -726,7 +726,7 @@ components:
         layer:
           type: string
           nullable: true
-          example: "common-utils"
+          example: 'common-utils'
 
     OAuthUrlResponse:
       type: object
@@ -735,7 +735,7 @@ components:
           type: string
           format: uri
           description: OAuth authorization URL
-          example: "https://github.com/login/oauth/authorize?client_id=xxx&redirect_uri=xxx&scope=repo&state=xxx"
+          example: 'https://github.com/login/oauth/authorize?client_id=xxx&redirect_uri=xxx&scope=repo&state=xxx'
 
     Repository:
       type: object
@@ -745,28 +745,28 @@ components:
           example: 123456
         name:
           type: string
-          example: "my-function"
+          example: 'my-function'
         full_name:
           type: string
-          example: "user/my-function"
+          example: 'user/my-function'
         description:
           type: string
           nullable: true
-          example: "My awesome function"
+          example: 'My awesome function'
         private:
           type: boolean
           example: false
         html_url:
           type: string
           format: uri
-          example: "https://github.com/user/my-function"
+          example: 'https://github.com/user/my-function'
         clone_url:
           type: string
           format: uri
-          example: "https://github.com/user/my-function.git"
+          example: 'https://github.com/user/my-function.git'
         default_branch:
           type: string
-          example: "main"
+          example: 'main'
 
     RepositoryList:
       type: array
@@ -782,7 +782,7 @@ components:
         path:
           type: string
           description: File path relative to layer nodejs directory
-          example: "utils/helper.js"
+          example: 'utils/helper.js'
         content:
           type: string
           description: File content
@@ -795,10 +795,10 @@ components:
         properties:
           name:
             type: string
-            example: "hello-world"
+            example: 'hello-world'
           path:
             type: string
-            example: "/app/logs/functions/hello-world.log"
+            example: '/app/logs/functions/hello-world.log'
 
 paths:
   /health:
@@ -817,8 +817,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthCheck'
               example:
-                status: "healthy"
-                timestamp: "2024-01-15T10:30:00.000Z"
+                status: 'healthy'
+                timestamp: '2024-01-15T10:30:00.000Z'
                 functions: 5
 
   /api/auth/login:
@@ -836,8 +836,8 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
             example:
-              username: "admin"
-              password: "admin"
+              username: 'admin'
+              password: 'admin'
       responses:
         '200':
           description: Login successful
@@ -846,10 +846,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
               example:
-                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjA5ODc2NDAwLCJleHAiOjE2MDk5NjI4MDB9.example"
+                token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjA5ODc2NDAwLCJleHAiOjE2MDk5NjI4MDB9.example'
                 user:
-                  username: "admin"
-                  role: "admin"
+                  username: 'admin'
+                  role: 'admin'
         '400':
           description: Validation error
           content:
@@ -857,7 +857,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Username is required"
+                message: 'Username is required'
         '401':
           description: Invalid credentials
           content:
@@ -865,7 +865,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Invalid credentials"
+                message: 'Invalid credentials'
         '500':
           description: Internal server error
           content:
@@ -873,7 +873,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/auth/verify:
     get:
@@ -894,8 +894,8 @@ paths:
                     $ref: '#/components/schemas/User'
               example:
                 user:
-                  username: "admin"
-                  role: "admin"
+                  username: 'admin'
+                  role: 'admin'
         '401':
           description: Missing or invalid token
           content:
@@ -903,7 +903,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access token required"
+                message: 'Access token required'
         '403':
           description: Invalid or expired token
           content:
@@ -911,7 +911,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Invalid or expired token"
+                message: 'Invalid or expired token'
 
   /api/auth/logout:
     post:
@@ -931,7 +931,7 @@ paths:
                   message:
                     type: string
               example:
-                message: "Logged out successfully"
+                message: 'Logged out successfully'
         '401':
           description: Missing or invalid token
           content:
@@ -939,7 +939,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access token required"
+                message: 'Access token required'
 
   /api/status:
     get:
@@ -959,7 +959,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SystemStatus'
               example:
-                status: "running"
+                status: 'running'
                 uptime: 86400.5
                 functionsLoaded: 5
                 routesRegistered: 12
@@ -968,19 +968,19 @@ paths:
                 totalRoutes: 12
                 totalCronJobs: 8
                 functions:
-                  - name: "hello-world"
+                  - name: 'hello-world'
                     routes:
-                      - method: "GET"
-                        path: "/hello-world/"
-                        handler: "handler.js"
-                    loadedAt: "2024-01-15T10:00:00.000Z"
+                      - method: 'GET'
+                        path: '/hello-world/'
+                        handler: 'handler.js'
+                    loadedAt: '2024-01-15T10:00:00.000Z'
                     routeCount: 7
                     cronJobs:
-                      - name: "daily-greeting"
-                        schedule: "0 9 * * *"
-                        handler: "cron-handler.js"
-                        timezone: "UTC"
-                timestamp: "2024-01-15T10:30:00.000Z"
+                      - name: 'daily-greeting'
+                        schedule: '0 9 * * *'
+                        handler: 'cron-handler.js'
+                        timezone: 'UTC'
+                timestamp: '2024-01-15T10:30:00.000Z'
 
   /api/reload:
     post:
@@ -996,7 +996,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ReloadRequest'
             example:
-              functionName: "hello-world"
+              functionName: 'hello-world'
       responses:
         '200':
           description: Reload successful
@@ -1006,8 +1006,8 @@ paths:
                 $ref: '#/components/schemas/ReloadResponse'
               example:
                 success: true
-                message: "Function hello-world reloaded successfully"
-                timestamp: "2024-01-15T10:30:00.000Z"
+                message: 'Function hello-world reloaded successfully'
+                timestamp: '2024-01-15T10:30:00.000Z'
         '500':
           description: Reload failed
           content:
@@ -1015,7 +1015,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Failed to reload function hello-world"
+                message: 'Failed to reload function hello-world'
 
   /api/functions:
     get:
@@ -1033,18 +1033,18 @@ paths:
                 $ref: '#/components/schemas/FunctionList'
               example:
                 functions:
-                  - name: "hello-world"
-                    status: "running"
+                  - name: 'hello-world'
+                    status: 'running'
                     routes:
-                      - method: "GET"
-                        path: "/hello-world/"
-                        handler: "handler.js"
-                      - method: "GET"
-                        path: "/hello-world/greet"
-                        handler: "greet.js"
+                      - method: 'GET'
+                        path: '/hello-world/'
+                        handler: 'handler.js'
+                      - method: 'GET'
+                        path: '/hello-world/greet'
+                        handler: 'greet.js'
                     cronJobs: 2
-                    lastDeployed: "2024-01-15T10:00:00.000Z"
-                    layerName: "common-utils"
+                    lastDeployed: '2024-01-15T10:00:00.000Z'
+                    layerName: 'common-utils'
         '401':
           description: Unauthorized
           content:
@@ -1052,7 +1052,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access token required"
+                message: 'Access token required'
 
   /api/functions/{name}:
     get:
@@ -1068,7 +1068,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       responses:
         '200':
           description: Function details
@@ -1077,25 +1077,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/FunctionDetail'
               example:
-                name: "hello-world"
-                status: "running"
+                name: 'hello-world'
+                status: 'running'
                 routes:
-                  - method: "GET"
-                    path: "/hello-world/"
-                    handler: "handler.js"
-                  - method: "GET"
-                    path: "/hello-world/greet"
-                    handler: "greet.js"
+                  - method: 'GET'
+                    path: '/hello-world/'
+                    handler: 'handler.js'
+                  - method: 'GET'
+                    path: '/hello-world/greet'
+                    handler: 'greet.js'
                 cronJobs:
-                  - name: "daily-greeting"
-                    schedule: "0 9 * * *"
-                    handler: "cron-handler.js"
-                    timezone: "UTC"
-                    description: "Sends a daily greeting every day at 9:00 AM UTC"
-                lastDeployed: "2024-01-15T10:00:00.000Z"
-                path: "/app/functions/hello-world"
-                baseUrl: "/hello-world"
-                layerName: "common-utils"
+                  - name: 'daily-greeting'
+                    schedule: '0 9 * * *'
+                    handler: 'cron-handler.js'
+                    timezone: 'UTC'
+                    description: 'Sends a daily greeting every day at 9:00 AM UTC'
+                lastDeployed: '2024-01-15T10:00:00.000Z'
+                path: '/app/functions/hello-world'
+                baseUrl: '/hello-world'
+                layerName: 'common-utils'
         '404':
           description: Function not found
           content:
@@ -1103,7 +1103,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
 
     put:
       tags:
@@ -1118,7 +1118,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       requestBody:
         required: true
         content:
@@ -1144,10 +1144,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeployResponse'
               example:
-                message: "Function updated successfully"
+                message: 'Function updated successfully'
                 function:
-                  name: "hello-world"
-                  status: "running"
+                  name: 'hello-world'
+                  status: 'running'
         '400':
           description: Bad request
           content:
@@ -1155,7 +1155,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Files are required"
+                message: 'Files are required'
         '404':
           description: Function not found
           content:
@@ -1163,7 +1163,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1171,7 +1171,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
     delete:
       tags:
@@ -1186,7 +1186,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       responses:
         '200':
           description: Function deleted successfully
@@ -1198,7 +1198,7 @@ paths:
                   message:
                     type: string
               example:
-                message: "Function deleted successfully"
+                message: 'Function deleted successfully'
         '404':
           description: Function not found
           content:
@@ -1206,7 +1206,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1214,7 +1214,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/deploy/local:
     post:
@@ -1236,7 +1236,7 @@ paths:
                 name:
                   type: string
                   description: Function name
-                  example: "my-function"
+                  example: 'my-function'
                 files:
                   type: array
                   items:
@@ -1254,10 +1254,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeployResponse'
               example:
-                message: "Function deployed successfully"
+                message: 'Function deployed successfully'
                 function:
-                  name: "my-function"
-                  status: "running"
+                  name: 'my-function'
+                  status: 'running'
         '400':
           description: Bad request
           content:
@@ -1265,7 +1265,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function name and files are required"
+                message: 'Function name and files are required'
         '500':
           description: Internal server error
           content:
@@ -1273,7 +1273,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/deploy/git:
     post:
@@ -1289,10 +1289,10 @@ paths:
             schema:
               $ref: '#/components/schemas/DeployGitRequest'
             example:
-              name: "my-function"
-              repo: "https://github.com/user/my-function.git"
-              branch: "main"
-              commit: "abc123def456"
+              name: 'my-function'
+              repo: 'https://github.com/user/my-function.git'
+              branch: 'main'
+              commit: 'abc123def456'
       responses:
         '200':
           description: Function deployed successfully
@@ -1301,10 +1301,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeployResponse'
               example:
-                message: "Function deployed from Git successfully"
+                message: 'Function deployed from Git successfully'
                 function:
-                  name: "my-function"
-                  status: "running"
+                  name: 'my-function'
+                  status: 'running'
         '400':
           description: Bad request
           content:
@@ -1312,7 +1312,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function name and repository URL are required"
+                message: 'Function name and repository URL are required'
         '500':
           description: Internal server error
           content:
@@ -1320,7 +1320,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Failed to deploy from Git repository"
+                message: 'Failed to deploy from Git repository'
 
   /api/functions/{name}/logs:
     get:
@@ -1336,7 +1336,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
         - name: limit
           in: query
           schema:
@@ -1351,9 +1351,9 @@ paths:
           schema:
             type: string
             enum: [all, INFO, ERROR, WARN, ACCESS]
-            default: "all"
+            default: 'all'
           description: Filter logs by type
-          example: "all"
+          example: 'all'
       responses:
         '200':
           description: Function logs
@@ -1363,20 +1363,20 @@ paths:
                 $ref: '#/components/schemas/LogResponse'
               example:
                 logs:
-                  - timestamp: "2024-01-15T10:30:00.000Z"
-                    message: "HTTP access"
-                    level: "ACCESS"
-                    function: "hello-world"
-                    method: "GET"
-                    path: "/hello-world/greet"
+                  - timestamp: '2024-01-15T10:30:00.000Z'
+                    message: 'HTTP access'
+                    level: 'ACCESS'
+                    function: 'hello-world'
+                    method: 'GET'
+                    path: '/hello-world/greet'
                     statusCode: 200
                     duration: 45
-                    ip: "192.168.1.1"
-                    userAgent: "Mozilla/5.0..."
-                  - timestamp: "2024-01-15T10:29:00.000Z"
-                    message: "Handler called"
-                    level: "INFO"
-                    function: "hello-world"
+                    ip: '192.168.1.1'
+                    userAgent: 'Mozilla/5.0...'
+                  - timestamp: '2024-01-15T10:29:00.000Z'
+                    message: 'Handler called'
+                    level: 'INFO'
+                    function: 'hello-world'
         '404':
           description: Function not found
           content:
@@ -1384,7 +1384,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1392,7 +1392,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/{name}/metrics:
     get:
@@ -1408,7 +1408,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       responses:
         '200':
           description: Function metrics
@@ -1417,15 +1417,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/FunctionMetrics'
               example:
-                name: "hello-world"
+                name: 'hello-world'
                 invocations: 1250
                 errors: 5
                 avgResponseTime: 45.2
-                lastInvocation: "2024-01-15T10:30:00.000Z"
+                lastInvocation: '2024-01-15T10:30:00.000Z'
                 routes:
-                  - method: "GET"
-                    path: "/hello-world/"
-                    handler: "handler.js"
+                  - method: 'GET'
+                    path: '/hello-world/'
+                    handler: 'handler.js'
                 cronJobs: 2
         '404':
           description: Function not found
@@ -1434,7 +1434,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1442,7 +1442,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/{name}/test:
     post:
@@ -1458,19 +1458,19 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/TestFunctionRequest'
             example:
-              method: "GET"
-              path: "/greet"
+              method: 'GET'
+              path: '/greet'
               data:
-                name: "World"
+                name: 'World'
               headers:
-                "Content-Type": "application/json"
+                'Content-Type': 'application/json'
       responses:
         '200':
           description: Test result
@@ -1482,7 +1482,7 @@ paths:
                 success: true
                 statusCode: 200
                 response:
-                  message: "Hello, World!"
+                  message: 'Hello, World!'
                 headers: {}
         '404':
           description: Function not found
@@ -1491,7 +1491,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1499,7 +1499,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/{name}/env:
     get:
@@ -1515,7 +1515,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       responses:
         '200':
           description: Environment variables
@@ -1525,8 +1525,8 @@ paths:
                 $ref: '#/components/schemas/EnvResponse'
               example:
                 env:
-                  API_KEY: "secret-key-123"
-                  DATABASE_URL: "postgresql://localhost:5432/mydb"
+                  API_KEY: 'secret-key-123'
+                  DATABASE_URL: 'postgresql://localhost:5432/mydb'
         '404':
           description: Function not found
           content:
@@ -1534,7 +1534,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1542,7 +1542,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Failed to load environment variables"
+                message: 'Failed to load environment variables'
 
   /api/functions/{name}/layer:
     put:
@@ -1558,7 +1558,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       requestBody:
         required: true
         content:
@@ -1566,7 +1566,7 @@ paths:
             schema:
               $ref: '#/components/schemas/LayerAssociationRequest'
             example:
-              layer: "common-utils"
+              layer: 'common-utils'
       responses:
         '200':
           description: Layer associated successfully
@@ -1576,7 +1576,7 @@ paths:
                 $ref: '#/components/schemas/LayerAssociationResponse'
               example:
                 message: "Layer 'common-utils' associated with function"
-                layer: "common-utils"
+                layer: 'common-utils'
         '404':
           description: Function or layer not found
           content:
@@ -1592,7 +1592,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
     delete:
       tags:
@@ -1607,7 +1607,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       responses:
         '200':
           description: Layer association removed
@@ -1619,7 +1619,7 @@ paths:
                   message:
                     type: string
               example:
-                message: "Layer association removed"
+                message: 'Layer association removed'
         '404':
           description: Function not found
           content:
@@ -1627,7 +1627,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1635,7 +1635,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/{name}/cron:
     get:
@@ -1651,7 +1651,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       responses:
         '200':
           description: Cron jobs configuration
@@ -1666,16 +1666,16 @@ paths:
                       $ref: '#/components/schemas/CronJob'
               example:
                 jobs:
-                  - name: "daily-greeting"
-                    schedule: "0 9 * * *"
-                    handler: "cron-handler.js"
-                    timezone: "UTC"
-                    description: "Sends a daily greeting every day at 9:00 AM UTC"
-                  - name: "hourly-check"
-                    schedule: "0 * * * *"
-                    handler: "cron-handler.js"
-                    timezone: "UTC"
-                    description: "Runs every hour to check system status"
+                  - name: 'daily-greeting'
+                    schedule: '0 9 * * *'
+                    handler: 'cron-handler.js'
+                    timezone: 'UTC'
+                    description: 'Sends a daily greeting every day at 9:00 AM UTC'
+                  - name: 'hourly-check'
+                    schedule: '0 * * * *'
+                    handler: 'cron-handler.js'
+                    timezone: 'UTC'
+                    description: 'Runs every hour to check system status'
         '404':
           description: Function not found
           content:
@@ -1683,7 +1683,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1691,7 +1691,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
     put:
       tags:
@@ -1706,7 +1706,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       requestBody:
         required: true
         content:
@@ -1715,16 +1715,16 @@ paths:
               $ref: '#/components/schemas/CronJobsConfig'
             example:
               jobs:
-                - name: "daily-greeting"
-                  schedule: "0 9 * * *"
-                  handler: "cron-handler.js"
-                  timezone: "UTC"
-                  description: "Sends a daily greeting every day at 9:00 AM UTC"
-                - name: "hourly-check"
-                  schedule: "0 * * * *"
-                  handler: "cron-handler.js"
-                  timezone: "America/New_York"
-                  description: "Runs every hour to check system status"
+                - name: 'daily-greeting'
+                  schedule: '0 9 * * *'
+                  handler: 'cron-handler.js'
+                  timezone: 'UTC'
+                  description: 'Sends a daily greeting every day at 9:00 AM UTC'
+                - name: 'hourly-check'
+                  schedule: '0 * * * *'
+                  handler: 'cron-handler.js'
+                  timezone: 'America/New_York'
+                  description: 'Runs every hour to check system status'
       responses:
         '200':
           description: Cron jobs updated successfully
@@ -1740,13 +1740,13 @@ paths:
                     items:
                       $ref: '#/components/schemas/CronJob'
               example:
-                message: "Cron jobs updated successfully"
+                message: 'Cron jobs updated successfully'
                 jobs:
-                  - name: "daily-greeting"
-                    schedule: "0 9 * * *"
-                    handler: "cron-handler.js"
-                    timezone: "UTC"
-                    description: "Sends a daily greeting every day at 9:00 AM UTC"
+                  - name: 'daily-greeting'
+                    schedule: '0 9 * * *'
+                    handler: 'cron-handler.js'
+                    timezone: 'UTC'
+                    description: 'Sends a daily greeting every day at 9:00 AM UTC'
         '400':
           description: Bad request
           content:
@@ -1754,7 +1754,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Each job must have name, schedule, and handler fields"
+                message: 'Each job must have name, schedule, and handler fields'
         '404':
           description: Function not found
           content:
@@ -1762,7 +1762,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1770,7 +1770,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/{name}/files:
     get:
@@ -1786,7 +1786,7 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
       responses:
         '200':
           description: File tree structure
@@ -1796,25 +1796,25 @@ paths:
                 $ref: '#/components/schemas/FileTree'
               example:
                 files:
-                  - name: "handler.js"
-                    path: "handler.js"
-                    type: "file"
+                  - name: 'handler.js'
+                    path: 'handler.js'
+                    type: 'file'
                     size: 1024
-                  - name: "route.config.json"
-                    path: "route.config.json"
-                    type: "file"
+                  - name: 'route.config.json'
+                    path: 'route.config.json'
+                    type: 'file'
                     size: 512
-                  - name: "package.json"
-                    path: "package.json"
-                    type: "file"
+                  - name: 'package.json'
+                    path: 'package.json'
+                    type: 'file'
                     size: 256
-                  - name: "src"
-                    path: "src"
-                    type: "directory"
+                  - name: 'src'
+                    path: 'src'
+                    type: 'directory'
                     children:
-                      - name: "utils.js"
-                        path: "src/utils.js"
-                        type: "file"
+                      - name: 'utils.js'
+                        path: 'src/utils.js'
+                        type: 'file'
                         size: 768
         '404':
           description: Function not found
@@ -1823,7 +1823,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Function not found"
+                message: 'Function not found'
         '500':
           description: Internal server error
           content:
@@ -1831,7 +1831,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/{name}/files/content:
     get:
@@ -1847,14 +1847,14 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
         - name: path
           in: query
           required: true
           schema:
             type: string
           description: File path relative to function directory
-          example: "handler.js"
+          example: 'handler.js'
       responses:
         '200':
           description: File content
@@ -1871,7 +1871,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "File path is required"
+                message: 'File path is required'
         '403':
           description: Access denied
           content:
@@ -1879,7 +1879,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access denied"
+                message: 'Access denied'
         '404':
           description: File or function not found
           content:
@@ -1887,7 +1887,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "File not found"
+                message: 'File not found'
         '500':
           description: Internal server error
           content:
@@ -1895,7 +1895,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/functions/{name}/files/download:
     get:
@@ -1911,14 +1911,14 @@ paths:
           schema:
             type: string
           description: Function name
-          example: "hello-world"
+          example: 'hello-world'
         - name: path
           in: query
           required: true
           schema:
             type: string
           description: File path relative to function directory
-          example: "handler.js"
+          example: 'handler.js'
       responses:
         '200':
           description: File download
@@ -1934,7 +1934,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "File path is required"
+                message: 'File path is required'
         '403':
           description: Access denied
           content:
@@ -1942,7 +1942,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access denied"
+                message: 'Access denied'
         '404':
           description: File or function not found
           content:
@@ -1950,7 +1950,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "File not found"
+                message: 'File not found'
         '500':
           description: Internal server error
           content:
@@ -1958,7 +1958,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/layers:
     get:
@@ -1976,12 +1976,12 @@ paths:
                 $ref: '#/components/schemas/LayerList'
               example:
                 layers:
-                  - name: "common-utils"
-                    version: "1.0.0"
-                    description: "Common utility functions and dependencies"
-                    status: "loaded"
-                    loadedAt: "2024-01-15T10:00:00.000Z"
-                    functionsUsing: ["hello-world", "webhook-handler"]
+                  - name: 'common-utils'
+                    version: '1.0.0'
+                    description: 'Common utility functions and dependencies'
+                    status: 'loaded'
+                    loadedAt: '2024-01-15T10:00:00.000Z'
+                    functionsUsing: ['hello-world', 'webhook-handler']
         '401':
           description: Unauthorized
           content:
@@ -1989,7 +1989,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access token required"
+                message: 'Access token required'
 
   /api/layers/{name}:
     get:
@@ -2005,7 +2005,7 @@ paths:
           schema:
             type: string
           description: Layer name
-          example: "common-utils"
+          example: 'common-utils'
       responses:
         '200':
           description: Layer details
@@ -2014,17 +2014,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/LayerDetail'
               example:
-                name: "common-utils"
-                version: "1.0.0"
-                description: "Common utility functions and dependencies"
-                status: "loaded"
-                loadedAt: "2024-01-15T10:00:00.000Z"
-                path: "/app/layers/common-utils"
-                nodejsPath: "/app/layers/common-utils/nodejs"
-                functionsUsing: ["hello-world", "webhook-handler"]
+                name: 'common-utils'
+                version: '1.0.0'
+                description: 'Common utility functions and dependencies'
+                status: 'loaded'
+                loadedAt: '2024-01-15T10:00:00.000Z'
+                path: '/app/layers/common-utils'
+                nodejsPath: '/app/layers/common-utils/nodejs'
+                functionsUsing: ['hello-world', 'webhook-handler']
                 config:
-                  version: "1.0.0"
-                  description: "Common utility functions"
+                  version: '1.0.0'
+                  description: 'Common utility functions'
         '404':
           description: Layer not found
           content:
@@ -2032,7 +2032,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Layer not found"
+                message: 'Layer not found'
 
     put:
       tags:
@@ -2047,7 +2047,7 @@ paths:
           schema:
             type: string
           description: Layer name
-          example: "common-utils"
+          example: 'common-utils'
       requestBody:
         required: true
         content:
@@ -2073,10 +2073,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeployResponse'
               example:
-                message: "Layer updated successfully"
+                message: 'Layer updated successfully'
                 layer:
-                  name: "common-utils"
-                  status: "loaded"
+                  name: 'common-utils'
+                  status: 'loaded'
         '400':
           description: Bad request
           content:
@@ -2084,7 +2084,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Files are required"
+                message: 'Files are required'
         '404':
           description: Layer not found
           content:
@@ -2092,7 +2092,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Layer not found"
+                message: 'Layer not found'
         '500':
           description: Internal server error
           content:
@@ -2100,7 +2100,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
     delete:
       tags:
@@ -2115,7 +2115,7 @@ paths:
           schema:
             type: string
           description: Layer name
-          example: "common-utils"
+          example: 'common-utils'
       responses:
         '200':
           description: Layer deleted successfully
@@ -2127,7 +2127,7 @@ paths:
                   message:
                     type: string
               example:
-                message: "Layer deleted successfully"
+                message: 'Layer deleted successfully'
         '400':
           description: Bad request - layer is in use
           content:
@@ -2135,7 +2135,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Cannot delete layer: 2 function(s) are using it"
+                message: 'Cannot delete layer: 2 function(s) are using it'
         '404':
           description: Layer not found
           content:
@@ -2143,7 +2143,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Layer not found"
+                message: 'Layer not found'
         '500':
           description: Internal server error
           content:
@@ -2151,7 +2151,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/layers/deploy/local:
     post:
@@ -2173,7 +2173,7 @@ paths:
                 name:
                   type: string
                   description: Layer name
-                  example: "common-utils"
+                  example: 'common-utils'
                 files:
                   type: array
                   items:
@@ -2191,10 +2191,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeployResponse'
               example:
-                message: "Layer deployed successfully"
+                message: 'Layer deployed successfully'
                 layer:
-                  name: "common-utils"
-                  status: "loaded"
+                  name: 'common-utils'
+                  status: 'loaded'
         '400':
           description: Bad request
           content:
@@ -2202,7 +2202,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Layer name and files are required"
+                message: 'Layer name and files are required'
         '409':
           description: Layer already exists
           content:
@@ -2218,7 +2218,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/layers/deploy/git:
     post:
@@ -2234,10 +2234,10 @@ paths:
             schema:
               $ref: '#/components/schemas/DeployGitRequest'
             example:
-              name: "common-utils"
-              repo: "https://github.com/user/common-utils.git"
-              branch: "main"
-              commit: "abc123def456"
+              name: 'common-utils'
+              repo: 'https://github.com/user/common-utils.git'
+              branch: 'main'
+              commit: 'abc123def456'
       responses:
         '200':
           description: Layer deployed successfully
@@ -2246,10 +2246,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeployResponse'
               example:
-                message: "Layer deployed from Git successfully"
+                message: 'Layer deployed from Git successfully'
                 layer:
-                  name: "common-utils"
-                  status: "loaded"
+                  name: 'common-utils'
+                  status: 'loaded'
         '400':
           description: Bad request
           content:
@@ -2257,7 +2257,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Layer name and repository URL are required"
+                message: 'Layer name and repository URL are required'
         '409':
           description: Layer already exists
           content:
@@ -2273,7 +2273,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Failed to deploy from Git repository"
+                message: 'Failed to deploy from Git repository'
 
   /api/layers/{name}/reload:
     post:
@@ -2289,7 +2289,7 @@ paths:
           schema:
             type: string
           description: Layer name
-          example: "common-utils"
+          example: 'common-utils'
       responses:
         '200':
           description: Layer reloaded successfully
@@ -2308,10 +2308,10 @@ paths:
                       status:
                         type: string
               example:
-                message: "Layer reloaded successfully"
+                message: 'Layer reloaded successfully'
                 layer:
-                  name: "common-utils"
-                  status: "loaded"
+                  name: 'common-utils'
+                  status: 'loaded'
         '404':
           description: Layer not found
           content:
@@ -2319,7 +2319,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Layer not found"
+                message: 'Layer not found'
         '500':
           description: Internal server error
           content:
@@ -2327,7 +2327,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/layers/reload:
     post:
@@ -2351,7 +2351,7 @@ paths:
                   functionsReloaded:
                     type: integer
               example:
-                message: "All layers reloaded successfully"
+                message: 'All layers reloaded successfully'
                 layersReloaded: 3
                 functionsReloaded: 5
         '500':
@@ -2361,7 +2361,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/layers/{name}/files:
     get:
@@ -2377,7 +2377,7 @@ paths:
           schema:
             type: string
           description: Layer name
-          example: "common-utils"
+          example: 'common-utils'
       responses:
         '200':
           description: File tree structure
@@ -2387,17 +2387,17 @@ paths:
                 $ref: '#/components/schemas/FileTree'
               example:
                 files:
-                  - name: "utils.js"
-                    path: "utils.js"
-                    type: "file"
+                  - name: 'utils.js'
+                    path: 'utils.js'
+                    type: 'file'
                     size: 2048
-                  - name: "helpers"
-                    path: "helpers"
-                    type: "directory"
+                  - name: 'helpers'
+                    path: 'helpers'
+                    type: 'directory'
                     children:
-                      - name: "validator.js"
-                        path: "helpers/validator.js"
-                        type: "file"
+                      - name: 'validator.js'
+                        path: 'helpers/validator.js'
+                        type: 'file'
                         size: 1536
         '404':
           description: Layer not found
@@ -2406,7 +2406,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Layer not found"
+                message: 'Layer not found'
         '500':
           description: Internal server error
           content:
@@ -2414,8 +2414,75 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
+    put:
+      tags:
+        - Files
+      summary: Update layer file content
+      description: Update the content of a file in a layer directory
+      operationId: updateLayerFile
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer name
+          example: 'common-utils'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLayerFileRequest'
+            example:
+              path: 'utils.js'
+              content: "export function helper() {\n  return 'help';\n}"
+      responses:
+        '200':
+          description: File updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: 'Layer file updated successfully'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'File path and content are required'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Access denied'
+        '404':
+          description: Layer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Layer not found'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Failed to reload layer after file update'
   /api/layers/{name}/files/content:
     get:
       tags:
@@ -2430,14 +2497,14 @@ paths:
           schema:
             type: string
           description: Layer name
-          example: "common-utils"
+          example: 'common-utils'
         - name: path
           in: query
           required: true
           schema:
             type: string
           description: File path relative to layer nodejs directory
-          example: "utils.js"
+          example: 'utils.js'
       responses:
         '200':
           description: File content
@@ -2454,7 +2521,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "File path is required"
+                message: 'File path is required'
         '403':
           description: Access denied
           content:
@@ -2462,7 +2529,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access denied"
+                message: 'Access denied'
         '404':
           description: File or layer not found
           content:
@@ -2470,7 +2537,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "File not found"
+                message: 'File not found'
         '500':
           description: Internal server error
           content:
@@ -2478,7 +2545,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/layers/{name}/files/download:
     get:
@@ -2494,14 +2561,14 @@ paths:
           schema:
             type: string
           description: Layer name
-          example: "common-utils"
+          example: 'common-utils'
         - name: path
           in: query
           required: true
           schema:
             type: string
           description: File path relative to layer nodejs directory
-          example: "utils.js"
+          example: 'utils.js'
       responses:
         '200':
           description: File download
@@ -2517,7 +2584,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "File path is required"
+                message: 'File path is required'
         '403':
           description: Access denied
           content:
@@ -2525,7 +2592,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access denied"
+                message: 'Access denied'
         '404':
           description: File or layer not found
           content:
@@ -2533,7 +2600,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "File not found"
+                message: 'File not found'
         '500':
           description: Internal server error
           content:
@@ -2541,76 +2608,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
-
-  /api/layers/{name}/files:
-    put:
-      tags:
-        - Files
-      summary: Update layer file content
-      description: Update the content of a file in a layer directory
-      operationId: updateLayerFile
-      parameters:
-        - name: name
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Layer name
-          example: "common-utils"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateLayerFileRequest'
-            example:
-              path: "utils.js"
-              content: "export function helper() {\n  return 'help';\n}"
-      responses:
-        '200':
-          description: File updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-              example:
-                message: "Layer file updated successfully"
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                message: "File path and content are required"
-        '403':
-          description: Access denied
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                message: "Access denied"
-        '404':
-          description: Layer not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                message: "Layer not found"
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                message: "Failed to reload layer after file update"
+                message: 'Internal server error'
 
   /api/logs:
     get:
@@ -2638,13 +2636,13 @@ paths:
                 $ref: '#/components/schemas/LogResponse'
               example:
                 logs:
-                  - timestamp: "2024-01-15T10:30:00.000Z"
-                    message: "Function loaded successfully"
-                    level: "INFO"
-                    function: "hello-world"
-                  - timestamp: "2024-01-15T10:29:00.000Z"
-                    message: "Route registered"
-                    level: "INFO"
+                  - timestamp: '2024-01-15T10:30:00.000Z'
+                    message: 'Function loaded successfully'
+                    level: 'INFO'
+                    function: 'hello-world'
+                  - timestamp: '2024-01-15T10:29:00.000Z'
+                    message: 'Route registered'
+                    level: 'INFO'
                     function: null
         '500':
           description: Internal server error
@@ -2653,7 +2651,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/logs/functions:
     get:
@@ -2670,10 +2668,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/FunctionLogFiles'
               example:
-                - name: "hello-world"
-                  path: "/app/logs/functions/hello-world.log"
-                - name: "webhook-handler"
-                  path: "/app/logs/functions/webhook-handler.log"
+                - name: 'hello-world'
+                  path: '/app/logs/functions/hello-world.log'
+                - name: 'webhook-handler'
+                  path: '/app/logs/functions/webhook-handler.log'
         '500':
           description: Internal server error
           content:
@@ -2681,7 +2679,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/metrics:
     get:
@@ -2707,7 +2705,7 @@ paths:
                 functions: 5
                 activeRoutes: 12
                 activeCronJobs: 8
-                timestamp: "2024-01-15T10:30:00.000Z"
+                timestamp: '2024-01-15T10:30:00.000Z'
         '500':
           description: Internal server error
           content:
@@ -2715,7 +2713,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/oauth/github:
     get:
@@ -2732,7 +2730,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OAuthUrlResponse'
               example:
-                url: "https://github.com/login/oauth/authorize?client_id=xxx&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Fapi%2Foauth%2Fgithub%2Fcallback&scope=repo&state=abc123"
+                url: 'https://github.com/login/oauth/authorize?client_id=xxx&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Fapi%2Foauth%2Fgithub%2Fcallback&scope=repo&state=abc123'
         '401':
           description: Unauthorized
           content:
@@ -2740,7 +2738,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access token required"
+                message: 'Access token required'
 
   /api/oauth/github/callback:
     get:
@@ -2757,13 +2755,13 @@ paths:
           schema:
             type: string
           description: OAuth authorization code
-          example: "abc123def456"
+          example: 'abc123def456'
         - name: state
           in: query
           schema:
             type: string
           description: OAuth state parameter
-          example: "xyz789"
+          example: 'xyz789'
       responses:
         '302':
           description: Redirect to dashboard
@@ -2774,7 +2772,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Missing code"
+                message: 'Missing code'
         '500':
           description: Internal server error
           content:
@@ -2782,7 +2780,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/github/repos:
     get:
@@ -2800,13 +2798,13 @@ paths:
                 $ref: '#/components/schemas/RepositoryList'
               example:
                 - id: 123456
-                  name: "my-function"
-                  full_name: "user/my-function"
-                  description: "My awesome function"
+                  name: 'my-function'
+                  full_name: 'user/my-function'
+                  description: 'My awesome function'
                   private: false
-                  html_url: "https://github.com/user/my-function"
-                  clone_url: "https://github.com/user/my-function.git"
-                  default_branch: "main"
+                  html_url: 'https://github.com/user/my-function'
+                  clone_url: 'https://github.com/user/my-function.git'
+                  default_branch: 'main'
         '401':
           description: Unauthorized or not connected to GitHub
           content:
@@ -2814,7 +2812,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: "Not connected to GitHub"
+                error: 'Not connected to GitHub'
         '500':
           description: Internal server error
           content:
@@ -2822,7 +2820,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: "Internal server error"
+                error: 'Internal server error'
 
   /api/oauth/bitbucket:
     get:
@@ -2839,7 +2837,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OAuthUrlResponse'
               example:
-                url: "https://bitbucket.org/site/oauth2/authorize?client_id=xxx&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Fapi%2Foauth%2Fbitbucket%2Fcallback&state=abc123"
+                url: 'https://bitbucket.org/site/oauth2/authorize?client_id=xxx&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Fapi%2Foauth%2Fbitbucket%2Fcallback&state=abc123'
         '401':
           description: Unauthorized
           content:
@@ -2847,7 +2845,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Access token required"
+                message: 'Access token required'
 
   /api/oauth/bitbucket/callback:
     get:
@@ -2864,13 +2862,13 @@ paths:
           schema:
             type: string
           description: OAuth authorization code
-          example: "abc123def456"
+          example: 'abc123def456'
         - name: state
           in: query
           schema:
             type: string
           description: OAuth state parameter
-          example: "xyz789"
+          example: 'xyz789'
       responses:
         '302':
           description: Redirect to dashboard
@@ -2881,7 +2879,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Missing code"
+                message: 'Missing code'
         '500':
           description: Internal server error
           content:
@@ -2889,7 +2887,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Internal server error"
+                message: 'Internal server error'
 
   /api/bitbucket/repos:
     get:
@@ -2907,13 +2905,13 @@ paths:
                 $ref: '#/components/schemas/RepositoryList'
               example:
                 - id: 123456
-                  name: "my-function"
-                  full_name: "user/my-function"
-                  description: "My awesome function"
+                  name: 'my-function'
+                  full_name: 'user/my-function'
+                  description: 'My awesome function'
                   private: false
-                  html_url: "https://bitbucket.org/user/my-function"
-                  clone_url: "https://bitbucket.org/user/my-function.git"
-                  default_branch: "main"
+                  html_url: 'https://bitbucket.org/user/my-function'
+                  clone_url: 'https://bitbucket.org/user/my-function.git'
+                  default_branch: 'main'
         '401':
           description: Unauthorized or not connected to Bitbucket
           content:
@@ -2921,7 +2919,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: "Not connected to Bitbucket"
+                error: 'Not connected to Bitbucket'
         '500':
           description: Internal server error
           content:
@@ -2929,5 +2927,4 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: "Internal server error"
-
+                error: 'Internal server error'

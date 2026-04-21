@@ -15,7 +15,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy application code
 COPY . .
@@ -23,9 +23,12 @@ COPY . .
 # Create functions directory
 RUN mkdir -p functions logs
 
-# Configure Redis
-RUN mkdir -p /var/lib/redis
-RUN chown -R redis:redis /var/lib/redis
+# Configure Redis to bind to localhost only and use /app for data
+RUN mkdir -p /app/redis && \
+    echo "bind 127.0.0.1" > /etc/redis/redis.conf && \
+    echo "dir /app/redis" >> /etc/redis/redis.conf && \
+    echo "logfile /app/redis/redis.log" >> /etc/redis/redis.conf && \
+    echo "pidfile /app/redis/redis.pid" >> /etc/redis/redis.conf
 
 # Create non-root user for security
 RUN groupadd -r serverless && useradd -r -g serverless serverless
@@ -42,6 +45,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Set environment variables
 ENV NODE_ENV=production
 ENV LOG_LEVEL=info
+ENV HUSKY=0
 
 # Start Redis and the application
-CMD ["sh", "-c", "redis-server --daemonize yes && node server.js"]
+CMD ["sh", "-c", "redis-server --daemonize yes --port 6379 --bind 127.0.0.1 --requirepass ${REDIS_PASSWORD:-funcdock_internal} && node server.js"]
