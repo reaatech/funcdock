@@ -313,12 +313,12 @@ main() {
         log $YELLOW "💡 Deploy some functions first: make deploy-git REPO=<repo> NAME=<name>"
     else
         log $BLUE "📋 Found functions to test:"
-        echo "$functions" | while read -r func; do
+        while read -r func; do
             if [ -n "$func" ]; then
                 log $YELLOW "  - $func"
                 function_count=$((function_count + 1))
             fi
-        done
+        done <<< "$functions"
         echo ""
 
         # Test each function
