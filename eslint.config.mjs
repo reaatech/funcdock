@@ -1,7 +1,6 @@
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-import react from 'eslint-plugin-react';
 
 export default [
   js.configs.recommended,
@@ -28,34 +27,12 @@ export default [
     },
   },
   {
-    files: ['dashboard/src/**/*'],
-    plugins: {
-      react,
-    },
-    languageOptions: {
-      globals: {
-        ...globals.browser,
-      },
-    },
-    rules: {
-      'react/jsx-uses-vars': 'error',
-      'react/jsx-uses-react': 'error',
-    },
-    settings: {
-      react: {
-        version: 'detect',
-      },
-    },
-  },
-  {
     ignores: [
       'node_modules/**',
       'coverage/**',
       'public/**',
       'logs/**',
-      'dashboard/src/**',
-      'dashboard/node_modules/**',
-      'dashboard/dist/**',
+      'dashboard/**',
       '.temp-deploy/**',
       'backup/**',
       'backups/**',
