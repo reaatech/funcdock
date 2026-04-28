@@ -15,7 +15,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for Jest/Nock)
-RUN npm ci
+RUN HUSKY=0 npm ci
 
 # Copy application code
 COPY . .
