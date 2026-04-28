@@ -1,0 +1,43 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    versioning-strategy: 'increase'
+    labels:
+      - 'dependencies'
+      - 'javascript'
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-minor']
+
+  - package-ecosystem: 'npm'
+    directory: '/dashboard'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    versioning-strategy: 'increase'
+    labels:
+      - 'dependencies'
+      - 'javascript'
+      - 'dashboard'
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-minor']
+
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    labels:
+      - 'dependencies'
+      - 'ci'
