@@ -40,7 +40,7 @@ jobs:
           node-version: '22'
 
       - name: Deploy to server
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ inputs.server_host }}
           username: ${{ secrets.SSH_USERNAME }}

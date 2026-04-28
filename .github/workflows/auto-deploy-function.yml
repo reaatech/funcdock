@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Deploy updated function
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SERVERLESS_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
