@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:25-slim
 
 # Install git for cloning function repositories, Redis server, and Redis client tools
 RUN apt-get update && apt-get install -y \
