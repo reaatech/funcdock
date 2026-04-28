@@ -11,11 +11,12 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files and prepare script (needed for npm lifecycle hooks)
 COPY package*.json ./
+COPY scripts/prepare.js ./scripts/
 
-# Install dependencies (disable husky prepare script)
-RUN HUSKY=0 npm ci --omit=dev
+# Install dependencies
+RUN npm ci --omit=dev
 
 # Copy application code
 COPY . .
