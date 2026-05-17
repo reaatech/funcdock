@@ -7,12 +7,23 @@ export default defineConfig({
   build: {
     outDir: '../public/dashboard',
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          socket: ['socket.io-client'],
+        codeSplitting: {
+          groups: [
+            {
+              test: /node_modules\/(react|react-dom)\//,
+              name: 'vendor',
+            },
+            {
+              test: /node_modules\/react-router-dom\//,
+              name: 'router',
+            },
+            {
+              test: /node_modules\/socket.io-client\//,
+              name: 'socket',
+            },
+          ],
         },
       },
     },
