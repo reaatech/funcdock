@@ -1,7 +1,7 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { trace, context, SpanStatusCode, propagation } from '@opentelemetry/api';
 
@@ -18,7 +18,7 @@ export const initTracer = () => {
   }
   tracerInitialized = true;
 
-  const resource = new Resource({
+  const resource = resourceFromAttributes({
     [SemanticResourceAttributes.SERVICE_NAME]: SERVICE_NAME,
     [SemanticResourceAttributes.SERVICE_VERSION]: process.env.npm_package_version || '2.0.0',
     [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'production',
